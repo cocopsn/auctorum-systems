@@ -22,8 +22,7 @@ const nextConfig = {
   // Disable x-powered-by header
   poweredByHeader: false,
 
-  // Enable output standalone for Docker/PM2 deployment
-  output: 'standalone',
+  // Note: 'standalone' output removed — use 'next start' with PM2
 };
 
 module.exports = nextConfig;
