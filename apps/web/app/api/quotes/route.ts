@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, tenants, products, quotes, quoteItems } from '@quote-engine/db';
 import { eq, inArray } from 'drizzle-orm';
-import type { TenantConfig } from '@quote-engine/db';
+import type { TenantConfig, Product } from '@quote-engine/db';
 import { generateQuotePDF } from '@quote-engine/pdf';
 import { sendWhatsAppQuote } from '@quote-engine/notifications/whatsapp';
 import { sendEmailQuote } from '@quote-engine/notifications/email';
@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Build quote items with calculated totals
     const itemsWithTotals = body.items.map(item => {
-      const product = tenantProducts.find(p => p.id === item.id);
+      const product = tenantProducts.find((p: Product) => p.id === item.id);
       if (!product) return null;
       const unitPrice = parseFloat(product.unitPrice);
       const lineTotal = unitPrice * item.qty;
