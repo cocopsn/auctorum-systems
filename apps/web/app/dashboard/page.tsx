@@ -1,7 +1,7 @@
 import { db, quotes, products, tenants } from '@quote-engine/db';
 import { eq, desc, sql, and, gte } from 'drizzle-orm';
 import { headers } from 'next/headers';
-import type { TenantConfig } from '@quote-engine/db';
+import type { TenantConfig, Quote } from '@quote-engine/db';
 
 // ============================================================
 // Dashboard home: metrics cards + recent quotes table
@@ -141,7 +141,7 @@ export default async function DashboardPage() {
                     </td>
                   </tr>
                 ) : (
-                  recentQuotes.map(q => (
+                  recentQuotes.map((q: Quote) => (
                     <tr key={q.id} className="hover:bg-gray-50">
                       <td className="px-5 py-3 font-mono text-gray-400">
                         {String(q.quoteNumber).padStart(4, '0')}
