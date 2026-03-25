@@ -1,0 +1,17 @@
+{
+  "name": "quote-engine",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start",
+    "db:generate": "pnpm --filter @quote-engine/db generate",
+    "db:migrate": "pnpm --filter @quote-engine/db migrate",
+    "db:seed": "pnpm --filter @quote-engine/db seed",
+    "tenant:create": "bash scripts/create-tenant.sh",
+    "deploy": "bash scripts/deploy.sh"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Tenant CSS variables — injected by [tenant]/layout.tsx */
+:root {
+  --tenant-primary: #1B3A5C;
+  --tenant-secondary: #C0392B;
+  --tenant-bg: #FFFFFF;
+}
