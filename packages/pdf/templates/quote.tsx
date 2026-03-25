@@ -183,9 +183,9 @@ function QuoteDocument({ tenant, config, quote, items }: GenerateQuotePDFParams)
 
 export async function generateQuotePDF(params: GenerateQuotePDFParams): Promise<Buffer> {
   const stream = await ReactPDF.renderToStream(<QuoteDocument {...params} />);
-  const chunks: Uint8Array[] = [];
+  const chunks: Buffer[] = [];
   for await (const chunk of stream) {
-    chunks.push(chunk);
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   }
   return Buffer.concat(chunks);
 }
