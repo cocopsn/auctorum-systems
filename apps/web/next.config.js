@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Transpile internal workspace packages
+  transpilePackages: ['@quote-engine/db', '@quote-engine/pdf', '@quote-engine/notifications'],
+
   // Enable server actions for form handling
   experimental: {
     serverActions: {

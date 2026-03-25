@@ -1,0 +1,14 @@
+{
+  "name": "@quote-engine/pdf",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./generate.ts",
+  "types": "./generate.ts",
+  "dependencies": {
+    "@react-pdf/renderer": "^3.4.0",
+    "react": "^18.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

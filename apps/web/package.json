@@ -18,7 +18,10 @@
     "@supabase/supabase-js": "^2.43.0",
     "resend": "^3.2.0",
     "zod": "^3.23.0",
-    "lucide-react": "^0.383.0"
+    "lucide-react": "^0.383.0",
+    "@quote-engine/db": "workspace:*",
+    "@quote-engine/pdf": "workspace:*",
+    "@quote-engine/notifications": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
