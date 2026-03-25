@@ -6,7 +6,11 @@ import type { TenantConfig } from '@quote-engine/db';
 // Sends quote PDF as attachment to the client
 // ============================================================
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
+}
 const EMAIL_FROM = process.env.EMAIL_FROM || 'cotizaciones@cotizarapido.mx';
 
 interface SendEmailParams {
@@ -26,7 +30,7 @@ export async function sendEmailQuote(params: SendEmailParams): Promise<boolean> 
   try {
     const quoteNum = String(params.quoteNumber).padStart(4, '0');
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: `${params.tenantName} <${EMAIL_FROM}>`,
       to: params.to,
       subject: `Cotización #${quoteNum} — ${params.tenantName}`,
