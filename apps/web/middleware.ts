@@ -1,8 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createSupabaseMiddleware } from '@/lib/supabase-ssr';
+
+// Static routes — NOT tenants, skip middleware rewrite
+const STATIC_ROUTES = ['/systems', '/platform', '/login', '/api', '/_next', '/favicon.ico', '/logo.png', '/logo1.png', '/robots.txt'];
 
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'auctorum.com.mx';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Skip static routes
+  if (STATIC_ROUTES.some(route => pathname.startsWith(route))) {
+    return NextResponse.next();
+  }
+
+  // Protect dashboard routes — require valid Supabase session
+  if (pathname.startsWith('/dashboard')) {
+    const response = NextResponse.next()
+    const supabase = createSupabaseMiddleware(request, response)
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    return response
+  }
+
   const hostname = request.headers.get('host') || '';
   const url = request.nextUrl.clone();
 
