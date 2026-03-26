@@ -39,6 +39,9 @@ const config: Config = {
         'fade-up': 'fade-up 0.8s ease-out forwards',
         'glow-pulse': 'glow-pulse 3s ease-in-out infinite',
         'pulse-dot': 'pulse-dot 2s ease-in-out infinite',
+        'slide-up': 'slide-up 0.35s ease-out forwards',
+        'scale-in': 'scale-in 0.2s ease-out forwards',
+        'check-bounce': 'check-bounce 0.5s ease-out forwards',
       },
       keyframes: {
         'fade-up': {
@@ -52,6 +55,19 @@ const config: Config = {
         'pulse-dot': {
           '0%, 100%': { opacity: '1', transform: 'scale(1)' },
           '50%': { opacity: '0.6', transform: 'scale(1.3)' },
+        },
+        'slide-up': {
+          from: { opacity: '0', transform: 'translateY(100%)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'scale-in': {
+          from: { opacity: '0', transform: 'scale(0.9)' },
+          to: { opacity: '1', transform: 'scale(1)' },
+        },
+        'check-bounce': {
+          '0%': { opacity: '0', transform: 'scale(0.3)' },
+          '50%': { transform: 'scale(1.1)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
         },
       },
     },

@@ -2,15 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ──────────────────────────────────────
+   Theme & Design Tokens
+   ────────────────────────────────────── */
 :root {
+  /* Brand colors */
   --tenant-primary: #2E7D32;
   --tenant-secondary: #4CAF50;
   --tenant-accent: #81C784;
   --tenant-bg: #FFFFFF;
+
+  /* Surfaces */
+  --surface-elevated: #FFFFFF;
+  --surface-sunken: #F8FAFC;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 300ms ease;
+}
+
+/* ──────────────────────────────────────
+   Base Styles
+   ────────────────────────────────────── */
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: 'Sora', 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color: #1a1a2e;
+  background-color: var(--tenant-bg);
+}
+
+/* Selection */
+::selection {
+  background-color: var(--tenant-primary);
+  color: #ffffff;
+}
+
+::-moz-selection {
+  background-color: var(--tenant-primary);
+  color: #ffffff;
+}
+
+/* Focus visible */
+:focus-visible {
+  outline: 2px solid var(--tenant-primary);
+  outline-offset: 2px;
+}
+
+/* ──────────────────────────────────────
+   Interactive Element Defaults
+   ────────────────────────────────────── */
+a,
+button,
+input,
+select,
+textarea {
+  transition: all var(--transition-base);
+}
+
+button {
+  cursor: pointer;
+}
+
+/* Smooth image loading */
+img {
+  transition: opacity var(--transition-slow);
+}
+
+/* Scrollbar styling (webkit) */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }

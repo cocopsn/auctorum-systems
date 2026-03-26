@@ -23,30 +23,55 @@ export function DoctorProfile({
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       {/* Hero */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="h-32 bg-gradient-to-r from-tenant-primary to-tenant-secondary" />
-        <div className="px-6 pb-6 -mt-12">
-          <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-            <div className="w-24 h-24 rounded-full bg-white border-4 border-white shadow-md flex items-center justify-center text-3xl font-bold text-tenant-primary">
-              {doctor.specialty.charAt(0)}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="relative h-44 bg-gradient-to-br from-tenant-primary via-tenant-secondary to-tenant-accent">
+          {/* Subtle overlay pattern */}
+          <div
+            className="absolute inset-0 opacity-10"
+            style={{
+              backgroundImage: 'radial-gradient(circle, #ffffff 1px, transparent 1px)',
+              backgroundSize: '20px 20px',
+            }}
+          />
+        </div>
+        <div className="px-6 pb-8 -mt-14">
+          <div className="flex flex-col sm:flex-row sm:items-end gap-5">
+            {/* Avatar with double ring */}
+            <div className="relative">
+              <div className="w-28 h-28 rounded-full bg-white ring-4 ring-white shadow-xl flex items-center justify-center">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-br from-tenant-primary to-tenant-secondary flex items-center justify-center text-4xl font-bold text-white ring-2 ring-tenant-primary/30">
+                  {doctor.specialty.charAt(0)}
+                </div>
+              </div>
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-gray-900">{config.medical!.specialty}</h2>
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+                {config.medical!.specialty}
+              </h2>
+              {/* Specialty badge */}
               {doctor.subSpecialty && (
-                <p className="text-gray-500">{doctor.subSpecialty}</p>
+                <span className="inline-block mt-1.5 px-3 py-1 bg-tenant-primary/10 text-tenant-primary text-sm font-medium rounded-full">
+                  {doctor.subSpecialty}
+                </span>
               )}
-              <div className="flex flex-wrap gap-3 mt-2 text-sm text-gray-500">
+              <div className="flex flex-wrap gap-3 mt-2.5 text-sm text-gray-500">
                 {doctor.cedulaProfesional && (
-                  <span>Céd. Prof. {doctor.cedulaProfesional}</span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-tenant-primary/40" />
+                    Céd. Prof. {doctor.cedulaProfesional}
+                  </span>
                 )}
                 {doctor.cedulaEspecialidad && (
-                  <span>Céd. Esp. {doctor.cedulaEspecialidad}</span>
+                  <span className="flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-tenant-primary/40" />
+                    Céd. Esp. {doctor.cedulaEspecialidad}
+                  </span>
                 )}
               </div>
             </div>
             <Link
               href={`/${slug}/agendar`}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-tenant-primary text-white font-medium rounded-lg hover:opacity-90 transition-opacity"
+              className="inline-flex items-center gap-2.5 px-8 py-3.5 bg-tenant-primary text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.02] active:scale-[0.98] transition-all duration-200"
             >
               <CalendarPlus className="w-5 h-5" />
               Agendar Cita
@@ -57,9 +82,9 @@ export function DoctorProfile({
 
       {/* Bio */}
       {doctor.bio && (
-        <div className="mt-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="mt-6 bg-white rounded-2xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
           <h3 className="text-lg font-semibold text-gray-900 mb-3">Acerca de</h3>
-          <p className="text-gray-600 whitespace-pre-line">{doctor.bio}</p>
+          <p className="text-gray-600 leading-relaxed whitespace-pre-line">{doctor.bio}</p>
         </div>
       )}
 
@@ -72,7 +97,7 @@ export function DoctorProfile({
 
         {/* Schedule */}
         <InfoCard icon={Clock} title="Horarios">
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {activeSchedules.map((s) => (
               <div key={s.id} className="flex justify-between text-sm">
                 <span className="text-gray-600">{DAY_NAMES[s.dayOfWeek]}</span>
@@ -91,7 +116,7 @@ export function DoctorProfile({
               {doctor.insuranceProviders.map((ins) => (
                 <span
                   key={ins}
-                  className="px-2 py-1 bg-green-50 text-green-700 text-xs rounded-full"
+                  className="px-2.5 py-1 bg-green-50 text-green-700 text-xs font-medium rounded-full"
                 >
                   {ins}
                 </span>
@@ -100,16 +125,22 @@ export function DoctorProfile({
           </InfoCard>
         )}
 
-        {/* Fee */}
+        {/* Fee - highlighted */}
         {config.schedule_settings!.show_fee_on_portal && (
-          <InfoCard icon={CreditCard} title="Consulta">
+          <div className="bg-white rounded-2xl shadow-sm border border-tenant-primary/20 p-5 hover:shadow-md transition-shadow duration-200 bg-gradient-to-br from-white to-tenant-primary/[0.03]">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-tenant-primary/10 flex items-center justify-center">
+                <CreditCard className="w-5 h-5 text-tenant-primary" />
+              </div>
+              <h3 className="font-semibold text-gray-900">Consulta</h3>
+            </div>
             <p className="text-2xl font-bold text-tenant-primary">
               {formatCurrency(config.medical!.consultation_fee)}
             </p>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 mt-1">
               Duración: {config.medical!.consultation_duration_min} minutos
             </p>
-          </InfoCard>
+          </div>
         )}
 
         {/* Education */}
@@ -147,9 +178,11 @@ function InfoCard({
   children: React.ReactNode
 }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-      <div className="flex items-center gap-2 mb-3">
-        <Icon className="w-5 h-5 text-tenant-primary" />
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5 hover:shadow-md transition-shadow duration-200">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-10 h-10 rounded-xl bg-tenant-primary/10 flex items-center justify-center">
+          <Icon className="w-5 h-5 text-tenant-primary" />
+        </div>
         <h3 className="font-semibold text-gray-900">{title}</h3>
       </div>
       {children}

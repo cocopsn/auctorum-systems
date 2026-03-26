@@ -66,23 +66,23 @@ export function AvailabilityCalendar({
   return (
     <div>
       {/* Week Navigation */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between mb-6">
         <button
           onClick={() => setWeekOffset(Math.max(0, weekOffset - 1))}
           disabled={weekOffset === 0}
-          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
-          <ChevronLeft className="w-5 h-5" />
+          <ChevronLeft className="w-5 h-5 text-gray-700" />
         </button>
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-lg font-bold text-gray-900">
           {MONTH_NAMES[weekStart.getMonth()]} {weekStart.getFullYear()}
         </span>
         <button
           onClick={() => setWeekOffset(Math.min(4, weekOffset + 1))}
           disabled={weekOffset >= 4}
-          className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+          className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
-          <ChevronRight className="w-5 h-5" />
+          <ChevronRight className="w-5 h-5 text-gray-700" />
         </button>
       </div>
 
@@ -103,19 +103,23 @@ export function AvailabilityCalendar({
               }}
               disabled={!hasAvailable || isPast}
               className={`
-                flex flex-col items-center p-3 rounded-lg text-sm transition-all
+                flex flex-col items-center p-3 min-h-[80px] rounded-xl text-sm transition-all duration-200
                 ${isSelected
-                  ? 'bg-tenant-primary text-white shadow-md'
+                  ? 'bg-tenant-primary text-white shadow-lg scale-105'
                   : hasAvailable && !isPast
-                    ? 'bg-white border border-gray-200 hover:border-tenant-primary hover:shadow-sm cursor-pointer'
-                    : 'bg-gray-50 text-gray-300 cursor-not-allowed'
+                    ? 'bg-white border border-gray-200 hover:bg-green-50 hover:border-tenant-primary hover:shadow-sm cursor-pointer'
+                    : 'bg-gray-50 text-gray-300 cursor-not-allowed opacity-40'
                 }
               `}
             >
-              <span className="text-xs font-medium">{DAY_NAMES[day.getDay()]}</span>
-              <span className="text-lg font-bold mt-1">{day.getDate()}</span>
+              <span className={`text-xs font-semibold uppercase tracking-wide ${isPast && !isSelected ? 'line-through' : ''}`}>
+                {DAY_NAMES[day.getDay()]}
+              </span>
+              <span className={`text-xl font-bold mt-1.5 ${isPast && !isSelected ? 'line-through' : ''}`}>
+                {day.getDate()}
+              </span>
               {hasAvailable && !isPast && (
-                <span className={`w-1.5 h-1.5 rounded-full mt-1 ${isSelected ? 'bg-white' : 'bg-green-400'}`} />
+                <span className={`w-2 h-2 rounded-full mt-1.5 ${isSelected ? 'bg-white' : 'bg-green-400'}`} />
               )}
             </button>
           )
@@ -124,13 +128,13 @@ export function AvailabilityCalendar({
 
       {/* Loading */}
       {loading && (
-        <div className="mt-6 text-center text-sm text-gray-400">Cargando disponibilidad...</div>
+        <div className="mt-8 text-center text-sm text-gray-400">Cargando disponibilidad...</div>
       )}
 
       {/* Slots */}
       {selectedDate && !loading && (
-        <div className="mt-6">
-          <h4 className="text-sm font-semibold text-gray-700 mb-3">
+        <div className="mt-8">
+          <h4 className="text-sm font-semibold text-gray-700 mb-4">
             Horarios disponibles — {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
           </h4>
           {availableSlots.length > 0 ? (
@@ -139,7 +143,7 @@ export function AvailabilityCalendar({
                 <button
                   key={slot.startTime}
                   onClick={() => onSlotSelect(selectedDate, slot)}
-                  className="px-3 py-2 text-sm font-medium rounded-lg border border-gray-200 bg-white hover:border-tenant-primary hover:text-tenant-primary transition-colors"
+                  className="px-3 py-2.5 text-sm font-medium rounded-lg border-2 border-gray-200 bg-white hover:border-tenant-primary hover:bg-tenant-primary hover:text-white transition-all duration-200"
                 >
                   {slot.startTime.slice(0, 5)}
                 </button>

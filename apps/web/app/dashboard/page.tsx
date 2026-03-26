@@ -2,6 +2,15 @@ import { db, quotes, products, tenants, type Quote } from '@quote-engine/db';
 import { eq, desc, sql, and, gte } from 'drizzle-orm';
 import { getTenant } from '@/lib/tenant';
 import { MOCK_TENANT, MOCK_PRODUCTS, MOCK_QUOTES } from '@/lib/mock-data';
+import {
+  FileText,
+  DollarSign,
+  TrendingUp,
+  Package,
+  ArrowRight,
+  ArrowUpRight,
+  ArrowDownRight,
+} from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,22 +79,13 @@ function formatDate(date: Date | null) {
   }).format(new Date(date));
 }
 
-const statusColors: Record<string, string> = {
-  generated: 'bg-gray-100 text-gray-700',
-  sent: 'bg-blue-100 text-blue-700',
-  viewed: 'bg-yellow-100 text-yellow-700',
-  accepted: 'bg-green-100 text-green-700',
-  rejected: 'bg-red-100 text-red-700',
-  expired: 'bg-gray-100 text-gray-500',
-};
-
-const statusLabels: Record<string, string> = {
-  generated: 'Generada',
-  sent: 'Enviada',
-  viewed: 'Vista',
-  accepted: 'Aceptada',
-  rejected: 'Rechazada',
-  expired: 'Vencida',
+const statusConfig: Record<string, { bg: string; text: string; dot: string; label: string }> = {
+  generated: { bg: 'bg-gray-50', text: 'text-gray-600', dot: 'bg-gray-400', label: 'Generada' },
+  sent:      { bg: 'bg-blue-50', text: 'text-blue-700', dot: 'bg-blue-500', label: 'Enviada' },
+  viewed:    { bg: 'bg-amber-50', text: 'text-amber-700', dot: 'bg-amber-500', label: 'Vista' },
+  accepted:  { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-500', label: 'Aceptada' },
+  rejected:  { bg: 'bg-red-50', text: 'text-red-700', dot: 'bg-red-500', label: 'Rechazada' },
+  expired:   { bg: 'bg-gray-50', text: 'text-gray-500', dot: 'bg-gray-400', label: 'Vencida' },
 };
 
 export default async function DashboardPage() {
@@ -112,80 +112,150 @@ export default async function DashboardPage() {
     ? Math.round((acceptedStats.count / monthStats.count) * 100)
     : 0;
 
+  const kpiCards = [
+    {
+      label: 'Cotizaciones (30 dias)',
+      value: monthStats.count,
+      sub: `Esta semana: ${weekStats.count}`,
+      icon: FileText,
+      iconBg: 'bg-blue-100',
+      iconColor: 'text-blue-600',
+      cardBg: 'bg-gradient-to-br from-blue-50 to-white',
+      trend: weekStats.count > 0 ? 'up' as const : null,
+    },
+    {
+      label: 'Monto cotizado (30 dias)',
+      value: formatMXN(monthStats.total),
+      sub: 'MXN + IVA',
+      icon: DollarSign,
+      iconBg: 'bg-emerald-100',
+      iconColor: 'text-emerald-600',
+      cardBg: 'bg-gradient-to-br from-emerald-50 to-white',
+      trend: monthStats.total > 0 ? 'up' as const : null,
+    },
+    {
+      label: 'Tasa de aceptacion',
+      value: `${conversionRate}%`,
+      sub: `${acceptedStats.count} aceptadas`,
+      icon: TrendingUp,
+      iconBg: 'bg-amber-100',
+      iconColor: 'text-amber-600',
+      cardBg: 'bg-gradient-to-br from-amber-50 to-white',
+      trend: conversionRate >= 50 ? 'up' as const : conversionRate > 0 ? 'down' as const : null,
+    },
+    {
+      label: 'Productos activos',
+      value: productCount.count,
+      sub: 'en catalogo',
+      icon: Package,
+      iconBg: 'bg-purple-100',
+      iconColor: 'text-purple-600',
+      cardBg: 'bg-gradient-to-br from-purple-50 to-white',
+      trend: null,
+    },
+  ];
+
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">{tenantData.name}</h1>
-        <p className="text-sm text-gray-500">Panel de administracion</p>
+    <div className="p-6 lg:p-8 max-w-6xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">{tenantData.name}</h1>
+        <p className="text-sm text-gray-500 mt-1">Panel de administracion</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Cotizaciones (30 dias)</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{monthStats.count}</p>
-          <p className="text-xs text-gray-400 mt-1">Esta semana: {weekStats.count}</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Monto cotizado (30 dias)</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{formatMXN(monthStats.total)}</p>
-          <p className="text-xs text-gray-400 mt-1">MXN + IVA</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tasa de aceptacion</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{conversionRate}%</p>
-          <p className="text-xs text-gray-400 mt-1">{acceptedStats.count} aceptadas</p>
-        </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Productos activos</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{productCount.count}</p>
-          <p className="text-xs text-gray-400 mt-1">en catalogo</p>
-        </div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-10">
+        {kpiCards.map((card, i) => {
+          const Icon = card.icon;
+          return (
+            <div
+              key={i}
+              className={`${card.cardBg} rounded-2xl border border-gray-100 p-5 transition-all duration-200 hover:shadow-md hover:shadow-gray-200/50`}
+            >
+              <div className="flex items-start justify-between mb-3">
+                <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${card.iconBg}`}>
+                  <Icon className={`h-5 w-5 ${card.iconColor}`} />
+                </div>
+                {card.trend === 'up' && (
+                  <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-emerald-600 bg-emerald-50 rounded-full px-2 py-0.5">
+                    <ArrowUpRight className="h-3 w-3" />
+                  </span>
+                )}
+                {card.trend === 'down' && (
+                  <span className="inline-flex items-center gap-0.5 text-xs font-semibold text-amber-600 bg-amber-50 rounded-full px-2 py-0.5">
+                    <ArrowDownRight className="h-3 w-3" />
+                  </span>
+                )}
+              </div>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{card.label}</p>
+              <p className="text-3xl font-bold text-gray-900 mt-1 tracking-tight">{card.value}</p>
+              <p className="text-xs text-gray-400 mt-1.5">{card.sub}</p>
+            </div>
+          );
+        })}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200">
+      {/* Recent Quotes Table */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Cotizaciones recientes</h2>
-          <a href="/dashboard/quotes" className="text-sm text-[#1B3A5C] hover:underline">Ver todas →</a>
+          <h2 className="text-base font-bold text-gray-900">Cotizaciones recientes</h2>
+          <a
+            href="/dashboard/quotes"
+            className="group inline-flex items-center gap-1 text-sm font-medium text-[#1B3A5C] hover:text-[#1B3A5C]/80 transition-colors"
+          >
+            Ver todas
+            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+          </a>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
+            <thead className="bg-gray-50/80 text-gray-500 border-b border-gray-100">
               <tr>
-                <th className="text-left px-6 py-3 font-medium">#</th>
-                <th className="text-left px-6 py-3 font-medium">Cliente</th>
-                <th className="text-left px-6 py-3 font-medium hidden md:table-cell">Empresa</th>
-                <th className="text-right px-6 py-3 font-medium">Total</th>
-                <th className="text-center px-6 py-3 font-medium">Estatus</th>
-                <th className="text-right px-6 py-3 font-medium hidden sm:table-cell">Fecha</th>
+                <th className="text-left px-6 py-3 font-medium text-xs uppercase tracking-wider">#</th>
+                <th className="text-left px-6 py-3 font-medium text-xs uppercase tracking-wider">Cliente</th>
+                <th className="text-left px-6 py-3 font-medium text-xs uppercase tracking-wider hidden md:table-cell">Empresa</th>
+                <th className="text-right px-6 py-3 font-medium text-xs uppercase tracking-wider">Total</th>
+                <th className="text-center px-6 py-3 font-medium text-xs uppercase tracking-wider">Estatus</th>
+                <th className="text-right px-6 py-3 font-medium text-xs uppercase tracking-wider hidden sm:table-cell">Fecha</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {recentQuotes.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-16 text-gray-400">
-                    <p className="font-medium">No hay cotizaciones todavia</p>
-                    <p className="text-xs mt-1">Comparta su portal para empezar a recibir cotizaciones</p>
+                  <td colSpan={6} className="text-center py-20 text-gray-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+                        <FileText className="h-6 w-6 text-gray-400" />
+                      </div>
+                      <p className="font-medium text-gray-500">No hay cotizaciones todavia</p>
+                      <p className="text-xs">Comparta su portal para empezar a recibir cotizaciones</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                recentQuotes.map((q: any) => (
-                  <tr key={q.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-3 font-mono text-gray-400 text-xs">
-                      {String(q.quoteNumber).padStart(4, '0')}
-                    </td>
-                    <td className="px-6 py-3 font-medium text-gray-900">{q.clientName}</td>
-                    <td className="px-6 py-3 text-gray-500 hidden md:table-cell">{q.clientCompany}</td>
-                    <td className="px-6 py-3 text-right font-semibold tabular-nums">{formatMXN(q.total)}</td>
-                    <td className="px-6 py-3 text-center">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[q.status || 'generated']}`}>
-                        {statusLabels[q.status || 'generated']}
-                      </span>
-                    </td>
-                    <td className="px-6 py-3 text-right text-gray-400 text-xs hidden sm:table-cell">
-                      {formatDate(q.createdAt)}
-                    </td>
-                  </tr>
-                ))
+                recentQuotes.map((q: any) => {
+                  const status = statusConfig[q.status || 'generated'];
+                  return (
+                    <tr key={q.id} className="group hover:bg-gray-50/50 transition-colors">
+                      <td className="px-6 py-3.5 font-mono text-gray-400 text-xs">
+                        {String(q.quoteNumber).padStart(4, '0')}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <span className="font-semibold text-gray-900">{q.clientName}</span>
+                      </td>
+                      <td className="px-6 py-3.5 text-gray-500 hidden md:table-cell">{q.clientCompany}</td>
+                      <td className="px-6 py-3.5 text-right font-bold tabular-nums text-gray-900">{formatMXN(q.total)}</td>
+                      <td className="px-6 py-3.5 text-center">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${status.bg} ${status.text}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${status.dot}`} />
+                          {status.label}
+                        </span>
+                      </td>
+                      <td className="px-6 py-3.5 text-right text-gray-400 text-xs hidden sm:table-cell">
+                        {formatDate(q.createdAt)}
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

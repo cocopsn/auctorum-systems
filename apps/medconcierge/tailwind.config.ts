@@ -4,6 +4,9 @@ const config: Config = {
   content: ['./src/**/*.{ts,tsx}'],
   theme: {
     extend: {
+      fontFamily: {
+        sora: ['Sora', 'Inter', 'system-ui', '-apple-system', 'sans-serif'],
+      },
       colors: {
         tenant: {
           primary: 'var(--tenant-primary)',
