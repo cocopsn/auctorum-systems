@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, quotes, quoteEvents, tenants } from '@quote-engine/db';
-import { eq } from 'drizzle-orm';
+import { db, quotes, quoteEvents, clients } from '@quote-engine/db';
+import { eq, and, desc } from 'drizzle-orm';
 
 // ============================================================
 // WhatsApp Cloud API Webhook
@@ -81,32 +81,96 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
 
   console.log(`WhatsApp message from ${from}: [${msgType}] ${text}`);
 
-  // Attempt to find a quote associated with this phone number
-  // This is a best-effort match — phone normalization may vary.
+  // Normalize the phone number — strip non-digits and remove Mexico country code
+  // to match the format stored in the clients table.
   const cleanPhone = from?.replace(/\D/g, '').replace(/^52/, '') ?? '';
 
-  // Look for the most recent quote from this phone number across all tenants
-  // In production you'd scope this to a specific tenant via the WABA ID
+  if (!cleanPhone) {
+    console.warn('WhatsApp webhook: no valid phone number extracted');
+    return;
+  }
+
   try {
+    // 1. Look up the client by phone number in the clients table
+    //    Try both with and without country code since storage format may vary
+    const phoneCandidates = [cleanPhone, `52${cleanPhone}`];
+    let matchedClient: { id: string; tenantId: string } | undefined;
+
+    for (const phone of phoneCandidates) {
+      const [found] = await db
+        .select({ id: clients.id, tenantId: clients.tenantId })
+        .from(clients)
+        .where(eq(clients.phone, phone))
+        .limit(1);
+      if (found) {
+        matchedClient = found;
+        break;
+      }
+    }
+
+    if (!matchedClient) {
+      // Fallback: look for a quote directly by clientPhone (legacy path)
+      const [recentQuote] = await db
+        .select({ id: quotes.id, tenantId: quotes.tenantId })
+        .from(quotes)
+        .where(eq(quotes.clientPhone, cleanPhone))
+        .orderBy(desc(quotes.createdAt))
+        .limit(1);
+
+      if (recentQuote) {
+        await db.insert(quoteEvents).values({
+          quoteId: recentQuote.id,
+          tenantId: recentQuote.tenantId,
+          eventType: 'client_replied',
+          metadata: {
+            from,
+            messageType: msgType,
+            text: text.slice(0, 500),
+            timestamp,
+            matchedVia: 'quote_phone_fallback',
+          },
+        });
+        console.log(`WhatsApp reply logged (fallback) for quote ${recentQuote.id}`);
+      } else {
+        console.log(`WhatsApp message from unknown number: ${cleanPhone}`);
+      }
+      return;
+    }
+
+    // 2. Find the most recent quote for this client's tenant + phone
     const [recentQuote] = await db
       .select({ id: quotes.id, tenantId: quotes.tenantId })
       .from(quotes)
-      .where(eq(quotes.clientPhone, cleanPhone))
+      .where(
+        and(
+          eq(quotes.tenantId, matchedClient.tenantId),
+          eq(quotes.clientPhone, cleanPhone)
+        )
+      )
+      .orderBy(desc(quotes.createdAt))
       .limit(1);
 
-    if (recentQuote) {
-      await db.insert(quoteEvents).values({
-        quoteId: recentQuote.id,
-        tenantId: recentQuote.tenantId,
-        eventType: 'whatsapp_reply',
-        metadata: {
-          from,
-          messageType: msgType,
-          text: text.slice(0, 500),
-          timestamp,
-        },
-      });
+    if (!recentQuote) {
+      console.log(`Client found (${matchedClient.id}) but no quotes found`);
+      return;
     }
+
+    // 3. Record a client_replied event in quote_events
+    await db.insert(quoteEvents).values({
+      quoteId: recentQuote.id,
+      tenantId: recentQuote.tenantId,
+      eventType: 'client_replied',
+      metadata: {
+        from,
+        clientId: matchedClient.id,
+        messageType: msgType,
+        text: text.slice(0, 500),
+        timestamp,
+        matchedVia: 'client_lookup',
+      },
+    });
+
+    console.log(`WhatsApp client_replied event logged for quote ${recentQuote.id} (client ${matchedClient.id})`);
   } catch (err) {
     console.error('WhatsApp event logging error:', err);
   }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db, products } from '@quote-engine/db';
-import { eq } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
+import { validateOrigin } from '@/lib/csrf';
 
 const updateProductSchema = z.object({
   name: z.string().min(1, 'Nombre requerido').max(255).optional(),
@@ -17,6 +18,11 @@ type RouteContext = { params: { productId: string } };
 // PUT /api/products/[productId]
 export async function PUT(request: NextRequest, { params }: RouteContext) {
   try {
+    // CSRF: validate origin for state-changing requests
+    if (!validateOrigin(request)) {
+      return Response.json({ error: 'Invalid origin' }, { status: 403 });
+    }
+
     const { productId } = params;
     const body = await request.json();
     const parsed = updateProductSchema.safeParse(body);
@@ -31,7 +37,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     const [existing] = await db
       .select({ id: products.id })
       .from(products)
-      .where(eq(products.id, productId))
+      .where(and(eq(products.id, productId), isNull(products.deletedAt)))
       .limit(1);
 
     if (!existing) {
@@ -61,15 +67,20 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
   }
 }
 
-// DELETE /api/products/[productId] — soft delete (isActive = false)
+// DELETE /api/products/[productId] — soft delete (set deleted_at)
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   try {
+    // CSRF: validate origin for state-changing requests
+    if (!validateOrigin(_request)) {
+      return Response.json({ error: 'Invalid origin' }, { status: 403 });
+    }
+
     const { productId } = params;
 
     const [existing] = await db
       .select({ id: products.id })
       .from(products)
-      .where(eq(products.id, productId))
+      .where(and(eq(products.id, productId), isNull(products.deletedAt)))
       .limit(1);
 
     if (!existing) {
@@ -78,7 +89,7 @@ export async function DELETE(_request: NextRequest, { params }: RouteContext) {
 
     await db
       .update(products)
-      .set({ isActive: false })
+      .set({ isActive: false, deletedAt: new Date() })
       .where(eq(products.id, productId));
 
     return NextResponse.json({ success: true });

@@ -104,11 +104,12 @@ export default function QuoteForm({ tenantSlug }: QuoteFormProps) {
 
       <form onSubmit={handleSubmit} className="space-y-5">
         <div className="space-y-1.5">
-          <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+          <label htmlFor="clientName" className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
             <User className="h-3.5 w-3.5 text-gray-400" />
             Nombre completo <span className="text-red-400">*</span>
           </label>
           <input
+            id="clientName"
             type="text"
             required
             value={form.clientName}
@@ -119,11 +120,12 @@ export default function QuoteForm({ tenantSlug }: QuoteFormProps) {
         </div>
 
         <div className="space-y-1.5">
-          <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+          <label htmlFor="clientCompany" className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
             <Building2 className="h-3.5 w-3.5 text-gray-400" />
             Empresa <span className="text-red-400">*</span>
           </label>
           <input
+            id="clientCompany"
             type="text"
             required
             value={form.clientCompany}
@@ -135,11 +137,12 @@ export default function QuoteForm({ tenantSlug }: QuoteFormProps) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+            <label htmlFor="clientEmail" className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
               <Mail className="h-3.5 w-3.5 text-gray-400" />
               Correo electronico
             </label>
             <input
+              id="clientEmail"
               type="email"
               value={form.clientEmail}
               onChange={e => setForm(prev => ({ ...prev, clientEmail: e.target.value }))}
@@ -148,11 +151,12 @@ export default function QuoteForm({ tenantSlug }: QuoteFormProps) {
             />
           </div>
           <div className="space-y-1.5">
-            <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+            <label htmlFor="clientPhone" className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
               <Phone className="h-3.5 w-3.5 text-gray-400" />
               Telefono / WhatsApp <span className="text-red-400">*</span>
             </label>
             <input
+              id="clientPhone"
               type="tel"
               required
               value={form.clientPhone}

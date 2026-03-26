@@ -105,13 +105,25 @@ export default function QuotesPage() {
                 </tr>
               ) : filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-16 text-gray-400">
-                    <p className="font-medium">Sin cotizaciones</p>
-                    <p className="text-xs mt-1">
-                      {filter === 'all'
-                        ? 'Comparta su portal para empezar a recibir cotizaciones'
-                        : `No hay cotizaciones con estatus "${STATUS_LABELS[filter]}"`}
-                    </p>
+                  <td colSpan={7} className="py-0">
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
+                        <svg className="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M9 12h6M12 9v6M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Sin cotizaciones</h3>
+                      <p className="text-sm text-gray-400 mb-6 max-w-sm">
+                        {filter === 'all'
+                          ? 'Comparta su portal para empezar a recibir cotizaciones.'
+                          : `No hay cotizaciones con estatus "${STATUS_LABELS[filter]}".`}
+                      </p>
+                      {filter === 'all' && (
+                        <a href="/dashboard/settings" className="px-4 py-2 bg-[#1B3A5C] text-white text-sm rounded-lg hover:bg-[#15304d] transition-colors">
+                          Configurar portal
+                        </a>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -132,14 +144,17 @@ export default function QuotesPage() {
                       {formatDate(q.createdAt)}
                     </td>
                     <td className="px-6 py-3 text-center hidden lg:table-cell">
-                      {q.pdfUrl ? (
-                        <a href={q.pdfUrl} target="_blank" rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline text-xs">
-                          Descargar
-                        </a>
-                      ) : (
-                        <span className="text-gray-300 text-xs">—</span>
-                      )}
+                      <a
+                        href={q.pdfUrl || `/api/quotes/${q.id}/pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        Ver PDF
+                      </a>
                     </td>
                   </tr>
                 ))

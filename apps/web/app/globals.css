@@ -123,6 +123,36 @@ html {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   Interactive Utilities
+   ═══════════════════════════════════════════════════════════ */
+
+/* Smooth transitions for interactive elements */
+.transition-smooth {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Skeleton shimmer animation */
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.05) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Card hover lift */
+.hover-lift {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(45, 122, 255, 0.1);
+}
+
+/* Button press scale */
+.press-scale:active {
+  transform: scale(0.97);
+}
+
+/* ═══════════════════════════════════════════════════════════
    Grain Overlay
    ═══════════════════════════════════════════════════════════ */
 
@@ -178,4 +208,14 @@ html {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Print Styles
+   ═══════════════════════════════════════════════════════════ */
+
+@media print {
+  nav, footer, .no-print { display: none !important; }
+  body { background: white !important; color: black !important; }
+  * { color: inherit !important; background: transparent !important; border-color: #ddd !important; }
 }

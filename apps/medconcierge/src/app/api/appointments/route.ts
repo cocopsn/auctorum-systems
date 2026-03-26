@@ -4,9 +4,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAppointmentSchema } from '@/lib/validators/appointment'
 import { createAppointment, AppointmentError } from '@/lib/appointments'
 import { notifyNewAppointment } from '@/lib/notifications'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting: 10 req/min per IP
+    const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
+    const { success: rateLimitOk } = rateLimit(`appointments:${ip}`, 10, 60_000);
+    if (!rateLimitOk) {
+      return Response.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const body = await request.json()
     const parsed = createAppointmentSchema.safeParse(body)
 

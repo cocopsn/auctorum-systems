@@ -4,6 +4,8 @@ import { eq } from 'drizzle-orm';
 import type { TenantConfig } from '@quote-engine/db';
 import { getMockTenant } from '../../lib/mock-data';
 import { Phone, MessageCircle } from 'lucide-react';
+import { ShareButton } from '../../components/catalog/ShareButton';
+import Image from 'next/image';
 
 interface TenantLayoutProps {
   children: React.ReactNode;
@@ -43,11 +45,13 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
         <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-4">
             {tenant.logoUrl && (
-              <div className="relative">
-                <img
+              <div className="relative h-11 w-11">
+                <Image
                   src={tenant.logoUrl}
                   alt={tenant.name}
-                  className="h-11 w-11 rounded-xl object-contain ring-2 ring-tenant-primary/20 shadow-md"
+                  width={44}
+                  height={44}
+                  className="rounded-xl object-contain ring-2 ring-tenant-primary/20 shadow-md"
                 />
               </div>
             )}
@@ -61,6 +65,10 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <ShareButton
+              url={`https://${params.tenant}.auctorum.com.mx`}
+              title={`${tenant.name} — Cotizacion en linea`}
+            />
             {config.contact.phone && (
               <a
                 href={`tel:${config.contact.phone}`}

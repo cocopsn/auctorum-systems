@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db, products, tenants } from '@quote-engine/db';
-import { eq, and, asc } from 'drizzle-orm';
+import { eq, and, asc, count, isNull } from 'drizzle-orm';
+import { rateLimit } from '@/lib/rate-limit';
+import { validateOrigin } from '@/lib/csrf';
+import { apiError } from '@/lib/api-helpers';
 
 const createProductSchema = z.object({
   tenantSlug: z.string().min(1).max(63),
@@ -14,8 +17,17 @@ const createProductSchema = z.object({
 });
 
 // GET /api/products?tenant=slug
+// SEC-06 AUTH AUDIT: GET is public-facing (serves product catalog for portal).
+// No auth required for reading active products — this is intentional.
 export async function GET(request: NextRequest) {
   try {
+    // Rate limiting: 30 req/min
+    const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
+    const { success: rateLimitOk } = rateLimit(`products:${ip}`, 30, 60_000);
+    if (!rateLimitOk) {
+      return Response.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get('tenant');
 
@@ -33,22 +45,52 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 });
     }
 
+    // Pagination
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20', 10) || 20));
+    const offset = (page - 1) * limit;
+
+    const whereCondition = and(eq(products.tenantId, tenant.id), eq(products.isActive, true), isNull(products.deletedAt));
+
+    const [totalResult] = await db
+      .select({ count: count() })
+      .from(products)
+      .where(whereCondition);
+
+    const total = totalResult?.count ?? 0;
+    const totalPages = Math.ceil(total / limit);
+
     const tenantProducts = await db
       .select()
       .from(products)
-      .where(and(eq(products.tenantId, tenant.id), eq(products.isActive, true)))
-      .orderBy(asc(products.sortOrder), asc(products.name));
+      .where(whereCondition)
+      .orderBy(asc(products.sortOrder), asc(products.name))
+      .limit(limit)
+      .offset(offset);
 
-    return NextResponse.json({ success: true, data: tenantProducts });
+    return NextResponse.json({
+      success: true,
+      data: tenantProducts,
+      pagination: { page, limit, total, totalPages, hasMore: page < totalPages },
+    });
   } catch (error) {
     console.error('GET /api/products error:', error);
-    return NextResponse.json({ error: 'Error al obtener productos' }, { status: 500 });
+    return apiError(500, 'Error al obtener productos');
   }
 }
 
 // POST /api/products
+// SEC-06 AUTH AUDIT: This route does NOT verify the user is authenticated.
+// Anyone who knows a tenant slug can create products for that tenant.
+// TODO: Enforce authentication before allowing product creation.
+// Only authenticated tenant admins should be able to add products.
 export async function POST(request: NextRequest) {
   try {
+    // CSRF: validate origin for state-changing requests
+    if (!validateOrigin(request)) {
+      return Response.json({ error: 'Invalid origin' }, { status: 403 });
+    }
+
     const body = await request.json();
     const parsed = createProductSchema.safeParse(body);
 
@@ -88,6 +130,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: created }, { status: 201 });
   } catch (error) {
     console.error('POST /api/products error:', error);
-    return NextResponse.json({ error: 'Error al crear producto' }, { status: 500 });
+    return apiError(500, 'Error al crear producto');
   }
 }

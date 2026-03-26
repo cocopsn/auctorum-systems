@@ -3,8 +3,8 @@ module.exports = {
   apps: [
     {
       name: 'auctorum-quote-engine',
-      cwd: '/opt/auctorum-systems/apps/web',
-      script: 'node_modules/.bin/next',
+      cwd: '/opt/auctorum-systems/repo/apps/web',
+      script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3000',
       instances: 'max',
       exec_mode: 'cluster',
@@ -25,8 +25,8 @@ module.exports = {
     },
     {
       name: 'auctorum-medconcierge',
-      cwd: '/opt/auctorum-systems/apps/medconcierge',
-      script: 'node_modules/.bin/next',
+      cwd: '/opt/auctorum-systems/repo/apps/medconcierge',
+      script: 'node_modules/next/dist/bin/next',
       args: 'start -p 3001',
       instances: 'max',
       exec_mode: 'cluster',

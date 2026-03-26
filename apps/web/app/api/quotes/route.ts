@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db, tenants, products, quotes, quoteItems, quoteEvents, clients, type Product } from '@quote-engine/db';
-import { eq, inArray, and } from 'drizzle-orm';
+import { eq, inArray, and, isNull } from 'drizzle-orm';
 import type { TenantConfig } from '@quote-engine/db';
 import { generateQuotePDF } from '@quote-engine/pdf';
 import { sendWhatsAppQuote } from '@quote-engine/notifications/whatsapp';
 import { sendEmailQuote } from '@quote-engine/notifications/email';
 import crypto from 'crypto';
+import { rateLimit } from '@/lib/rate-limit';
+import { sanitizeObject } from '@/lib/sanitize';
+import { apiError } from '@/lib/api-helpers';
 
 // ============================================================
 // POST /api/quotes — CORE ENDPOINT
 // Validar → Calcular → Insert → PDF → Notify → Upsert Client
+//
+// SEC-06 AUTH AUDIT: This route is intentionally public — it serves
+// the portal quote-generation flow where unauthenticated visitors
+// submit quote requests. No auth required. Input is validated via Zod,
+// and products are verified against the tenant. This is correct behavior.
 // ============================================================
 
 const quoteRequestSchema = z.object({
@@ -27,8 +35,15 @@ const quoteRequestSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting: 10 req/min per IP
+    const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
+    const { success: rateLimitOk } = rateLimit(`quotes:${ip}`, 10, 60_000);
+    if (!rateLimitOk) {
+      return Response.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     // 1. Validate input with zod
-    const body = await request.json();
+    const body = sanitizeObject(await request.json());
     const parsed = quoteRequestSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -61,7 +76,8 @@ export async function POST(request: NextRequest) {
       .where(and(
         inArray(products.id, productIds),
         eq(products.tenantId, tenant.id),
-        eq(products.isActive, true)
+        eq(products.isActive, true),
+        isNull(products.deletedAt)
       ));
 
     if (tenantProducts.length === 0) {
@@ -108,35 +124,39 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + (config.quote_settings?.validity_days ?? 15));
 
-    // 7. Insert quote + items
-    const [quote] = await db.insert(quotes).values({
-      tenantId: tenant.id,
-      trackingToken,
-      clientName: data.clientName,
-      clientEmail: data.clientEmail || null,
-      clientPhone: data.clientPhone,
-      clientCompany: data.clientCompany,
-      subtotal: subtotal.toFixed(2),
-      taxRate: taxRate.toFixed(4),
-      taxAmount: taxAmount.toFixed(2),
-      total: total.toFixed(2),
-      status: 'generated',
-      expiresAt,
-    }).returning();
+    // 7. Insert quote + items (wrapped in transaction)
+    const quote = await db.transaction(async (tx) => {
+      const [newQuote] = await tx.insert(quotes).values({
+        tenantId: tenant.id,
+        trackingToken,
+        clientName: data.clientName,
+        clientEmail: data.clientEmail || null,
+        clientPhone: data.clientPhone,
+        clientCompany: data.clientCompany,
+        subtotal: subtotal.toFixed(2),
+        taxRate: taxRate.toFixed(4),
+        taxAmount: taxAmount.toFixed(2),
+        total: total.toFixed(2),
+        status: 'generated',
+        expiresAt,
+      }).returning();
 
-    for (const item of itemsWithTotals) {
-      await db.insert(quoteItems).values({
-        quoteId: quote.id,
-        ...item,
+      for (const item of itemsWithTotals) {
+        await tx.insert(quoteItems).values({
+          quoteId: newQuote.id,
+          ...item,
+        });
+      }
+
+      // 8. Record quote_event: created
+      await tx.insert(quoteEvents).values({
+        quoteId: newQuote.id,
+        tenantId: tenant.id,
+        eventType: 'created',
+        metadata: { itemCount: itemsWithTotals.length, total },
       });
-    }
 
-    // 8. Record quote_event: created
-    await db.insert(quoteEvents).values({
-      quoteId: quote.id,
-      tenantId: tenant.id,
-      eventType: 'created',
-      metadata: { itemCount: itemsWithTotals.length, total },
+      return newQuote;
     });
 
     // 9. Upsert client (CRM involuntario — Paso 13)
@@ -146,7 +166,8 @@ export async function POST(request: NextRequest) {
       .from(clients)
       .where(and(
         eq(clients.tenantId, tenant.id),
-        eq(clients.phone, cleanPhone)
+        eq(clients.phone, cleanPhone),
+        isNull(clients.deletedAt)
       ))
       .limit(1);
 
@@ -250,9 +271,6 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Quote creation error:', error);
-    return NextResponse.json(
-      { error: 'Error interno al generar cotización' },
-      { status: 500 }
-    );
+    return apiError(500, 'Error interno al generar cotización');
   }
 }

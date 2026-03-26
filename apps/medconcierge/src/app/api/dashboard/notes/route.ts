@@ -5,6 +5,15 @@ import { and, eq, desc } from 'drizzle-orm'
 import { db } from '@quote-engine/db'
 import { clinicalNotes, patients, tenants } from '@quote-engine/db'
 
+// SEC-06 AUTH AUDIT: NO AUTHENTICATION IS ENFORCED on this dashboard route.
+// getTenantId() is hardcoded to 'dra-martinez' instead of deriving tenant
+// from an authenticated session. All handlers (GET, POST, PUT) are publicly
+// accessible. This exposes sensitive clinical notes (SOAP records, diagnoses).
+// TODO: Replace getTenantId() with auth-based tenant resolution:
+//   1. Verify the user's session (magic-link token or Supabase JWT)
+//   2. Derive tenant_id from the authenticated user's record in the users table
+//   3. Return 401 if no valid session exists
+//   4. Consider role-based access — only doctors/staff should access clinical notes
 async function getTenantId() {
   const [tenant] = await db
     .select({ id: tenants.id })

@@ -8,7 +8,7 @@ set -euo pipefail
 
 VPS_USER="${VPS_USER:-root}"
 VPS_HOST="${VPS_HOST:-${1:-YOUR_VPS_IP}}"
-APP_DIR="/opt/quote-engine"
+APP_DIR="/opt/auctorum-systems/repo"
 LOG_DIR="/var/log/auctorum"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

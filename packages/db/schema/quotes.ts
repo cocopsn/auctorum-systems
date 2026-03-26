@@ -27,6 +27,7 @@ export const quotes = pgTable('quotes', {
   viewedAt: timestamp('viewed_at', { withTimezone: true }),
   acceptedAt: timestamp('accepted_at', { withTimezone: true }),
   expiresAt: timestamp('expires_at', { withTimezone: true }),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
 
 export const quoteItems = pgTable('quote_items', {

@@ -67,7 +67,7 @@ function QuoteDocument({ tenant, config, quote, items }: GenerateQuotePDFParams)
   const primaryColor = config.colors.primary;
   const now = new Date();
   const validUntil = new Date(now);
-  validUntil.setDate(validUntil.getDate() + config.quote_settings!.validity_days);
+  validUntil.setDate(validUntil.getDate() + (config.quote_settings?.validity_days ?? 15));
 
   return (
     <Document>
@@ -163,12 +163,12 @@ function QuoteDocument({ tenant, config, quote, items }: GenerateQuotePDFParams)
         {/* Terms */}
         <View style={styles.terms}>
           <Text style={styles.termsTitle}>Condiciones</Text>
-          <Text style={styles.termsText}>Forma de pago: {config.quote_settings!.payment_terms}</Text>
-          <Text style={styles.termsText}>Tiempo de entrega: {config.quote_settings!.delivery_terms}</Text>
-          <Text style={styles.termsText}>Vigencia: {config.quote_settings!.validity_days} días a partir de la fecha de emisión</Text>
-          <Text style={styles.termsText}>Moneda: {config.quote_settings!.currency}</Text>
-          {config.quote_settings!.custom_footer && (
-            <Text style={[styles.termsText, { marginTop: 6 }]}>{config.quote_settings!.custom_footer}</Text>
+          <Text style={styles.termsText}>Forma de pago: {config.quote_settings?.payment_terms ?? 'Por definir'}</Text>
+          <Text style={styles.termsText}>Tiempo de entrega: {config.quote_settings?.delivery_terms ?? 'Por definir'}</Text>
+          <Text style={styles.termsText}>Vigencia: {config.quote_settings?.validity_days ?? 15} días a partir de la fecha de emisión</Text>
+          <Text style={styles.termsText}>Moneda: {config.quote_settings?.currency ?? 'MXN'}</Text>
+          {config.quote_settings?.custom_footer && (
+            <Text style={[styles.termsText, { marginTop: 6 }]}>{config.quote_settings.custom_footer}</Text>
           )}
         </View>
 

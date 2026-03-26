@@ -205,16 +205,18 @@ export default async function QuoteTrackingPage({ params }: PageProps) {
         )}
 
         {/* Actions */}
-        <QuoteActions
-          quoteId={quote.id}
-          token={token}
-          pdfUrl={pdfUrl}
-          isTerminal={isTerminal}
-          currentStatus={quote.status ?? 'sent'}
-        />
+        <div className="no-print">
+          <QuoteActions
+            quoteId={quote.id}
+            token={token}
+            pdfUrl={pdfUrl}
+            isTerminal={isTerminal}
+            currentStatus={quote.status ?? 'sent'}
+          />
+        </div>
 
         {/* Footer */}
-        <p className="text-center text-xs text-gray-400 mt-8">
+        <p className="text-center text-xs text-gray-400 mt-8 no-print">
           Powered by Auctorum Systems &middot; auctorum.com.mx
         </p>
       </div>

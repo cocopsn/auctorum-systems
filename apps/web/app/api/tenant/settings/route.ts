@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db, tenants } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
+import { validateOrigin } from '@/lib/csrf';
 
 const tenantConfigSchema = z.object({
   colors: z.object({
@@ -38,6 +39,11 @@ const updateSettingsSchema = z.object({
 });
 
 // GET /api/tenant/settings?slug=xxx
+// SEC-06 AUTH AUDIT: GET returns full tenant config including business details.
+// While some info is needed for the portal, the full config (RFC, contact info)
+// should ideally require authentication for dashboard access.
+// TODO: Split into public (colors, name) and private (RFC, business) endpoints,
+// or enforce authentication for the full settings response.
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -65,8 +71,17 @@ export async function GET(request: NextRequest) {
 }
 
 // PUT /api/tenant/settings
+// SEC-06 AUTH AUDIT: This route does NOT verify the user is authenticated.
+// Anyone who knows a tenant slug can modify tenant settings (name, logo, config).
+// TODO: Enforce authentication. Only authenticated tenant owners should be able
+// to update settings. This is a CRITICAL gap — unauthenticated writes to tenant config.
 export async function PUT(request: NextRequest) {
   try {
+    // CSRF: validate origin for state-changing requests
+    if (!validateOrigin(request)) {
+      return Response.json({ error: 'Invalid origin' }, { status: 403 });
+    }
+
     const body = await request.json();
     const parsed = updateSettingsSchema.safeParse(body);
 

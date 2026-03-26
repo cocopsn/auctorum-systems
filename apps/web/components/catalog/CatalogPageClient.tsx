@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import type { Product } from '@quote-engine/db';
 import type { TenantConfig } from '@quote-engine/db';
 import { ShoppingCart, Plus, Minus, X, ChevronUp, ChevronDown, ArrowRight } from 'lucide-react';
@@ -26,6 +27,38 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
   const [addedId, setAddedId] = useState<string | null>(null);
+  const [cartLoaded, setCartLoaded] = useState(false);
+
+  // Derive tenant slug from tenantConfig or tenantName for localStorage key
+  const cartKey = `auctorum-cart-${tenantName.toLowerCase().replace(/\s+/g, '-')}`;
+
+  // Load cart from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(cartKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const ageMs = Date.now() - (parsed.savedAt || 0);
+        if (ageMs < 24 * 60 * 60 * 1000) { // 24 hours
+          setCart(parsed.items || []);
+          if ((parsed.items || []).length > 0) setShowCart(true);
+        } else {
+          localStorage.removeItem(cartKey);
+        }
+      }
+    } catch { /* ignore corrupt data */ }
+    setCartLoaded(true);
+  }, [cartKey]);
+
+  // Save cart to localStorage on change (only after initial load)
+  useEffect(() => {
+    if (!cartLoaded) return;
+    if (cart.length > 0) {
+      localStorage.setItem(cartKey, JSON.stringify({ items: cart, savedAt: Date.now() }));
+    } else {
+      localStorage.removeItem(cartKey);
+    }
+  }, [cart, cartLoaded, cartKey]);
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -103,14 +136,16 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
                 return (
                   <div
                     key={product.id}
-                    className="group rounded-xl border border-gray-100 bg-white overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-tenant-primary/10 hover:border-tenant-primary/20"
+                    className="group rounded-xl border border-gray-100 bg-white overflow-hidden transition-all duration-300 hover:shadow-lg hover:shadow-tenant-primary/10 hover:border-tenant-primary/20 hover-lift"
                   >
                     {product.imageUrl && (
-                      <div className="overflow-hidden bg-gray-50">
-                        <img
+                      <div className="overflow-hidden bg-gray-50 relative h-44">
+                        <Image
                           src={product.imageUrl}
                           alt={product.name}
-                          className="w-full h-44 object-cover transition-transform duration-500 group-hover:scale-105"
+                          fill
+                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
                         />
                       </div>
                     )}
@@ -140,15 +175,17 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
                             <button
                               onClick={() => updateQuantity(product.id, inCart.quantity - 1)}
                               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 transition-all hover:bg-gray-50 hover:border-gray-300 active:scale-95"
+                              aria-label={`Reducir cantidad de ${product.name}`}
                             >
                               <Minus className="h-3.5 w-3.5" />
                             </button>
-                            <span className="text-sm font-bold w-8 text-center text-gray-900">
+                            <span className="text-sm font-bold w-8 text-center text-gray-900" aria-label={`Cantidad: ${inCart.quantity}`}>
                               {inCart.quantity}
                             </span>
                             <button
                               onClick={() => updateQuantity(product.id, inCart.quantity + 1)}
                               className="w-8 h-8 rounded-lg border border-gray-200 flex items-center justify-center text-gray-500 transition-all hover:bg-gray-50 hover:border-gray-300 active:scale-95"
+                              aria-label={`Aumentar cantidad de ${product.name}`}
                             >
                               <Plus className="h-3.5 w-3.5" />
                             </button>
@@ -193,6 +230,7 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
                         <button
                           onClick={() => removeFromCart(item.product.id)}
                           className="rounded-md p-1 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500"
+                          aria-label={`Eliminar ${item.product.name} del carrito`}
                         >
                           <X className="h-3.5 w-3.5" />
                         </button>
@@ -201,7 +239,7 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
                   ))}
                 </div>
               )}
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <button
                   onClick={() => setShowCart(!showCart)}
                   className="group flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
@@ -220,17 +258,17 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
                     : <ChevronUp className="h-4 w-4 text-gray-400" />
                   }
                 </button>
-                <div className="flex items-center gap-5">
+                <div className="flex items-center gap-3 sm:gap-5 w-full sm:w-auto justify-between sm:justify-end">
                   <div className="text-right">
-                    <p className="text-xs text-gray-400">Subtotal: {formatMXN(subtotal)}</p>
-                    <p className="text-xs text-gray-400">IVA ({(tenantConfig.quote_settings!.tax_rate * 100).toFixed(0)}%): {formatMXN(tax)}</p>
-                    <p className="text-xl font-bold text-tenant-primary tracking-tight">
+                    <p className="text-xs text-gray-400 hidden sm:block">Subtotal: {formatMXN(subtotal)}</p>
+                    <p className="text-xs text-gray-400 hidden sm:block">IVA ({(tenantConfig.quote_settings!.tax_rate * 100).toFixed(0)}%): {formatMXN(tax)}</p>
+                    <p className="text-lg sm:text-xl font-bold text-tenant-primary tracking-tight">
                       {formatMXN(total)}
                     </p>
                   </div>
                   <a
                     href={`/quote?items=${encodeURIComponent(JSON.stringify(cart.map(i => ({ id: i.product.id, qty: i.quantity }))))}`}
-                    className="group inline-flex items-center gap-2 rounded-xl px-6 py-3 text-white font-bold text-sm bg-tenant-secondary shadow-lg shadow-tenant-secondary/25 transition-all duration-200 hover:shadow-xl hover:shadow-tenant-secondary/30 hover:brightness-110 active:scale-[0.97]"
+                    className="group inline-flex items-center gap-2 rounded-xl px-4 sm:px-6 py-3 text-white font-bold text-sm bg-tenant-secondary shadow-lg shadow-tenant-secondary/25 transition-all duration-200 hover:shadow-xl hover:shadow-tenant-secondary/30 hover:brightness-110 active:scale-[0.97]"
                   >
                     Generar cotizacion
                     <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />

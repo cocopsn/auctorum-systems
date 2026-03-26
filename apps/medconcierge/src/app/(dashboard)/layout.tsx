@@ -1,5 +1,6 @@
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { getTenantConfig, tenantCssVars } from '@/lib/tenant'
+import { ToastContainer } from '@/components/ui/Toast'
 
 // TODO: Replace with requireAuth() once Supabase Auth is configured
 // For now, use a demo tenant for development
@@ -36,6 +37,7 @@ export default async function DashboardLayout({
       <main className="lg:ml-64 min-h-screen">
         <div className="p-6 lg:p-8">{children}</div>
       </main>
+      <ToastContainer />
     </div>
   )
 }

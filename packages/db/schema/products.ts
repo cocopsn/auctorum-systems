@@ -14,6 +14,7 @@ export const products = pgTable('products', {
   isActive: boolean('is_active').default(true),
   sortOrder: integer('sort_order').default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 });
 
 export type Product = typeof products.$inferSelect;

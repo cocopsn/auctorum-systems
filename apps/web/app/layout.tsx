@@ -2,18 +2,24 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://auctorum.com.mx'),
   title: 'Auctorum — Privacidad. Control. Autoría.',
   description:
-    'Sé el autor de tu propia inteligencia artificial. Plataforma de IA personal soberana: todo local, cero costo recurrente, tus datos nunca salen de tu máquina.',
-  keywords: ['IA personal', 'inteligencia artificial', 'soberanía digital', 'open source', 'Auctorum'],
+    'Organización tecnológica que construye IA personal soberana, software comercial, y soluciones a medida. Todo local, cero costo recurrente.',
+  keywords: ['IA personal', 'inteligencia artificial', 'soberanía digital', 'open source', 'Auctorum', 'SaaS', 'B2B'],
   authors: [{ name: 'Armando Flores' }],
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
   openGraph: {
     title: 'Auctorum — Privacidad. Control. Autoría.',
-    description: 'Sé el autor de tu propia inteligencia artificial.',
+    description: 'Organización tecnológica: IA soberana + SaaS verticales + desarrollo a medida.',
     url: 'https://auctorum.com.mx',
     siteName: 'Auctorum',
     locale: 'es_MX',
     type: 'website',
+    images: [{ url: '/logo.png', width: 512, height: 512, alt: 'Auctorum' }],
   },
 };
 

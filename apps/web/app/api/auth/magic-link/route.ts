@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db, users } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
 import { createServerClient } from '@/lib/supabase-server';
+import { rateLimit } from '@/lib/rate-limit';
 
 // TODO: Add rate limiting (e.g., upstash/ratelimit) — max 5 magic links per email per hour
 // to prevent abuse. Check IP + email combination before calling Supabase.
@@ -16,6 +17,13 @@ const magicLinkSchema = z.object({
 // and sends a Supabase magic link to the given address.
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting: 5 req/min per IP
+    const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
+    const { success: rateLimitOk } = rateLimit(`magic-link:${ip}`, 5, 60_000);
+    if (!rateLimitOk) {
+      return Response.json({ error: 'Too many requests' }, { status: 429 });
+    }
+
     const body = await request.json();
     const parsed = magicLinkSchema.safeParse(body);
 

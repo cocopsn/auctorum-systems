@@ -93,6 +93,12 @@ importers:
       '@quote-engine/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@quote-engine/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
+      '@quote-engine/pdf':
+        specifier: workspace:*
+        version: link:../../packages/pdf
       '@react-pdf/renderer':
         specifier: ^3.4.0
         version: 3.4.5(react@18.3.1)

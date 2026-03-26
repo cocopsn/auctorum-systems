@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { ToastContainer } from '../../components/ui/Toast';
 import {
   LayoutDashboard,
   FileText,
@@ -39,7 +40,7 @@ function SidebarContent({ pathname, onClose }: { pathname: string; onClose?: () 
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto" role="navigation" aria-label="Menu principal">
         {navItems.map(item => {
           const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
           const Icon = item.icon;
@@ -48,6 +49,7 @@ function SidebarContent({ pathname, onClose }: { pathname: string; onClose?: () 
               key={item.href}
               href={item.href}
               onClick={onClose}
+              {...(isActive ? { 'aria-current': 'page' as const } : {})}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isActive
                   ? 'bg-white/10 text-white border-l-2 border-blue-400 pl-[10px]'
@@ -138,6 +140,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+
+      <ToastContainer />
     </div>
   );
 }

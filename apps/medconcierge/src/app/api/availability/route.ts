@@ -4,8 +4,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { and, eq, gte, lte, notInArray } from 'drizzle-orm'
 import { db } from '@quote-engine/db'
 import { schedules, scheduleBlocks, appointments } from '@quote-engine/db'
+import { rateLimit } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
+  // Rate limiting: 30 req/min per IP
+  const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
+  const { success: rateLimitOk } = rateLimit(`availability:${ip}`, 30, 60_000);
+  if (!rateLimitOk) {
+    return Response.json({ error: 'Too many requests' }, { status: 429 });
+  }
+
   const { searchParams } = request.nextUrl
   const tenantId = searchParams.get('tenantId')
   const startDate = searchParams.get('startDate')

@@ -15,6 +15,7 @@ export const clients = pgTable('clients', {
   lastQuoteAt: timestamp('last_quote_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 }, (table) => ({
   tenantPhone: unique('uq_clients_tenant_phone').on(table.tenantId, table.phone),
 }));

@@ -102,6 +102,48 @@ export async function sendWhatsAppQuote(params: SendWhatsAppParams): Promise<boo
   }
 }
 
+// Send a free-form WhatsApp text message (used by cron reminders, etc.)
+export async function sendWhatsAppMessage(params: { to: string; message: string }): Promise<boolean> {
+  const phone = cleanPhoneNumber(params.to);
+
+  try {
+    const token = process.env.WHATSAPP_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+    if (!token || !phoneNumberId) {
+      console.warn('WhatsApp credentials not configured, skipping message send');
+      return false;
+    }
+
+    const apiUrl = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: phone,
+        type: 'text',
+        text: { body: params.message },
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      console.error('WhatsApp send error:', error);
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('WhatsApp send failed:', error);
+    return false;
+  }
+}
+
 // Webhook verification for Meta
 export function verifyWebhook(mode: string, token: string, challenge: string): string | null {
   const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;

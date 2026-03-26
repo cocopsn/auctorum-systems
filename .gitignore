@@ -26,3 +26,8 @@ tsconfig.tsbuildinfo
 
 # Logs
 *.log
+
+# Sensitive docs (contain credentials)
+CLAUDE-MD-MASTER-V3.md
+CLAUDE-CODE-PROMPT.md
+agent_docs/credentials.md
