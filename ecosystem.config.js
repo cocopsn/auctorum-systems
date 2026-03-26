@@ -45,8 +45,46 @@ module.exports = {
       kill_timeout: 5000,
       listen_timeout: 10000,
     },
+    // ============================================================
+    // Cron: B2B quote reminders (every 4 hours)
+    // ============================================================
+    {
+      name: 'cron-reminders',
+      cwd: '/opt/auctorum-systems/repo',
+      script: 'npx',
+      args: 'tsx scripts/cron-reminders.ts',
+      cron_restart: '0 */4 * * *',
+      autorestart: false,
+      watch: false,
+      env: {
+        NODE_ENV: 'production',
+      },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/cron-reminders-error.log',
+      out_file: '/var/log/auctorum/cron-reminders-out.log',
+      merge_logs: true,
+    },
+    // ============================================================
+    // Cron: Medical appointment reminders 24h/2h (every 30 minutes)
+    // ============================================================
+    {
+      name: 'cron-appointment-reminders',
+      cwd: '/opt/auctorum-systems/repo',
+      script: 'npx',
+      args: 'tsx scripts/cron-appointment-reminders.ts',
+      cron_restart: '*/30 * * * *',
+      autorestart: false,
+      watch: false,
+      env: {
+        NODE_ENV: 'production',
+      },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/cron-appointment-reminders-error.log',
+      out_file: '/var/log/auctorum/cron-appointment-reminders-out.log',
+      merge_logs: true,
+    },
   ],
 
-  // Cron jobs
-  cron_restart: '0 4 * * *', // Restart daily at 4am for memory cleanup
+  // Restart daily at 4am for memory cleanup
+  cron_restart: '0 4 * * *',
 };
