@@ -20,7 +20,7 @@ const nextConfig = {
   poweredByHeader: false,
 
   // Transpile shared packages
-  transpilePackages: ['@quote-engine/db', '@quote-engine/pdf'],
+  transpilePackages: ['@quote-engine/db', '@quote-engine/pdf', '@quote-engine/notifications'],
 
 };
 

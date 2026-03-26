@@ -56,7 +56,8 @@ export default function QuoteForm({ tenantSlug }: QuoteFormProps) {
       }
 
       const data = await res.json();
-      setSuccess({ pdfUrl: data.pdfUrl, quoteNumber: data.quoteNumber });
+      const result = data.data || data;
+      setSuccess({ pdfUrl: result.pdfUrl, quoteNumber: result.quoteNumber });
     } catch (err: any) {
       setError(err.message);
     } finally {

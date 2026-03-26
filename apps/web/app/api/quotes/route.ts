@@ -97,16 +97,16 @@ export async function POST(request: NextRequest) {
       })
       .filter((item): item is QuoteItemCalc => item !== null);
 
-    // 5. Calculate totals
+    // 5. Calculate totals (safe defaults if quote_settings missing)
     const subtotal = itemsWithTotals.reduce((sum, item) => sum + parseFloat(item.lineTotal), 0);
-    const taxRate = config.quote_settings!.tax_rate;
+    const taxRate = config.quote_settings?.tax_rate ?? 0.16;
     const taxAmount = subtotal * taxRate;
     const total = subtotal + taxAmount;
 
     // 6. Generate tracking token and expiration
     const trackingToken = crypto.randomBytes(16).toString('hex');
     const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + config.quote_settings!.validity_days);
+    expiresAt.setDate(expiresAt.getDate() + (config.quote_settings?.validity_days ?? 15));
 
     // 7. Insert quote + items
     const [quote] = await db.insert(quotes).values({
