@@ -22,8 +22,6 @@ const nextConfig = {
   // Transpile shared packages
   transpilePackages: ['@quote-engine/db', '@quote-engine/pdf'],
 
-  // Enable output standalone for Docker/PM2 deployment
-  output: 'standalone',
 };
 
 module.exports = nextConfig;

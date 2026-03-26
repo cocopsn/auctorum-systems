@@ -2,9 +2,180 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Tenant CSS variables — injected by [tenant]/layout.tsx */
+/* ═══════════════════════════════════════════════════════════
+   AUCTORUM — Brand Design System
+   ═══════════════════════════════════════════════════════════ */
+
 :root {
+  /* Background */
+  --auctorum-bg: #050508;
+  --auctorum-surface-1: #0a0a10;
+  --auctorum-surface-2: #101018;
+  --auctorum-surface-3: #16161f;
+  --auctorum-border: #1e1e2e;
+
+  /* Text */
+  --auctorum-body: #c8c8d4;
+  --auctorum-light: #e8e8f0;
+  --auctorum-white: #f4f4f8;
+
+  /* Accent */
+  --auctorum-blue: #2d7aff;
+  --auctorum-blue-bright: #5c9aff;
+  --auctorum-glow: #2d7aff40;
+  --auctorum-cyan: #00d4ff;
+  --auctorum-purple: #8b5cf6;
+  --auctorum-green: #10b981;
+
+  /* Tenant defaults (overridden per-tenant) */
   --tenant-primary: #1B3A5C;
   --tenant-secondary: #C0392B;
   --tenant-bg: #FFFFFF;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Base Styles
+   ═══════════════════════════════════════════════════════════ */
+
+::selection {
+  background: var(--auctorum-blue);
+  color: var(--auctorum-white);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Animations
+   ═══════════════════════════════════════════════════════════ */
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glow-pulse {
+  0%, 100% {
+    box-shadow: 0 0 20px var(--auctorum-glow), 0 0 60px transparent;
+  }
+  50% {
+    box-shadow: 0 0 30px var(--auctorum-glow), 0 0 80px var(--auctorum-glow);
+  }
+}
+
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes grain {
+  0%, 100% { transform: translate(0, 0); }
+  10% { transform: translate(-5%, -10%); }
+  20% { transform: translate(-15%, 5%); }
+  30% { transform: translate(7%, -25%); }
+  40% { transform: translate(-5%, 25%); }
+  50% { transform: translate(-15%, 10%); }
+  60% { transform: translate(15%, 0%); }
+  70% { transform: translate(0%, 15%); }
+  80% { transform: translate(3%, 35%); }
+  90% { transform: translate(-10%, 10%); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Utility animation classes */
+.animate-fade-up {
+  animation: fade-up 0.8s ease-out forwards;
+  opacity: 0;
+}
+
+.animate-fade-up-delay-1 { animation-delay: 0.1s; }
+.animate-fade-up-delay-2 { animation-delay: 0.2s; }
+.animate-fade-up-delay-3 { animation-delay: 0.3s; }
+.animate-fade-up-delay-4 { animation-delay: 0.4s; }
+.animate-fade-up-delay-5 { animation-delay: 0.5s; }
+.animate-fade-up-delay-6 { animation-delay: 0.6s; }
+.animate-fade-up-delay-7 { animation-delay: 0.7s; }
+.animate-fade-up-delay-8 { animation-delay: 0.8s; }
+
+.animate-glow-pulse {
+  animation: glow-pulse 3s ease-in-out infinite;
+}
+
+.animate-pulse-dot {
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Grain Overlay
+   ═══════════════════════════════════════════════════════════ */
+
+.grain-overlay::before {
+  content: '';
+  position: fixed;
+  top: -50%;
+  left: -50%;
+  right: -50%;
+  bottom: -50%;
+  width: 200%;
+  height: 200%;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  animation: grain 8s steps(10) infinite;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.4;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Glow Effects
+   ═══════════════════════════════════════════════════════════ */
+
+.glow-radial {
+  background: radial-gradient(
+    ellipse 600px 400px at center,
+    var(--auctorum-glow) 0%,
+    transparent 70%
+  );
+}
+
+.glow-radial-lg {
+  background: radial-gradient(
+    ellipse 800px 500px at center,
+    var(--auctorum-glow) 0%,
+    transparent 70%
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Typography Helpers
+   ═══════════════════════════════════════════════════════════ */
+
+.text-gradient-blue {
+  background: linear-gradient(135deg, var(--auctorum-blue) 0%, var(--auctorum-cyan) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.text-gradient-purple {
+  background: linear-gradient(135deg, var(--auctorum-blue) 0%, var(--auctorum-purple) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
