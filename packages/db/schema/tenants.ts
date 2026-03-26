@@ -1,0 +1,129 @@
+import { pgTable, uuid, varchar, text, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core';
+
+export const tenants = pgTable('tenants', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  slug: varchar('slug', { length: 63 }).unique().notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  logoUrl: text('logo_url'),
+  config: jsonb('config').notNull().default({}),
+  isActive: boolean('is_active').default(true),
+  plan: varchar('plan', { length: 20 }).default('basico'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
+
+// TypeScript types derived from schema
+export type Tenant = typeof tenants.$inferSelect;
+export type NewTenant = typeof tenants.$inferInsert;
+
+// Unified TenantConfig — quote-engine + medconcierge sections
+export interface TenantConfig {
+  colors: {
+    primary: string;
+    secondary: string;
+    accent?: string;
+    background: string;
+  };
+  contact: {
+    phone: string;
+    email: string;
+    whatsapp: string;
+    address: string;
+  };
+  business: {
+    razon_social: string;
+    rfc: string;
+    giro: string;
+  };
+  // Quote Engine (B2B)
+  quote_settings?: {
+    currency: string;
+    tax_rate: number;
+    validity_days: number;
+    payment_terms: string;
+    delivery_terms: string;
+    custom_footer: string;
+    auto_number_prefix?: string;
+    show_sku?: boolean;
+    show_images_in_pdf?: boolean;
+  };
+  // MedConcierge
+  medical?: {
+    specialty: string;
+    sub_specialty: string;
+    cedula_profesional: string;
+    cedula_especialidad: string;
+    consultation_fee: number;
+    consultation_duration_min: number;
+    accepts_insurance: boolean;
+    insurance_providers: string[];
+  };
+  schedule_settings?: {
+    timezone: string;
+    advance_booking_days: number;
+    min_booking_hours_ahead: number;
+    cancellation_hours: number;
+    auto_confirm: boolean;
+    allow_online_payment: boolean;
+    show_fee_on_portal: boolean;
+  };
+  // Notifications — all fields optional, each app uses its own subset
+  notifications?: {
+    // Quote Engine
+    whatsapp_on_new_quote?: boolean;
+    email_on_new_quote?: boolean;
+    notify_on_quote_viewed?: boolean;
+    auto_reminder_hours?: number;
+    // MedConcierge
+    whatsapp_on_new_appointment?: boolean;
+    whatsapp_reminder_24h?: boolean;
+    whatsapp_reminder_2h?: boolean;
+    whatsapp_post_consultation?: boolean;
+    email_on_new_appointment?: boolean;
+    notify_on_cancellation?: boolean;
+    daily_agenda_email?: boolean;
+  };
+  // Features — all fields optional, each app uses its own subset
+  features?: {
+    // Quote Engine
+    quote_tracking?: boolean;
+    quote_expiration_alerts?: boolean;
+    client_directory?: boolean;
+    // MedConcierge
+    intake_forms?: boolean;
+    clinical_notes?: boolean;
+    ai_scribe?: boolean;
+    telehealth?: boolean;
+    online_payment?: boolean;
+    prescription_pdf?: boolean;
+    receipt_pdf?: boolean;
+  };
+}
+
+// Default config for new B2B tenants
+export const DEFAULT_TENANT_CONFIG: TenantConfig = {
+  colors: {
+    primary: '#1B3A5C',
+    secondary: '#C0392B',
+    background: '#FFFFFF',
+  },
+  contact: {
+    phone: '',
+    email: '',
+    whatsapp: '',
+    address: '',
+  },
+  business: {
+    razon_social: '',
+    rfc: '',
+    giro: '',
+  },
+  quote_settings: {
+    currency: 'MXN',
+    tax_rate: 0.16,
+    validity_days: 15,
+    payment_terms: '50% anticipo, 50% contra entrega',
+    delivery_terms: '3-5 días hábiles',
+    custom_footer: 'Precios sujetos a cambio sin previo aviso.',
+  },
+};

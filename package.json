@@ -1,0 +1,27 @@
+{
+  "name": "auctorum-systems",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter web dev & pnpm --filter medconcierge dev",
+    "dev:web": "pnpm --filter web dev",
+    "dev:med": "pnpm --filter medconcierge dev",
+    "build": "pnpm --filter web build && pnpm --filter medconcierge build",
+    "build:web": "pnpm --filter web build",
+    "build:med": "pnpm --filter medconcierge build",
+    "start:web": "pnpm --filter web start",
+    "start:med": "pnpm --filter medconcierge start",
+    "db:generate": "pnpm --filter @quote-engine/db generate",
+    "db:migrate": "pnpm --filter @quote-engine/db migrate",
+    "db:seed": "pnpm --filter @quote-engine/db seed",
+    "tenant:create": "bash scripts/create-tenant.sh",
+    "deploy": "bash scripts/deploy.sh"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "postgres": "^3.4.8",
+    "tsx": "^4.21.0"
+  }
+}
