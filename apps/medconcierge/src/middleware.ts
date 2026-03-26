@@ -1,8 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
 
-export function middleware(request: NextRequest) {
+const PROTECTED_ROUTES = ['/citas', '/pacientes', '/horarios', '/notas', '/settings', '/agenda']
+
+export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') ?? ''
+  const { pathname } = request.nextUrl
   const url = request.nextUrl.clone()
+
+  // Skip static/public routes
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api') ||
+    pathname === '/login' ||
+    pathname.match(/\.(ico|png|jpg|svg)$/)
+  ) {
+    return NextResponse.next()
+  }
 
   // Extract subdomain
   // Production: dra-martinez.auctorum.com.mx
@@ -22,6 +36,38 @@ export function middleware(request: NextRequest) {
         slug = sub
       }
     }
+  }
+
+  // Protect dashboard routes — require auth session
+  if (PROTECTED_ROUTES.some(r => pathname.startsWith(r))) {
+    const response = NextResponse.next()
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return request.cookies.get(name)?.value
+          },
+          set(name: string, value: string, options: Record<string, unknown>) {
+            request.cookies.set({ name, value, ...options })
+            response.cookies.set({ name, value, ...options })
+          },
+          remove(name: string, options: Record<string, unknown>) {
+            request.cookies.set({ name, value: '', ...options })
+            response.cookies.set({ name, value: '', ...options })
+          },
+        },
+      }
+    )
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+
+    if (slug) response.headers.set('x-tenant-slug', slug)
+    return response
   }
 
   // Dashboard and API routes — pass tenant header through

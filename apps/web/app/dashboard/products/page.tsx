@@ -1,22 +1,10 @@
-import { db, products, tenants } from '@quote-engine/db';
+import { db, products } from '@quote-engine/db';
 import { eq, and, asc } from 'drizzle-orm';
-import { getTenant } from '@/lib/tenant';
+import { requireAuth } from '@/lib/auth';
 import ProductsClient from '@/components/dashboard/ProductsClient';
 
 export default async function ProductsPage() {
-  let tenant = await getTenant();
-  if (!tenant) {
-    const [first] = await db.select().from(tenants).limit(1);
-    tenant = first ?? null;
-  }
-
-  if (!tenant) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">No hay tenant configurado.</p>
-      </div>
-    );
-  }
+  const { tenant } = await requireAuth();
 
   const tenantProducts = await db
     .select()

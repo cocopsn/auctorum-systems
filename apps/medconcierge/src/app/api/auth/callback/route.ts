@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient as createSSRClient } from '@supabase/ssr'
+import { createServerClient } from '@supabase/ssr'
 
-// GET /api/auth/callback
-// Exchanges the one-time code from Supabase magic-link email for a session,
-// sets auth cookies, then redirects the user to /dashboard.
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
@@ -12,9 +9,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${origin}/login?error=missing_code`)
   }
 
-  const response = NextResponse.redirect(`${origin}/dashboard`)
+  // Redirect to /citas as the default dashboard view after login
+  const response = NextResponse.redirect(`${origin}/citas`)
 
-  const supabase = createSSRClient(
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -22,10 +20,10 @@ export async function GET(request: NextRequest) {
         get(name: string) {
           return request.cookies.get(name)?.value
         },
-        set(name: string, value: string, options: any) {
+        set(name: string, value: string, options: Record<string, unknown>) {
           response.cookies.set({ name, value, ...options })
         },
-        remove(name: string, options: any) {
+        remove(name: string, options: Record<string, unknown>) {
           response.cookies.set({ name, value: '', ...options })
         },
       },

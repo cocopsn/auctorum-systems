@@ -124,13 +124,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span className="text-sm font-bold text-gray-700 lg:hidden">Auctorum Systems</span>
             </div>
             <div className="flex items-center gap-3">
-              <Link
-                href="/login"
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                Cerrar sesion
-              </Link>
+              <form action="/api/auth/logout" method="POST">
+                <button
+                  type="submit"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  Cerrar sesion
+                </button>
+              </form>
             </div>
           </div>
         </header>

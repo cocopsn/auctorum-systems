@@ -3,27 +3,13 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from 'next/server'
 import { and, eq, gte, lte, ilike, or, desc, sql } from 'drizzle-orm'
 import { db } from '@quote-engine/db'
-import { appointments, patients, tenants, appointmentEvents } from '@quote-engine/db'
-
-// SEC-06 AUTH AUDIT: NO AUTHENTICATION IS ENFORCED on this dashboard route.
-// getTenantId() is hardcoded to 'dra-martinez' instead of deriving tenant
-// from an authenticated session. All handlers (GET, PATCH) are publicly accessible.
-// TODO: Replace getTenantId() with auth-based tenant resolution:
-//   1. Verify the user's session (magic-link token or Supabase JWT)
-//   2. Derive tenant_id from the authenticated user's record in the users table
-//   3. Return 401 if no valid session exists
-async function getTenantId() {
-  const [tenant] = await db
-    .select({ id: tenants.id })
-    .from(tenants)
-    .where(eq(tenants.slug, 'dra-martinez'))
-    .limit(1)
-  return tenant?.id
-}
+import { appointments, patients, appointmentEvents } from '@quote-engine/db'
+import { getAuthTenant } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
-  const tenantId = await getTenantId()
-  if (!tenantId) return NextResponse.json({ error: 'No tenant' }, { status: 401 })
+  const auth = await getAuthTenant()
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const tenantId = auth.tenant.id
 
   const { searchParams } = request.nextUrl
   const startDate = searchParams.get('startDate')
@@ -86,8 +72,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  const tenantId = await getTenantId()
-  if (!tenantId) return NextResponse.json({ error: 'No tenant' }, { status: 401 })
+  const auth = await getAuthTenant()
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const tenantId = auth.tenant.id
 
   try {
     const { appointmentId, status: newStatus } = await request.json()

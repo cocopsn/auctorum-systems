@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { db, products, tenants } from '@quote-engine/db';
+import { db, products, tenants, users } from '@quote-engine/db';
 import { eq, and, asc, count, isNull } from 'drizzle-orm';
 import { rateLimit } from '@/lib/rate-limit';
 import { validateOrigin } from '@/lib/csrf';
 import { apiError } from '@/lib/api-helpers';
+import { createSupabaseServer } from '@/lib/supabase-ssr';
 
 const createProductSchema = z.object({
   tenantSlug: z.string().min(1).max(63),
@@ -80,15 +81,29 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/products
-// SEC-06 AUTH AUDIT: This route does NOT verify the user is authenticated.
-// Anyone who knows a tenant slug can create products for that tenant.
-// TODO: Enforce authentication before allowing product creation.
-// Only authenticated tenant admins should be able to add products.
+// SEC-06 AUTH AUDIT: Requires authenticated user who belongs to the target tenant.
 export async function POST(request: NextRequest) {
   try {
     // CSRF: validate origin for state-changing requests
     if (!validateOrigin(request)) {
       return Response.json({ error: 'Invalid origin' }, { status: 403 });
+    }
+
+    // Verify authenticated user
+    const supabase = createSupabaseServer();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    // Verify user exists in our DB
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .limit(1);
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     const body = await request.json();
@@ -111,6 +126,11 @@ export async function POST(request: NextRequest) {
 
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 });
+    }
+
+    // Verify user belongs to the target tenant
+    if (user.tenantId !== tenant.id) {
+      return NextResponse.json({ error: 'No autorizado para este tenant' }, { status: 403 });
     }
 
     const [created] = await db

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { db, products } from '@quote-engine/db';
+import { db, products, users } from '@quote-engine/db';
 import { eq, and, isNull } from 'drizzle-orm';
 import { validateOrigin } from '@/lib/csrf';
+import { createSupabaseServer } from '@/lib/supabase-ssr';
 
 const updateProductSchema = z.object({
   name: z.string().min(1, 'Nombre requerido').max(255).optional(),
@@ -23,7 +24,39 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
       return Response.json({ error: 'Invalid origin' }, { status: 403 });
     }
 
+    // Auth check
+    const supabase = createSupabaseServer();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .limit(1);
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const { productId } = params;
+
+    // Verify product exists and belongs to user's tenant
+    const [existing] = await db
+      .select()
+      .from(products)
+      .where(and(
+        eq(products.id, productId),
+        eq(products.tenantId, user.tenantId),
+        isNull(products.deletedAt),
+      ))
+      .limit(1);
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
+    }
+
     const body = await request.json();
     const parsed = updateProductSchema.safeParse(body);
 
@@ -32,16 +65,6 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
         { error: parsed.error.errors[0].message },
         { status: 400 }
       );
-    }
-
-    const [existing] = await db
-      .select({ id: products.id })
-      .from(products)
-      .where(and(eq(products.id, productId), isNull(products.deletedAt)))
-      .limit(1);
-
-    if (!existing) {
-      return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
     }
 
     const { name, sku, unitPrice, unitType, category, description } = parsed.data;
@@ -68,25 +91,47 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
 }
 
 // DELETE /api/products/[productId] — soft delete (set deleted_at)
-export async function DELETE(_request: NextRequest, { params }: RouteContext) {
+export async function DELETE(request: NextRequest, { params }: RouteContext) {
   try {
     // CSRF: validate origin for state-changing requests
-    if (!validateOrigin(_request)) {
+    if (!validateOrigin(request)) {
       return Response.json({ error: 'Invalid origin' }, { status: 403 });
+    }
+
+    // Auth check
+    const supabase = createSupabaseServer();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, session.user.id))
+      .limit(1);
+    if (!user) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
     const { productId } = params;
 
+    // Verify product exists and belongs to user's tenant
     const [existing] = await db
-      .select({ id: products.id })
+      .select()
       .from(products)
-      .where(and(eq(products.id, productId), isNull(products.deletedAt)))
+      .where(and(
+        eq(products.id, productId),
+        eq(products.tenantId, user.tenantId),
+        isNull(products.deletedAt),
+      ))
       .limit(1);
 
     if (!existing) {
       return NextResponse.json({ error: 'Producto no encontrado' }, { status: 404 });
     }
 
+    // Soft delete
     await db
       .update(products)
       .set({ isActive: false, deletedAt: new Date() })
