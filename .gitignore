@@ -31,3 +31,10 @@ tsconfig.tsbuildinfo
 CLAUDE-MD-MASTER-V3.md
 CLAUDE-CODE-PROMPT.md
 agent_docs/credentials.md
+
+# Temporary root files (source assets, external docs)
+brand-identity*.md
+logo-transparent.png
+logo1-transparent.png
+*.pdf
+download.png
