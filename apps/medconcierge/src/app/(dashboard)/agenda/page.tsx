@@ -6,7 +6,6 @@ import { appointments, patients, tenants } from '@quote-engine/db'
 import { StatsCards } from '@/components/dashboard/stats-cards'
 import { DayTimeline } from '@/components/dashboard/day-timeline'
 
-// TODO: Replace with requireAuth() tenant
 async function getTenantId() {
   const [tenant] = await db
     .select({ id: tenants.id })
@@ -18,12 +17,11 @@ async function getTenantId() {
 
 export default async function AgendaPage() {
   const tenantId = await getTenantId()
-  if (!tenantId) return <div>No tenant found</div>
+  if (!tenantId) return <div className="text-[var(--error)]">No tenant found</div>
 
   const today = new Date().toISOString().split('T')[0]
   const now = new Date().toTimeString().slice(0, 8)
 
-  // Today's appointments with patient data
   const todayAppointments = await db
     .select({
       id: appointments.id,
@@ -79,7 +77,6 @@ export default async function AgendaPage() {
     .where(and(eq(appointments.tenantId, tenantId), eq(appointments.date, today)))
     .orderBy(appointments.startTime)
 
-  // Stats
   const weekStart = new Date()
   weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
   const weekEnd = new Date(weekStart)
@@ -133,8 +130,8 @@ export default async function AgendaPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Agenda del Día</h1>
-        <p className="text-sm text-gray-500">
+        <h1 className="text-xl font-semibold text-[var(--text-primary)]">Agenda del Día</h1>
+        <p className="text-sm text-[var(--text-tertiary)] mt-0.5">
           {new Date().toLocaleDateString('es-MX', {
             weekday: 'long',
             day: 'numeric',

@@ -3,6 +3,11 @@ import { createServerClient } from '@supabase/ssr'
 
 const PROTECTED_ROUTES = ['/citas', '/pacientes', '/horarios', '/notas', '/settings', '/agenda']
 
+// Check if pathname matches a protected route (exact segment match, not just prefix)
+function isProtectedRoute(pathname: string): boolean {
+  return PROTECTED_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))
+}
+
 export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') ?? ''
   const { pathname } = request.nextUrl
@@ -39,7 +44,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Protect dashboard routes — require auth session
-  if (PROTECTED_ROUTES.some(r => pathname.startsWith(r))) {
+  if (isProtectedRoute(pathname)) {
     const response = NextResponse.next()
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -70,8 +75,13 @@ export async function middleware(request: NextRequest) {
     return response
   }
 
-  // Dashboard and API routes — pass tenant header through
-  if (url.pathname.startsWith('/dashboard') || url.pathname.startsWith('/api')) {
+  // Redirect /dashboard to /agenda (med app uses route group, not /dashboard prefix)
+  if (pathname === '/dashboard' || pathname === '/dashboard/') {
+    return NextResponse.redirect(new URL('/agenda', request.url))
+  }
+
+  // API routes — pass tenant header through
+  if (url.pathname.startsWith('/api')) {
     const response = NextResponse.next()
     if (slug) {
       response.headers.set('x-tenant-slug', slug)

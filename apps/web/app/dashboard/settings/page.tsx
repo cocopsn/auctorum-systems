@@ -13,7 +13,7 @@ export default async function SettingsPage() {
   if (!tenant) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-gray-500">No hay tenant configurado.</p>
+        <p className="text-[var(--text-tertiary)]">No hay tenant configurado.</p>
       </div>
     );
   }
@@ -23,8 +23,8 @@ export default async function SettingsPage() {
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Configuración</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Personalice su portal de cotizaciones</p>
+        <h1 className="text-xl font-semibold text-[var(--text-primary)]">Configuración</h1>
+        <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Personalice su portal de cotizaciones</p>
       </div>
       <SettingsClient
         tenantSlug={tenant.slug}

@@ -2,8 +2,6 @@ import { Sidebar } from '@/components/dashboard/sidebar'
 import { getTenantConfig, tenantCssVars } from '@/lib/tenant'
 import { ToastContainer } from '@/components/ui/Toast'
 
-// TODO: Replace with requireAuth() once Supabase Auth is configured
-// For now, use a demo tenant for development
 import { eq } from 'drizzle-orm'
 import { db } from '@quote-engine/db'
 import { tenants } from '@quote-engine/db'
@@ -25,16 +23,16 @@ export default async function DashboardLayout({
   const tenant = await getDemoTenant()
 
   if (!tenant) {
-    return <div className="p-8 text-red-500">Tenant not found. Run seed first.</div>
+    return <div className="p-8 text-[var(--error)]">Tenant not found. Run seed first.</div>
   }
 
   const config = getTenantConfig(tenant)
   const cssVars = tenantCssVars(config)
 
   return (
-    <div style={cssVars as React.CSSProperties} className="min-h-screen bg-gray-50">
+    <div style={cssVars as React.CSSProperties} className="min-h-screen bg-[var(--bg-primary)]">
       <Sidebar doctorName={tenant.name} />
-      <main className="lg:ml-64 min-h-screen">
+      <main className="lg:ml-56 min-h-screen">
         <div className="p-6 lg:p-8">{children}</div>
       </main>
       <ToastContainer />

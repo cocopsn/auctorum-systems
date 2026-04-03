@@ -3,5 +3,5 @@ export const dynamic = "force-dynamic";
 import { redirect } from 'next/navigation'
 
 export default function DashboardRoot() {
-  redirect('/dashboard/agenda')
+  redirect('/agenda')
 }

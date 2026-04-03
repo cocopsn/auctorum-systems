@@ -47,45 +47,45 @@ export default async function ClientsPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <h1 className="text-xl font-semibold text-[var(--text-primary)]">Clientes</h1>
+        <p className="text-sm text-[var(--text-tertiary)] mt-0.5">
           Directorio construido automáticamente a partir de cotizaciones
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <p className="text-sm text-gray-500">{tenantClients.length} clientes registrados</p>
+      <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] overflow-hidden">
+        <div className="px-6 py-4 border-b border-[var(--border)]">
+          <p className="text-sm text-[var(--text-tertiary)]">{tenantClients.length} clientes registrados</p>
         </div>
 
         {tenantClients.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+            <div className="w-16 h-16 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-[var(--text-tertiary)] opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                 <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Sin clientes todavia</h3>
-            <p className="text-sm text-gray-400 mb-6 max-w-sm">Los clientes aparecen aqui automaticamente al recibir cotizaciones desde su portal.</p>
-            <a href="/dashboard/settings" className="px-4 py-2 bg-[#1B3A5C] text-white text-sm rounded-lg hover:bg-[#15304d] transition-colors">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Sin clientes todavia</h3>
+            <p className="text-sm text-[var(--text-tertiary)] mb-6 max-w-sm">Los clientes aparecen aqui automaticamente al recibir cotizaciones desde su portal.</p>
+            <a href="/dashboard/settings" className="px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:bg-[var(--accent-hover)] transition-colors">
               Configurar portal
             </a>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-100 text-gray-500">
-                <tr>
-                  <th className="text-left px-6 py-3 font-medium">Nombre</th>
-                  <th className="text-left px-6 py-3 font-medium hidden md:table-cell">Empresa</th>
-                  <th className="text-left px-6 py-3 font-medium hidden lg:table-cell">Teléfono</th>
-                  <th className="text-right px-6 py-3 font-medium">Cotizaciones</th>
-                  <th className="text-right px-6 py-3 font-medium hidden sm:table-cell">Total cotizado</th>
-                  <th className="text-right px-6 py-3 font-medium hidden md:table-cell">Aceptadas</th>
-                  <th className="text-right px-6 py-3 font-medium hidden lg:table-cell">Última cotización</th>
+              <thead className="border-b border-[var(--border)]">
+                <tr className="text-[var(--text-tertiary)]">
+                  <th className="text-left px-6 py-3 text-[11px] font-mono uppercase tracking-wide">Nombre</th>
+                  <th className="text-left px-6 py-3 text-[11px] font-mono uppercase tracking-wide hidden md:table-cell">Empresa</th>
+                  <th className="text-left px-6 py-3 text-[11px] font-mono uppercase tracking-wide hidden lg:table-cell">Teléfono</th>
+                  <th className="text-right px-6 py-3 text-[11px] font-mono uppercase tracking-wide">Cotizaciones</th>
+                  <th className="text-right px-6 py-3 text-[11px] font-mono uppercase tracking-wide hidden sm:table-cell">Total cotizado</th>
+                  <th className="text-right px-6 py-3 text-[11px] font-mono uppercase tracking-wide hidden md:table-cell">Aceptadas</th>
+                  <th className="text-right px-6 py-3 text-[11px] font-mono uppercase tracking-wide hidden lg:table-cell">Última cotización</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-[var(--border)]">
                 {tenantClients.map((client: Client) => {
                   const convRate =
                     client.totalQuotes && client.totalQuotes > 0
@@ -93,32 +93,32 @@ export default async function ClientsPage() {
                       : 0;
 
                   return (
-                    <tr key={client.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={client.id} className="hover:bg-[var(--bg-elevated)] transition-colors">
                       <td className="px-6 py-3">
-                        <p className="font-medium text-gray-900">{client.name}</p>
+                        <p className="font-medium text-[var(--text-primary)]">{client.name}</p>
                         {client.email && (
-                          <p className="text-xs text-gray-400">{client.email}</p>
+                          <p className="text-xs text-[var(--text-tertiary)]">{client.email}</p>
                         )}
                       </td>
-                      <td className="px-6 py-3 text-gray-600 hidden md:table-cell">
+                      <td className="px-6 py-3 text-[var(--text-secondary)] hidden md:table-cell">
                         {client.company || '—'}
                       </td>
-                      <td className="px-6 py-3 text-gray-500 hidden lg:table-cell font-mono text-xs">
+                      <td className="px-6 py-3 text-[var(--text-tertiary)] hidden lg:table-cell font-mono text-xs">
                         {client.phone || '—'}
                       </td>
                       <td className="px-6 py-3 text-right">
-                        <span className="font-semibold text-gray-900">{client.totalQuotes ?? 0}</span>
+                        <span className="font-semibold text-[var(--text-primary)]">{client.totalQuotes ?? 0}</span>
                       </td>
-                      <td className="px-6 py-3 text-right font-semibold tabular-nums hidden sm:table-cell">
+                      <td className="px-6 py-3 text-right font-mono font-medium text-[var(--text-primary)] hidden sm:table-cell">
                         {formatMXN(client.totalQuotedAmount)}
                       </td>
                       <td className="px-6 py-3 text-right hidden md:table-cell">
-                        <span className="font-medium text-green-700">{client.totalAccepted ?? 0}</span>
+                        <span className="font-medium text-[var(--success)]">{client.totalAccepted ?? 0}</span>
                         {client.totalQuotes ? (
-                          <span className="text-xs text-gray-400 ml-1">({convRate}%)</span>
+                          <span className="text-xs text-[var(--text-tertiary)] ml-1">({convRate}%)</span>
                         ) : null}
                       </td>
-                      <td className="px-6 py-3 text-right text-gray-400 text-xs hidden lg:table-cell">
+                      <td className="px-6 py-3 text-right text-[var(--text-tertiary)] text-xs hidden lg:table-cell">
                         {formatDate(client.lastQuoteAt)}
                       </td>
                     </tr>

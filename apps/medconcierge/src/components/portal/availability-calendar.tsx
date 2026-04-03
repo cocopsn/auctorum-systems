@@ -34,7 +34,7 @@ export function AvailabilityCalendar({
 
   const today = new Date()
   const weekStart = new Date(today)
-  weekStart.setDate(today.getDate() - today.getDay() + 1 + weekOffset * 7) // Start on Monday
+  weekStart.setDate(today.getDate() - today.getDay() + 1 + weekOffset * 7)
 
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekStart.getDate() + 6)
@@ -70,19 +70,19 @@ export function AvailabilityCalendar({
         <button
           onClick={() => setWeekOffset(Math.max(0, weekOffset - 1))}
           disabled={weekOffset === 0}
-          className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-2 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
-          <ChevronLeft className="w-5 h-5 text-gray-700" />
+          <ChevronLeft className="w-4 h-4" />
         </button>
-        <span className="text-lg font-bold text-gray-900">
+        <span className="text-sm font-semibold text-[var(--text-primary)]">
           {MONTH_NAMES[weekStart.getMonth()]} {weekStart.getFullYear()}
         </span>
         <button
           onClick={() => setWeekOffset(Math.min(4, weekOffset + 1))}
           disabled={weekOffset >= 4}
-          className="p-3 rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+          className="p-2 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         >
-          <ChevronRight className="w-5 h-5 text-gray-700" />
+          <ChevronRight className="w-4 h-4" />
         </button>
       </div>
 
@@ -102,39 +102,35 @@ export function AvailabilityCalendar({
                 if (hasAvailable && !isPast) setSelectedDate(dateStr)
               }}
               disabled={!hasAvailable || isPast}
-              className={`
-                flex flex-col items-center p-3 min-h-[80px] rounded-xl text-sm transition-all duration-200
+              className={`flex flex-col items-center p-2.5 min-h-[72px] rounded-lg text-sm transition-all
                 ${isSelected
-                  ? 'bg-tenant-primary text-white shadow-lg scale-105'
+                  ? 'bg-[var(--accent)] text-white'
                   : hasAvailable && !isPast
-                    ? 'bg-white border border-gray-200 hover:bg-green-50 hover:border-tenant-primary hover:shadow-sm cursor-pointer'
-                    : 'bg-gray-50 text-gray-300 cursor-not-allowed opacity-40'
-                }
-              `}
+                    ? 'bg-[var(--bg-tertiary)] border border-[var(--border)] hover:border-[var(--accent)] cursor-pointer'
+                    : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)]/30 cursor-not-allowed'
+                }`}
             >
-              <span className={`text-xs font-semibold uppercase tracking-wide ${isPast && !isSelected ? 'line-through' : ''}`}>
+              <span className={`text-[11px] font-medium uppercase tracking-wide ${isPast && !isSelected ? 'line-through' : ''}`}>
                 {DAY_NAMES[day.getDay()]}
               </span>
-              <span className={`text-xl font-bold mt-1.5 ${isPast && !isSelected ? 'line-through' : ''}`}>
+              <span className={`text-lg font-bold mt-1 ${isPast && !isSelected ? 'line-through' : ''}`}>
                 {day.getDate()}
               </span>
               {hasAvailable && !isPast && (
-                <span className={`w-2 h-2 rounded-full mt-1.5 ${isSelected ? 'bg-white' : 'bg-green-400'}`} />
+                <span className={`w-1.5 h-1.5 rounded-full mt-1 ${isSelected ? 'bg-white' : 'bg-[var(--success)]'}`} />
               )}
             </button>
           )
         })}
       </div>
 
-      {/* Loading */}
       {loading && (
-        <div className="mt-8 text-center text-sm text-gray-400">Cargando disponibilidad...</div>
+        <div className="mt-6 text-center text-xs text-[var(--text-tertiary)]">Cargando disponibilidad...</div>
       )}
 
-      {/* Slots */}
       {selectedDate && !loading && (
-        <div className="mt-8">
-          <h4 className="text-sm font-semibold text-gray-700 mb-4">
+        <div className="mt-6">
+          <h4 className="text-xs font-medium text-[var(--text-tertiary)] uppercase tracking-wide mb-3">
             Horarios disponibles — {new Date(selectedDate + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })}
           </h4>
           {availableSlots.length > 0 ? (
@@ -143,14 +139,14 @@ export function AvailabilityCalendar({
                 <button
                   key={slot.startTime}
                   onClick={() => onSlotSelect(selectedDate, slot)}
-                  className="px-3 py-2.5 text-sm font-medium rounded-lg border-2 border-gray-200 bg-white hover:border-tenant-primary hover:bg-tenant-primary hover:text-white transition-all duration-200"
+                  className="px-3 py-2 text-sm font-mono font-medium rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:border-[var(--accent)] hover:bg-[var(--accent)] hover:text-white transition-all"
                 >
                   {slot.startTime.slice(0, 5)}
                 </button>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-400">No hay horarios disponibles este día.</p>
+            <p className="text-xs text-[var(--text-tertiary)]">No hay horarios disponibles este día.</p>
           )}
         </div>
       )}

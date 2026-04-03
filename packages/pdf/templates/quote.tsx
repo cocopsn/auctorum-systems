@@ -72,14 +72,10 @@ function QuoteDocument({ tenant, config, quote, items }: GenerateQuotePDFParams)
   return (
     <Document>
       <Page size="LETTER" style={styles.page}>
-        {/* Header: logo + company info */}
+        {/* Header: company name + info (logo omitted to prevent network-dependent failures on VPS) */}
         <View style={styles.header}>
           <View>
-            {tenant.logoUrl ? (
-              <Image src={tenant.logoUrl} style={styles.logo} />
-            ) : (
-              <Text style={[styles.companyName, { color: primaryColor }]}>{tenant.name}</Text>
-            )}
+            <Text style={[styles.companyName, { color: primaryColor }]}>{tenant.name}</Text>
           </View>
           <View style={styles.companyInfo}>
             <Text style={[styles.companyName, { color: primaryColor }]}>{tenant.name}</Text>

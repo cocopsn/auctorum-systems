@@ -95,15 +95,15 @@ export function SoapNotesPage() {
         <>
           <button
             onClick={startNew}
-            className="flex items-center gap-2 px-4 py-2 bg-tenant-primary text-white font-medium rounded-lg hover:opacity-90 mb-4"
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white font-medium rounded-lg hover:bg-[var(--accent-hover)] transition-colors mb-4"
           >
             <Plus className="w-4 h-4" /> Nueva Nota
           </button>
 
           {loading ? (
-            <div className="text-gray-400">Cargando...</div>
+            <div className="text-[var(--text-tertiary)]">Cargando...</div>
           ) : notes.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
+            <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-8 text-center text-[var(--text-tertiary)]">
               No hay notas clínicas. Cree una nueva nota.
             </div>
           ) : (
@@ -112,16 +112,16 @@ export function SoapNotesPage() {
                 <button
                   key={note.id}
                   onClick={() => startEdit(note)}
-                  className="w-full text-left bg-white rounded-xl border border-gray-200 p-4 hover:border-tenant-primary/30 transition-colors"
+                  className="w-full text-left bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-4 hover:border-[var(--border-hover)] transition-colors"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-gray-900">{note.patientName}</span>
-                    <span className="text-xs text-gray-400">
+                    <span className="font-medium text-[var(--text-primary)]">{note.patientName}</span>
+                    <span className="text-xs text-[var(--text-tertiary)]">
                       {note.createdAt ? new Date(note.createdAt).toLocaleDateString('es-MX') : ''}
                     </span>
                   </div>
                   {note.assessment && (
-                    <p className="text-sm text-gray-600 line-clamp-2">{note.assessment}</p>
+                    <p className="text-sm text-[var(--text-secondary)] line-clamp-2">{note.assessment}</p>
                   )}
                 </button>
               ))}
@@ -131,14 +131,14 @@ export function SoapNotesPage() {
       )}
 
       {showForm && (
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">
+            <h3 className="text-lg font-semibold text-[var(--text-primary)]">
               {editing ? `Nota — ${editing.patientName}` : 'Nueva Nota SOAP'}
             </h3>
             <button
               onClick={() => { setCreating(false); setEditing(null) }}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
             >
               Cancelar
             </button>
@@ -146,11 +146,11 @@ export function SoapNotesPage() {
 
           {creating && (
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Paciente</label>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Paciente</label>
               <select
                 value={selectedPatient}
                 onChange={(e) => setSelectedPatient(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm bg-white"
+                className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-sm text-[var(--text-primary)]"
               >
                 <option value="">Seleccionar paciente...</option>
                 {patients.map((p) => (
@@ -171,7 +171,7 @@ export function SoapNotesPage() {
             <button
               onClick={handleSave}
               disabled={saving || (creating && !selectedPatient)}
-              className="flex items-center gap-2 px-4 py-2 bg-tenant-primary text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-60"
+              className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white font-medium rounded-lg hover:bg-[var(--accent-hover)] disabled:opacity-60 transition-colors"
             >
               {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</> : <><Save className="w-4 h-4" /> Guardar Nota</>}
             </button>
@@ -185,13 +185,13 @@ export function SoapNotesPage() {
 function SoapField({ label, sublabel, value, onChange }: { label: string; sublabel: string; value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-900 mb-0.5">{label}</label>
-      <p className="text-xs text-gray-400 mb-1">{sublabel}</p>
+      <label className="block text-sm font-medium text-[var(--text-primary)] mb-0.5">{label}</label>
+      <p className="text-xs text-[var(--text-tertiary)] mb-1">{sublabel}</p>
       <textarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
         rows={4}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-tenant-primary/30 resize-none"
+        className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30 resize-none"
       />
     </div>
   )

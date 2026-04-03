@@ -14,10 +14,6 @@ export function StatsCards({ stats }: { stats: Stats }) {
       label: 'Citas hoy',
       value: String(stats.todayCount),
       icon: CalendarDays,
-      iconBg: 'bg-blue-50',
-      iconColor: 'text-blue-600',
-      borderColor: 'border-l-blue-500',
-      gradientFrom: 'from-blue-50/50',
       trend: '+5% vs anterior',
       trendUp: true,
     },
@@ -25,10 +21,6 @@ export function StatsCards({ stats }: { stats: Stats }) {
       label: 'Esta semana',
       value: String(stats.weekCount),
       icon: CalendarCheck,
-      iconBg: 'bg-green-50',
-      iconColor: 'text-green-600',
-      borderColor: 'border-l-green-500',
-      gradientFrom: 'from-green-50/50',
       trend: '+12% vs anterior',
       trendUp: true,
     },
@@ -36,10 +28,6 @@ export function StatsCards({ stats }: { stats: Stats }) {
       label: 'No-shows (mes)',
       value: String(stats.monthNoShows),
       icon: UserX,
-      iconBg: 'bg-red-50',
-      iconColor: 'text-red-600',
-      borderColor: 'border-l-red-500',
-      gradientFrom: 'from-red-50/50',
       trend: '-3% vs anterior',
       trendUp: false,
     },
@@ -47,10 +35,6 @@ export function StatsCards({ stats }: { stats: Stats }) {
       label: 'Ingresos (mes)',
       value: formatCurrency(stats.monthRevenue),
       icon: DollarSign,
-      iconBg: 'bg-purple-50',
-      iconColor: 'text-purple-600',
-      borderColor: 'border-l-purple-500',
-      gradientFrom: 'from-purple-50/50',
       trend: '+8% vs anterior',
       trendUp: true,
     },
@@ -61,26 +45,25 @@ export function StatsCards({ stats }: { stats: Stats }) {
       {cards.map((card) => (
         <div
           key={card.label}
-          className={`bg-gradient-to-br ${card.gradientFrom} to-white rounded-xl border border-gray-200 border-l-4 ${card.borderColor} p-5 hover:shadow-md transition-shadow duration-200`}
+          className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-5 hover:border-[var(--border-hover)] transition-colors"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-gray-500 truncate">{card.label}</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">{card.value}</p>
-              {/* Trend indicator */}
+              <p className="text-[11px] font-mono text-[var(--text-tertiary)] uppercase tracking-wide">{card.label}</p>
+              <p className="text-2xl font-bold text-[var(--text-primary)] mt-1">{card.value}</p>
               <div className="flex items-center gap-1 mt-2">
                 {card.trendUp ? (
-                  <TrendingUp className="w-3 h-3 text-green-500" />
+                  <TrendingUp className="w-3 h-3 text-[var(--success)]" />
                 ) : (
-                  <TrendingDown className="w-3 h-3 text-red-500" />
+                  <TrendingDown className="w-3 h-3 text-[var(--error)]" />
                 )}
-                <span className={`text-[10px] font-medium ${card.trendUp ? 'text-green-600' : 'text-red-600'}`}>
+                <span className={`text-[10px] font-medium ${card.trendUp ? 'text-[var(--success)]' : 'text-[var(--error)]'}`}>
                   {card.trend}
                 </span>
               </div>
             </div>
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${card.iconBg} shrink-0`}>
-              <card.icon className={`w-6 h-6 ${card.iconColor}`} />
+            <div className="w-10 h-10 rounded-lg bg-[var(--accent-muted)] flex items-center justify-center shrink-0">
+              <card.icon className="w-5 h-5 text-[var(--accent)]" />
             </div>
           </div>
         </div>

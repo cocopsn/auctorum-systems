@@ -46,7 +46,7 @@ export function SettingsForm() {
     setTimeout(() => setSaved(false), 3000)
   }
 
-  if (!config) return <div className="text-gray-400">Cargando...</div>
+  if (!config) return <div className="text-[var(--text-tertiary)]">Cargando...</div>
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'profile', label: 'Perfil Médico' },
@@ -57,13 +57,13 @@ export function SettingsForm() {
   return (
     <div>
       {/* Tabs */}
-      <div className="flex gap-1 mb-6 bg-gray-100 rounded-lg p-1">
+      <div className="flex gap-1 mb-6 bg-[var(--bg-tertiary)] rounded-lg p-1">
         {tabs.map((t) => (
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-              tab === t.id ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              tab === t.id ? 'bg-[var(--bg-secondary)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
             }`}
           >
             {t.label}
@@ -71,7 +71,7 @@ export function SettingsForm() {
         ))}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-6">
         {tab === 'profile' && (
           <div className="space-y-4">
             <Field label="Bio" multiline value={doctor.bio ?? ''} onChange={(v) => setDoctor((d) => ({ ...d, bio: v }))} />
@@ -111,24 +111,25 @@ export function SettingsForm() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-tenant-primary text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-60"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white font-medium rounded-lg hover:bg-[var(--accent-hover)] disabled:opacity-60 transition-colors"
         >
           {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</> : <><Save className="w-4 h-4" /> Guardar</>}
         </button>
-        {saved && <span className="text-sm text-green-600">Configuración guardada</span>}
+        {saved && <span className="text-sm text-[var(--success)]">Configuración guardada</span>}
       </div>
     </div>
   )
 }
 
 function Field({ label, value, onChange, multiline }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean }) {
+  const cls = 'w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30'
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{label}</label>
       {multiline ? (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-tenant-primary/30 resize-none" />
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} className={`${cls} resize-none`} />
       ) : (
-        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-tenant-primary/30" />
+        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className={cls} />
       )}
     </div>
   )
@@ -137,10 +138,10 @@ function Field({ label, value, onChange, multiline }: { label: string; value: st
 function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center gap-3">
-      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="w-10 h-10 rounded border border-gray-300 cursor-pointer" />
+      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="w-10 h-10 rounded border border-[var(--border)] cursor-pointer" />
       <div>
-        <label className="block text-sm font-medium text-gray-700">{label}</label>
-        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="mt-0.5 px-2 py-1 border border-gray-300 rounded text-xs font-mono w-24" />
+        <label className="block text-sm font-medium text-[var(--text-secondary)]">{label}</label>
+        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} className="mt-0.5 px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded text-xs font-mono text-[var(--text-primary)] w-24" />
       </div>
     </div>
   )
@@ -149,10 +150,10 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
 function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <div className="flex items-center justify-between py-2">
-      <span className="text-sm text-gray-700">{label}</span>
+      <span className="text-sm text-[var(--text-secondary)]">{label}</span>
       <button
         onClick={() => onChange(!value)}
-        className={`w-10 h-5 rounded-full transition-colors relative ${value ? 'bg-tenant-primary' : 'bg-gray-300'}`}
+        className={`w-10 h-5 rounded-full transition-colors relative ${value ? 'bg-[var(--accent)]' : 'bg-[var(--bg-tertiary)]'}`}
       >
         <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${value ? 'left-[22px]' : 'left-0.5'}`} />
       </button>

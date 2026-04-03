@@ -38,9 +38,9 @@ function getMockAnalytics() {
       { company: 'Lear Corporation', quotes: 3, revenue: 6496, rate: 33 },
     ],
     statusBreakdown: [
-      { status: 'Aceptadas', count: 1, color: 'bg-green-500' },
-      { status: 'Enviadas', count: 1, color: 'bg-blue-500' },
-      { status: 'Vistas', count: 1, color: 'bg-yellow-500' },
+      { status: 'Aceptadas', count: 1, color: 'bg-[var(--success)]' },
+      { status: 'Enviadas', count: 1, color: 'bg-[var(--accent)]' },
+      { status: 'Vistas', count: 1, color: 'bg-[var(--warning)]' },
     ],
   };
 }
@@ -124,41 +124,41 @@ export default async function AnalyticsPage() {
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Metricas de conversion, productos y clientes (30 dias)</p>
+        <h1 className="text-xl font-semibold text-[var(--text-primary)]">Analytics</h1>
+        <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Metricas de conversion, productos y clientes (30 dias)</p>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Tasa de conversion</p>
-          <p className="text-4xl font-bold mt-2" style={{ color: data.conversionRate >= 50 ? '#16a34a' : data.conversionRate >= 25 ? '#ca8a04' : '#dc2626' }}>
+        <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-5 hover:border-[var(--border-hover)] transition-colors">
+          <p className="text-[11px] font-mono text-[var(--text-tertiary)] uppercase tracking-wide">Tasa de conversion</p>
+          <p className="text-4xl font-bold mt-2" style={{ color: data.conversionRate >= 50 ? 'var(--success)' : data.conversionRate >= 25 ? 'var(--warning)' : 'var(--error)' }}>
             {data.conversionRate}%
           </p>
-          <p className="text-xs text-gray-400 mt-1">{data.acceptedCount} de {data.totalQuotes} aceptadas</p>
+          <p className="text-xs text-[var(--text-tertiary)] mt-1">{data.acceptedCount} de {data.totalQuotes} aceptadas</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Revenue (aceptadas)</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{formatMXN(data.totalRevenue)}</p>
-          <p className="text-xs text-gray-400 mt-1">ultimos 30 dias</p>
+        <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-5 hover:border-[var(--border-hover)] transition-colors">
+          <p className="text-[11px] font-mono text-[var(--text-tertiary)] uppercase tracking-wide">Revenue (aceptadas)</p>
+          <p className="text-3xl font-bold text-[var(--text-primary)] mt-2">{formatMXN(data.totalRevenue)}</p>
+          <p className="text-xs text-[var(--text-tertiary)] mt-1">ultimos 30 dias</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Ticket promedio</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{formatMXN(data.avgQuoteValue)}</p>
-          <p className="text-xs text-gray-400 mt-1">por cotizacion</p>
+        <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-5 hover:border-[var(--border-hover)] transition-colors">
+          <p className="text-[11px] font-mono text-[var(--text-tertiary)] uppercase tracking-wide">Ticket promedio</p>
+          <p className="text-3xl font-bold text-[var(--text-primary)] mt-2">{formatMXN(data.avgQuoteValue)}</p>
+          <p className="text-xs text-[var(--text-tertiary)] mt-1">por cotizacion</p>
         </div>
-        <div className="bg-white rounded-xl border border-gray-200 p-5">
-          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Total cotizaciones</p>
-          <p className="text-3xl font-bold text-gray-900 mt-2">{data.totalQuotes}</p>
-          <p className="text-xs text-gray-400 mt-1">generadas en 30 dias</p>
+        <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-5 hover:border-[var(--border-hover)] transition-colors">
+          <p className="text-[11px] font-mono text-[var(--text-tertiary)] uppercase tracking-wide">Total cotizaciones</p>
+          <p className="text-3xl font-bold text-[var(--text-primary)] mt-2">{data.totalQuotes}</p>
+          <p className="text-xs text-[var(--text-tertiary)] mt-1">generadas en 30 dias</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Products */}
-        <div className="bg-white rounded-xl border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900">Top productos cotizados</h2>
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border)]">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Top productos cotizados</h2>
           </div>
           <div className="p-6 space-y-4">
             {data.topProducts && data.topProducts.length > 0 ? (
@@ -168,48 +168,48 @@ export default async function AnalyticsPage() {
                 return (
                   <div key={i}>
                     <div className="flex justify-between text-sm mb-1">
-                      <span className="font-medium text-gray-700 truncate mr-4">{p.name}</span>
-                      <span className="text-gray-500 whitespace-nowrap">{p.count} uds · {formatMXN(p.revenue)}</span>
+                      <span className="font-medium text-[var(--text-secondary)] truncate mr-4">{p.name}</span>
+                      <span className="text-[var(--text-tertiary)] whitespace-nowrap">{p.count} uds · {formatMXN(p.revenue)}</span>
                     </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2">
-                      <div className="bg-[#1B3A5C] h-2 rounded-full transition-all" style={{ width: `${width}%` }} />
+                    <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-2">
+                      <div className="bg-[var(--accent)] h-2 rounded-full transition-all" style={{ width: `${width}%` }} />
                     </div>
                   </div>
                 );
               })
             ) : (
-              <p className="text-center text-gray-400 py-8 text-sm">Sin datos de productos todavia</p>
+              <p className="text-center text-[var(--text-tertiary)] py-8 text-sm">Sin datos de productos todavia</p>
             )}
           </div>
         </div>
 
         {/* Top Clients */}
-        <div className="bg-white rounded-xl border border-gray-200">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="font-semibold text-gray-900">Top clientes</h2>
+        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] overflow-hidden">
+          <div className="px-6 py-4 border-b border-[var(--border)]">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Top clientes</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50 text-gray-500 border-b border-gray-100">
-                <tr>
-                  <th className="text-left px-6 py-2.5 font-medium">Empresa</th>
-                  <th className="text-right px-6 py-2.5 font-medium">Cotiz.</th>
-                  <th className="text-right px-6 py-2.5 font-medium">Revenue</th>
-                  <th className="text-right px-6 py-2.5 font-medium">Tasa</th>
+              <thead className="border-b border-[var(--border)]">
+                <tr className="text-[var(--text-tertiary)]">
+                  <th className="text-left px-6 py-2.5 text-[11px] font-mono uppercase tracking-wide">Empresa</th>
+                  <th className="text-right px-6 py-2.5 text-[11px] font-mono uppercase tracking-wide">Cotiz.</th>
+                  <th className="text-right px-6 py-2.5 text-[11px] font-mono uppercase tracking-wide">Revenue</th>
+                  <th className="text-right px-6 py-2.5 text-[11px] font-mono uppercase tracking-wide">Tasa</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-[var(--border)]">
                 {data.topClients && data.topClients.length > 0 ? (
                   data.topClients.map((c: any, i: number) => (
-                    <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-6 py-3 font-medium text-gray-900">{c.company || 'Sin empresa'}</td>
-                      <td className="px-6 py-3 text-right text-gray-600">{c.quotes}</td>
-                      <td className="px-6 py-3 text-right font-semibold tabular-nums">{formatMXN(c.revenue || 0)}</td>
+                    <tr key={i} className="hover:bg-[var(--bg-elevated)] transition-colors">
+                      <td className="px-6 py-3 font-medium text-[var(--text-primary)]">{c.company || 'Sin empresa'}</td>
+                      <td className="px-6 py-3 text-right text-[var(--text-secondary)]">{c.quotes}</td>
+                      <td className="px-6 py-3 text-right font-mono font-medium text-[var(--text-primary)]">{formatMXN(c.revenue || 0)}</td>
                       <td className="px-6 py-3 text-right">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                          (c.rate || 0) >= 50 ? 'bg-green-100 text-green-700' :
-                          (c.rate || 0) >= 25 ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-red-100 text-red-700'
+                        <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-medium ${
+                          (c.rate || 0) >= 50 ? 'text-[var(--success)] bg-[var(--success)]/10' :
+                          (c.rate || 0) >= 25 ? 'text-[var(--warning)] bg-[var(--warning)]/10' :
+                          'text-[var(--error)] bg-[var(--error)]/10'
                         }`}>
                           {c.rate || 0}%
                         </span>
@@ -218,7 +218,7 @@ export default async function AnalyticsPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="text-center py-8 text-gray-400 text-sm">Sin datos de clientes todavia</td>
+                    <td colSpan={4} className="text-center py-8 text-[var(--text-tertiary)] text-sm">Sin datos de clientes todavia</td>
                   </tr>
                 )}
               </tbody>

@@ -57,41 +57,32 @@ export function BookingWizard({
     })
 
     return (
-      <div className="bg-white rounded-2xl shadow-lg border border-gray-200 p-8 sm:p-10 text-center">
-        {/* Animated success circle */}
-        <div className="relative w-20 h-20 mx-auto mb-6">
-          <div className="absolute inset-0 rounded-full bg-green-100 animate-ping opacity-20" />
-          <div className="relative w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center shadow-lg">
-            <CheckCircle2 className="w-10 h-10 text-white" />
-          </div>
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-8 text-center">
+        <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-[var(--success)]/10 flex items-center justify-center">
+          <CheckCircle2 className="w-8 h-8 text-[var(--success)]" />
         </div>
-        <h3 className="text-2xl font-bold text-gray-900 mb-2">Cita Agendada</h3>
-        <p className="text-gray-500 mb-8 max-w-md mx-auto">
-          Su cita ha sido registrada exitosamente. Recibirá una confirmación por WhatsApp y email.
+        <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Cita Agendada</h3>
+        <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
+          Su cita ha sido registrada exitosamente. Recibirá confirmación por WhatsApp y email.
         </p>
-        {/* Summary card */}
-        <div className="bg-gray-50 rounded-xl p-6 text-left space-y-3 shadow-sm border border-gray-100 max-w-md mx-auto">
+        <div className="bg-[var(--bg-tertiary)] rounded-lg p-5 text-left space-y-3 max-w-md mx-auto">
           <div className="flex items-center gap-3 text-sm">
-            <div className="w-8 h-8 rounded-lg bg-tenant-primary/10 flex items-center justify-center shrink-0">
-              <CalendarCheck className="w-4 h-4 text-tenant-primary" />
-            </div>
-            <span className="font-semibold text-gray-900">{displayDate} — {selectedSlot.startTime.slice(0, 5)}</span>
+            <CalendarCheck className="w-4 h-4 text-[var(--accent)] shrink-0" />
+            <span className="font-medium text-[var(--text-primary)]">{displayDate} — {selectedSlot.startTime.slice(0, 5)}</span>
           </div>
           <div className="flex items-center gap-3 text-sm">
-            <div className="w-8 h-8 rounded-lg bg-tenant-primary/10 flex items-center justify-center shrink-0">
-              <MapPin className="w-4 h-4 text-tenant-primary" />
-            </div>
-            <span className="text-gray-600">{address}</span>
+            <MapPin className="w-4 h-4 text-[var(--accent)] shrink-0" />
+            <span className="text-[var(--text-secondary)]">{address}</span>
           </div>
           {showFee && (
-            <p className="text-sm text-gray-500 pt-2 border-t border-gray-200">
-              Costo de consulta: <span className="font-semibold text-gray-900">{formatCurrency(fee)}</span>
+            <p className="text-sm text-[var(--text-tertiary)] pt-2 border-t border-[var(--border)]">
+              Consulta: <span className="font-semibold text-[var(--text-primary)]">{formatCurrency(fee)}</span>
             </p>
           )}
         </div>
         <a
-          href={`/${slug}`}
-          className="inline-block mt-8 px-6 py-2.5 text-sm font-medium text-tenant-primary border border-tenant-primary/30 rounded-xl hover:bg-tenant-primary/5 transition-colors"
+          href="/"
+          className="inline-block mt-6 px-5 py-2 text-sm font-medium text-[var(--accent)] border border-[var(--border)] rounded-lg hover:border-[var(--border-hover)] transition-colors"
         >
           Volver al perfil
         </a>
@@ -100,8 +91,8 @@ export function BookingWizard({
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
-      {/* Step indicator with connected line */}
+    <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-6 sm:p-8">
+      {/* Step indicator */}
       <div className="flex items-center justify-center mb-8">
         {STEPS.map((s, i) => {
           const isActive = s.key === step
@@ -110,38 +101,23 @@ export function BookingWizard({
           return (
             <div key={s.key} className="flex items-center">
               <div className="flex flex-col items-center">
-                {/* Circle */}
                 <div
-                  className={`
-                    w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300
+                  className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all
                     ${isCompleted
-                      ? 'bg-tenant-primary text-white shadow-md'
+                      ? 'bg-[var(--accent)] text-white'
                       : isActive
-                        ? 'bg-tenant-primary text-white shadow-lg ring-4 ring-tenant-primary/20'
-                        : 'bg-gray-100 text-gray-400'
-                    }
-                  `}
+                        ? 'bg-[var(--accent)] text-white ring-4 ring-[var(--accent-muted)]'
+                        : 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'
+                    }`}
                 >
-                  {isCompleted ? <Check className="w-5 h-5" /> : i + 1}
+                  {isCompleted ? <Check className="w-4 h-4" /> : i + 1}
                 </div>
-                {/* Label */}
-                <span
-                  className={`
-                    mt-2 text-xs font-medium transition-colors
-                    ${isActive || isCompleted ? 'text-tenant-primary' : 'text-gray-400'}
-                  `}
-                >
+                <span className={`mt-1.5 text-[11px] font-medium ${isActive || isCompleted ? 'text-[var(--accent)]' : 'text-[var(--text-tertiary)]'}`}>
                   {s.label}
                 </span>
               </div>
-              {/* Connecting line */}
               {i < STEPS.length - 1 && (
-                <div
-                  className={`
-                    w-16 sm:w-24 h-0.5 mx-3 mb-6 rounded-full transition-colors duration-300
-                    ${isCompleted ? 'bg-tenant-primary' : 'bg-gray-200'}
-                  `}
-                />
+                <div className={`w-16 sm:w-24 h-px mx-3 mb-5 ${isCompleted ? 'bg-[var(--accent)]' : 'bg-[var(--border)]'}`} />
               )}
             </div>
           )
@@ -149,10 +125,7 @@ export function BookingWizard({
       </div>
 
       {step === 'calendar' && (
-        <AvailabilityCalendar
-          tenantId={tenantId}
-          onSlotSelect={handleSlotSelect}
-        />
+        <AvailabilityCalendar tenantId={tenantId} onSlotSelect={handleSlotSelect} />
       )}
 
       {step === 'form' && selectedDate && selectedSlot && (

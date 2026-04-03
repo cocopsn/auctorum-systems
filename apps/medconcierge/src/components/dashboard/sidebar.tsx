@@ -12,16 +12,16 @@ import {
   Settings,
   Menu,
   X,
-  Stethoscope,
+  LogOut,
 } from 'lucide-react'
 
 const navItems = [
-  { href: '/dashboard/agenda', label: 'Agenda', icon: CalendarDays },
-  { href: '/dashboard/citas', label: 'Citas', icon: CalendarCheck },
-  { href: '/dashboard/pacientes', label: 'Pacientes', icon: Users },
-  { href: '/dashboard/notas', label: 'Notas Clínicas', icon: FileText },
-  { href: '/dashboard/horarios', label: 'Horarios', icon: Clock },
-  { href: '/dashboard/settings', label: 'Configuración', icon: Settings },
+  { href: '/agenda', label: 'Agenda', icon: CalendarDays },
+  { href: '/citas', label: 'Citas', icon: CalendarCheck },
+  { href: '/pacientes', label: 'Pacientes', icon: Users },
+  { href: '/notas', label: 'Notas Clínicas', icon: FileText },
+  { href: '/horarios', label: 'Horarios', icon: Clock },
+  { href: '/settings', label: 'Configuración', icon: Settings },
 ]
 
 export function Sidebar({ doctorName }: { doctorName: string }) {
@@ -33,42 +33,38 @@ export function Sidebar({ doctorName }: { doctorName: string }) {
       {/* Mobile toggle */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2.5 bg-slate-900 rounded-xl shadow-lg text-white"
+        className="lg:hidden fixed top-3 left-3 z-50 p-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-[var(--text-secondary)]"
       >
         {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
       </button>
 
-      {/* Overlay */}
       {mobileOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+          className="lg:hidden fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
       <aside
-        className={`
-          fixed left-0 top-0 h-full w-64 bg-gradient-to-b from-slate-900 to-slate-800 z-40
+        className={`fixed left-0 top-0 h-full w-56 bg-[var(--bg-primary)] border-r border-[var(--border)] z-40
           flex flex-col transition-transform duration-300 lg:translate-x-0
-          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
-        `}
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        {/* Header */}
-        <div className="p-6 border-b border-white/10">
+        <div className="p-5 border-b border-[var(--border)]">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-full bg-gradient-to-br from-tenant-primary to-tenant-secondary flex items-center justify-center ring-2 ring-white/20 shadow-lg">
-              <Stethoscope className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 rounded-lg bg-[var(--accent-muted)] flex items-center justify-center">
+              <svg className="w-4 h-4 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
+              </svg>
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{doctorName}</p>
-              <p className="text-xs text-gray-400">Dashboard</p>
+              <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{doctorName}</p>
+              <p className="text-[11px] text-[var(--text-tertiary)]">Dashboard</p>
             </div>
           </div>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-3 space-y-0.5">
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
@@ -76,24 +72,29 @@ export function Sidebar({ doctorName }: { doctorName: string }) {
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
-                className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200
+                className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors
                   ${isActive
-                    ? 'bg-white/10 text-white border-l-2 border-tenant-primary shadow-sm'
-                    : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
-                  }
-                `}
+                    ? 'bg-[var(--accent-muted)] text-[var(--accent)] font-medium'
+                    : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)]'
+                  }`}
               >
-                <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'opacity-100' : 'opacity-60'}`} />
+                <item.icon className="w-4 h-4 shrink-0" />
                 {item.label}
               </Link>
             )
           })}
         </nav>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-white/10">
-          <p className="text-[10px] text-gray-500 text-center tracking-wider uppercase">Auctorum Systems</p>
+        <div className="p-4 border-t border-[var(--border)]">
+          <form action="/api/auth/logout" method="POST">
+            <button
+              type="submit"
+              className="flex items-center gap-2 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors w-full"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              Cerrar sesión
+            </button>
+          </form>
         </div>
       </aside>
     </>

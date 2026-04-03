@@ -20,7 +20,7 @@ export default async function PortalLayout({
   const cssVars = tenantCssVars(config)
 
   return (
-    <div style={cssVars as React.CSSProperties} className="min-h-screen bg-gray-50">
+    <div style={cssVars as React.CSSProperties} className="min-h-screen bg-[var(--bg-primary)]">
       <PortalHeader doctorName={tenant.name} specialty={doctor.specialty} />
       <main>{children}</main>
       <PortalFooter contact={config.contact} />
