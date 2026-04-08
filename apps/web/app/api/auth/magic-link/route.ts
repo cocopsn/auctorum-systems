@@ -52,10 +52,9 @@ export async function POST(request: NextRequest) {
     const supabase = createServerClient();
     const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://auctorum.com.mx'}/api/auth/callback`;
 
-    const { error } = await supabase.auth.admin.generateLink({
-      type: 'magiclink',
+    const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { redirectTo },
+      options: { emailRedirectTo: redirectTo },
     });
 
     if (error) {
