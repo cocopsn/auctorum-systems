@@ -32,3 +32,26 @@ export async function requireAuth(): Promise<{ user: User; tenant: Tenant }> {
 
   return { user, tenant }
 }
+
+export async function getAuthTenant(): Promise<{ user: User; tenant: Tenant } | null> {
+  const session = await getSession()
+  if (!session) return null
+
+  const [user] = await db
+    .select()
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1)
+
+  if (!user) return null
+
+  const [tenant] = await db
+    .select()
+    .from(tenants)
+    .where(eq(tenants.id, user.tenantId))
+    .limit(1)
+
+  if (!tenant) return null
+
+  return { user, tenant }
+}

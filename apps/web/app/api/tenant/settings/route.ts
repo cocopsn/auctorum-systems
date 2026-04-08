@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { db, tenants } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
 import { validateOrigin } from '@/lib/csrf';
+import { getAuthTenant } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 const tenantConfigSchema = z.object({
   colors: z.object({
@@ -29,6 +32,7 @@ const tenantConfigSchema = z.object({
     delivery_terms: z.string().max(500).default(''),
     custom_footer: z.string().max(1000).default(''),
   }),
+  ai: z.any().optional(),
 });
 
 const updateSettingsSchema = z.object({
@@ -38,27 +42,20 @@ const updateSettingsSchema = z.object({
   config: tenantConfigSchema.optional(),
 });
 
-// GET /api/tenant/settings?slug=xxx
-// SEC-06 AUTH AUDIT: GET returns full tenant config including business details.
-// While some info is needed for the portal, the full config (RFC, contact info)
-// should ideally require authentication for dashboard access.
-// TODO: Split into public (colors, name) and private (RFC, business) endpoints,
-// or enforce authentication for the full settings response.
 export async function GET(request: NextRequest) {
   try {
+    const auth = await getAuthTenant();
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get('slug');
 
     if (!slug) {
-      return NextResponse.json({ error: 'Parámetro slug requerido' }, { status: 400 });
+      return NextResponse.json({ error: 'Parametro slug requerido' }, { status: 400 });
+    }
+    if (auth && slug !== auth.tenant.slug) {
+      return NextResponse.json({ error: 'No autorizado para este tenant' }, { status: 403 });
     }
 
-    const [tenant] = await db
-      .select()
-      .from(tenants)
-      .where(eq(tenants.slug, slug))
-      .limit(1);
-
+    const [tenant] = await db.select().from(tenants).where(eq(tenants.slug, slug)).limit(1);
     if (!tenant) {
       return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 });
     }
@@ -66,42 +63,30 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ success: true, data: tenant });
   } catch (error) {
     console.error('GET /api/tenant/settings error:', error);
-    return NextResponse.json({ error: 'Error al obtener configuración' }, { status: 500 });
+    return NextResponse.json({ error: 'Error al obtener configuracion' }, { status: 500 });
   }
 }
 
-// PUT /api/tenant/settings
-// SEC-06 AUTH AUDIT: This route does NOT verify the user is authenticated.
-// Anyone who knows a tenant slug can modify tenant settings (name, logo, config).
-// TODO: Enforce authentication. Only authenticated tenant owners should be able
-// to update settings. This is a CRITICAL gap — unauthenticated writes to tenant config.
 export async function PUT(request: NextRequest) {
   try {
-    // CSRF: validate origin for state-changing requests
+    const auth = await getAuthTenant();
+    if (!auth) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     if (!validateOrigin(request)) {
       return Response.json({ error: 'Invalid origin' }, { status: 403 });
     }
 
     const body = await request.json();
     const parsed = updateSettingsSchema.safeParse(body);
-
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: parsed.error.errors[0].message },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 });
     }
 
     const { tenantSlug, name, logoUrl, config } = parsed.data;
-
-    const [existing] = await db
-      .select({ id: tenants.id })
-      .from(tenants)
-      .where(eq(tenants.slug, tenantSlug))
-      .limit(1);
-
-    if (!existing) {
-      return NextResponse.json({ error: 'Tenant no encontrado' }, { status: 404 });
+    if (tenantSlug !== auth.tenant.slug) {
+      return NextResponse.json({ error: 'No autorizado para este tenant' }, { status: 403 });
     }
 
     const updateData: Record<string, unknown> = { updatedAt: new Date() };
@@ -118,6 +103,6 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true, data: updated });
   } catch (error) {
     console.error('PUT /api/tenant/settings error:', error);
-    return NextResponse.json({ error: 'Error al guardar configuración' }, { status: 500 });
+    return NextResponse.json({ error: 'Error al guardar configuracion' }, { status: 500 });
   }
 }

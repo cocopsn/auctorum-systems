@@ -8,24 +8,24 @@
 
 :root {
   /* Background */
-  --bg-primary: #09090B;
-  --bg-secondary: #18181B;
-  --bg-tertiary: #27272A;
-  --bg-elevated: #111113;
+  --bg-primary: #F9FAFB;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #F3F4F6;
+  --bg-elevated: #F9FAFB;
 
   /* Text */
-  --text-primary: #FAFAFA;
-  --text-secondary: #A1A1AA;
-  --text-tertiary: #71717A;
+  --text-primary: #111827;
+  --text-secondary: #4B5563;
+  --text-tertiary: #6B7280;
 
   /* Accent — Auctorum blue */
-  --accent: #2D7AFF;
-  --accent-hover: #5B9AFF;
-  --accent-muted: rgba(45, 122, 255, 0.15);
+  --accent: #4F46E5;
+  --accent-hover: #4338CA;
+  --accent-muted: #EEF2FF;
 
   /* Borders */
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.15);
+  --border: #E5E7EB;
+  --border-hover: #D1D5DB;
 
   /* Semantic */
   --success: #10B981;
@@ -45,7 +45,7 @@
 @layer base {
   html {
     scroll-behavior: smooth;
-    color-scheme: dark;
+    color-scheme: light;
   }
 
   body {
@@ -57,12 +57,11 @@
 
   ::selection {
     background: var(--accent);
-    color: var(--text-primary);
+    color: #FFFFFF;
   }
 
   h1, h2, h3, h4, h5, h6 {
     color: var(--text-primary);
-    letter-spacing: -0.02em;
   }
 
   :focus-visible {

@@ -1,10 +1,26 @@
-import { Sidebar } from '@/components/dashboard/sidebar'
-import { getTenantConfig, tenantCssVars } from '@/lib/tenant'
+import { AppShell, type DashboardNavItem } from '@quote-engine/ui'
+import {
+  Bot,
+  CalendarCheck,
+  CalendarDays,
+  Clock,
+  FileText,
+  Settings,
+  Users,
+} from 'lucide-react'
+import { eq } from 'drizzle-orm'
+import { db, tenants } from '@quote-engine/db'
 import { ToastContainer } from '@/components/ui/Toast'
 
-import { eq } from 'drizzle-orm'
-import { db } from '@quote-engine/db'
-import { tenants } from '@quote-engine/db'
+const navItems: DashboardNavItem[] = [
+  { href: '/agenda', label: 'Agenda', icon: CalendarDays },
+  { href: '/citas', label: 'Citas', icon: CalendarCheck },
+  { href: '/pacientes', label: 'Pacientes', icon: Users },
+  { href: '/notas', label: 'Notas Clinicas', icon: FileText },
+  { href: '/horarios', label: 'Horarios', icon: Clock },
+  { href: '/ai-settings', label: 'AI Concierge', icon: Bot },
+  { href: '/settings', label: 'Configuracion', icon: Settings },
+]
 
 async function getDemoTenant() {
   const [tenant] = await db
@@ -23,19 +39,24 @@ export default async function DashboardLayout({
   const tenant = await getDemoTenant()
 
   if (!tenant) {
-    return <div className="p-8 text-[var(--error)]">Tenant not found. Run seed first.</div>
+    return <div className="min-h-screen bg-gray-50 p-8 text-rose-600">Tenant not found. Run seed first.</div>
   }
 
-  const config = getTenantConfig(tenant)
-  const cssVars = tenantCssVars(config)
-
   return (
-    <div style={cssVars as React.CSSProperties} className="min-h-screen bg-[var(--bg-primary)]">
-      <Sidebar doctorName={tenant.name} />
-      <main className="lg:ml-56 min-h-screen">
-        <div className="p-6 lg:p-8">{children}</div>
-      </main>
+    <>
+      <AppShell
+        navItems={navItems}
+        brand={tenant.name}
+        appName="MedConcierge"
+        userName={tenant.name}
+        greeting={`Welcome back, ${tenant.name}!`}
+        subtitle="Agenda, pacientes y concierge medico en un solo panel."
+        ctaHref="/ai-settings"
+        logoutAction="/api/auth/logout"
+      >
+        {children}
+      </AppShell>
       <ToastContainer />
-    </div>
+    </>
   )
 }

@@ -67,6 +67,7 @@ export default function SettingsClient({ tenantSlug, tenantName, logoUrl, config
           delivery_terms: deliveryTerms,
           custom_footer: customFooter,
         },
+        ai: config.ai,
       },
     };
 

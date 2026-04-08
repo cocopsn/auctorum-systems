@@ -98,6 +98,15 @@ export interface TenantConfig {
     prescription_pdf?: boolean;
     receipt_pdf?: boolean;
   };
+  ai?: {
+    enabled: boolean;
+    systemPrompt: string;
+    autoSchedule: boolean;
+    answerFaq: boolean;
+    humanHandoff: boolean;
+    model: string;
+    vectorStoreId?: string | null;
+  };
 }
 
 // Default config for new B2B tenants

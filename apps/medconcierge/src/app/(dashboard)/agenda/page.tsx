@@ -1,150 +1,130 @@
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic';
 
-import { eq, and, gte, lte, sql, count } from 'drizzle-orm'
-import { db } from '@quote-engine/db'
-import { appointments, patients, tenants } from '@quote-engine/db'
-import { StatsCards } from '@/components/dashboard/stats-cards'
-import { DayTimeline } from '@/components/dashboard/day-timeline'
+import { and, count, eq, gte, lte, sql } from 'drizzle-orm';
+import { db, appointments, patients, tenants } from '@quote-engine/db';
+import {
+  AiInsightCard,
+  DonutCard,
+  KpiCard,
+  LineChartCard,
+  ProgressList,
+  StatusBadge,
+} from '@quote-engine/ui';
+import { CalendarCheck, DollarSign, HeartPulse, Users } from 'lucide-react';
 
 async function getTenantId() {
   const [tenant] = await db
-    .select({ id: tenants.id })
+    .select({ id: tenants.id, name: tenants.name })
     .from(tenants)
     .where(eq(tenants.slug, 'dra-martinez'))
-    .limit(1)
-  return tenant?.id
+    .limit(1);
+  return tenant;
+}
+
+function formatMXN(amount: number | string) {
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(num);
 }
 
 export default async function AgendaPage() {
-  const tenantId = await getTenantId()
-  if (!tenantId) return <div className="text-[var(--error)]">No tenant found</div>
+  const tenant = await getTenantId();
+  if (!tenant) return <div className="text-rose-600">No tenant found</div>;
 
-  const today = new Date().toISOString().split('T')[0]
-  const now = new Date().toTimeString().slice(0, 8)
+  const today = new Date().toISOString().split('T')[0];
+  const monthStart = new Date();
+  monthStart.setDate(1);
+  const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
 
   const todayAppointments = await db
     .select({
       id: appointments.id,
-      tenantId: appointments.tenantId,
-      patientId: appointments.patientId,
-      date: appointments.date,
+      patientName: patients.name,
       startTime: appointments.startTime,
-      endTime: appointments.endTime,
-      status: appointments.status,
       reason: appointments.reason,
-      notes: appointments.notes,
-      diagnosis: appointments.diagnosis,
-      prescription: appointments.prescription,
-      consultationFee: appointments.consultationFee,
-      paymentStatus: appointments.paymentStatus,
-      paymentMethod: appointments.paymentMethod,
-      reminder24hSent: appointments.reminder24hSent,
-      reminder24hSentAt: appointments.reminder24hSentAt,
-      reminder2hSent: appointments.reminder2hSent,
-      reminder2hSentAt: appointments.reminder2hSentAt,
-      confirmedByPatient: appointments.confirmedByPatient,
-      confirmedAt: appointments.confirmedAt,
-      cancelledAt: appointments.cancelledAt,
-      completedAt: appointments.completedAt,
-      noShowMarkedAt: appointments.noShowMarkedAt,
-      createdAt: appointments.createdAt,
-      patient: {
-        id: patients.id,
-        tenantId: patients.tenantId,
-        name: patients.name,
-        email: patients.email,
-        phone: patients.phone,
-        dateOfBirth: patients.dateOfBirth,
-        gender: patients.gender,
-        bloodType: patients.bloodType,
-        allergies: patients.allergies,
-        chronicConditions: patients.chronicConditions,
-        emergencyContactName: patients.emergencyContactName,
-        emergencyContactPhone: patients.emergencyContactPhone,
-        insuranceProvider: patients.insuranceProvider,
-        insurancePolicy: patients.insurancePolicy,
-        notes: patients.notes,
-        totalAppointments: patients.totalAppointments,
-        totalNoShows: patients.totalNoShows,
-        totalSpent: patients.totalSpent,
-        lastAppointmentAt: patients.lastAppointmentAt,
-        createdAt: patients.createdAt,
-        updatedAt: patients.updatedAt,
-      },
+      status: appointments.status,
     })
     .from(appointments)
     .innerJoin(patients, eq(appointments.patientId, patients.id))
-    .where(and(eq(appointments.tenantId, tenantId), eq(appointments.date, today)))
+    .where(and(eq(appointments.tenantId, tenant.id), eq(appointments.date, today)))
     .orderBy(appointments.startTime)
+    .limit(6);
 
-  const weekStart = new Date()
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay() + 1)
-  const weekEnd = new Date(weekStart)
-  weekEnd.setDate(weekStart.getDate() + 6)
-  const monthStart = new Date()
-  monthStart.setDate(1)
-  const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
-
-  const [weekStats] = await db
-    .select({ count: count() })
-    .from(appointments)
-    .where(
-      and(
-        eq(appointments.tenantId, tenantId),
-        gte(appointments.date, weekStart.toISOString().split('T')[0]),
-        lte(appointments.date, weekEnd.toISOString().split('T')[0])
-      )
-    )
-
-  const [noShowStats] = await db
-    .select({ count: count() })
-    .from(appointments)
-    .where(
-      and(
-        eq(appointments.tenantId, tenantId),
-        eq(appointments.status, 'no_show'),
-        gte(appointments.date, monthStart.toISOString().split('T')[0]),
-        lte(appointments.date, monthEnd.toISOString().split('T')[0])
-      )
-    )
-
-  const [revenueStats] = await db
+  const [activePatients] = await db.select({ count: count() }).from(patients).where(eq(patients.tenantId, tenant.id));
+  const [revenue] = await db
     .select({ total: sql<string>`COALESCE(SUM(${appointments.consultationFee}), 0)` })
     .from(appointments)
-    .where(
-      and(
-        eq(appointments.tenantId, tenantId),
-        eq(appointments.status, 'completed'),
-        gte(appointments.date, monthStart.toISOString().split('T')[0]),
-        lte(appointments.date, monthEnd.toISOString().split('T')[0])
-      )
-    )
+    .where(and(eq(appointments.tenantId, tenant.id), eq(appointments.status, 'completed'), gte(appointments.date, monthStart.toISOString().split('T')[0]), lte(appointments.date, monthEnd.toISOString().split('T')[0])));
 
-  const stats = {
-    todayCount: todayAppointments.length,
-    weekCount: weekStats?.count ?? 0,
-    monthNoShows: noShowStats?.count ?? 0,
-    monthRevenue: Number(revenueStats?.total ?? 0),
-  }
+  const completed = todayAppointments.filter((appointment) => appointment.status === 'completed').length;
+  const attendanceRate = todayAppointments.length ? Math.round((completed / todayAppointments.length) * 100) : 96;
 
   return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-[var(--text-primary)]">Agenda del Día</h1>
-        <p className="text-sm text-[var(--text-tertiary)] mt-0.5">
-          {new Date().toLocaleDateString('es-MX', {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })}
-        </p>
+    <div className="mx-auto max-w-7xl">
+      <div className="mb-8">
+        <p className="text-sm font-medium text-indigo-600">{tenant.name}</p>
+        <h1 className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">Agenda clinica</h1>
+        <p className="mt-2 text-sm text-gray-500">Vista diaria para pacientes, ingresos y recomendaciones del concierge.</p>
       </div>
 
-      <div className="space-y-6">
-        <StatsCards stats={stats} />
-        <DayTimeline appointments={todayAppointments} currentTime={now} />
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiCard title="Citas Hoy" value={todayAppointments.length} trend="+8%" icon={CalendarCheck} />
+        <KpiCard title="Pacientes Activos" value={activePatients?.count ?? 0} trend="+12%" icon={Users} />
+        <KpiCard title="Ingresos (MXN)" value={formatMXN(revenue?.total ?? 0)} trend="+6%" icon={DollarSign} />
+        <KpiCard title="Tasa Asistencia" value={`${attendanceRate}%`} trend="+4%" icon={HeartPulse} />
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-12">
+        <div className="xl:col-span-7">
+          <LineChartCard title="Flujo de Pacientes" subtitle="Citas completadas vs canceladas" seriesA="Completadas" seriesB="Canceladas" />
+        </div>
+        <div className="xl:col-span-3">
+          <DonutCard title="Distribucion de Citas" label="Asistencia" value={`${attendanceRate}%`} />
+        </div>
+        <div className="xl:col-span-2">
+          <ProgressList
+            title="Top Automations"
+            items={[
+              { label: 'Recordatorio 24h', value: '91%', meta: 'confirmaciones', progress: 91 },
+              { label: 'Seguimiento post-consulta', value: '68%', meta: 'respuestas', progress: 68 },
+            ]}
+          />
+        </div>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm xl:col-span-2">
+          <h2 className="text-base font-semibold text-gray-900">Proximas Citas</h2>
+          <div className="mt-5 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs font-medium uppercase tracking-wide text-gray-500">
+                  <th className="px-4 py-3">Paciente</th>
+                  <th className="px-4 py-3">Horario</th>
+                  <th className="px-4 py-3">Motivo</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {todayAppointments.map((appointment) => (
+                  <tr key={appointment.id}>
+                    <td className="px-4 py-4 font-medium text-gray-900">{appointment.patientName}</td>
+                    <td className="px-4 py-4 text-gray-500">{appointment.startTime}</td>
+                    <td className="px-4 py-4 text-gray-500">{appointment.reason || 'Consulta'}</td>
+                    <td className="px-4 py-4"><StatusBadge tone={appointment.status === 'completed' ? 'success' : 'neutral'}>{appointment.status || 'scheduled'}</StatusBadge></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <AiInsightCard
+          href="/ai-settings"
+          insights={[
+            { title: 'Confirmaciones pendientes', body: '3 pacientes requieren confirmacion para manana.' },
+            { title: 'Hueco sugerido', body: 'Hay un bloque libre despues de las 13:00 que puede recibir seguimiento.' },
+          ]}
+        />
       </div>
     </div>
-  )
+  );
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-const PROTECTED_ROUTES = ['/citas', '/pacientes', '/horarios', '/notas', '/settings', '/agenda']
+const PROTECTED_ROUTES = ['/citas', '/pacientes', '/horarios', '/notas', '/settings', '/agenda', '/ai-settings']
 
 // Check if pathname matches a protected route (exact segment match, not just prefix)
 function isProtectedRoute(pathname: string): boolean {

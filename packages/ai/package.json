@@ -1,0 +1,13 @@
+{
+  "name": "@quote-engine/ai",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./index.ts",
+  "dependencies": {
+    "@quote-engine/db": "workspace:*",
+    "drizzle-orm": "^0.30.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  }
+}

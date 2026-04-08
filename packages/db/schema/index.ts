@@ -16,3 +16,4 @@ export { schedules, scheduleBlocks, type Schedule, type NewSchedule, type Schedu
 export { clinicalNotes, type ClinicalNote, type NewClinicalNote } from './clinical-notes';
 export { appointmentEvents, type AppointmentEvent } from './appointment-events';
 export { intakeForms, intakeResponses, type IntakeField, type IntakeForm, type IntakeResponse } from './intake-forms';
+export { aiKnowledgeFiles, aiUsageEvents, type AiKnowledgeFile, type NewAiKnowledgeFile, type AiUsageEvent, type NewAiUsageEvent } from './ai';

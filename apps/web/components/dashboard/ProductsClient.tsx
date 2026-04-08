@@ -111,7 +111,7 @@ function ProductModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-gray-900/30 backdrop-blur-sm" onClick={onClose} />
       <div className="relative bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl shadow-xl w-full max-w-lg z-10 overflow-y-auto max-h-[90vh]">
         <div className="px-6 py-5 border-b border-[var(--border)] flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[var(--text-primary)]">
