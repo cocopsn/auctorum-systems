@@ -2,38 +2,54 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
+import { cn } from '@/lib/cn';
 
 type ActivePage = 'home' | 'systems' | 'platform';
 
 export function Navbar({ activePage }: { activePage?: ActivePage }) {
   const [open, setOpen] = useState(false);
+  const isHome = activePage === 'home';
 
   const linkClass = (page: ActivePage) =>
     page === activePage
-      ? 'text-sm text-[var(--text-primary)] font-medium'
-      : 'text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors';
+      ? isHome
+        ? 'text-sm font-medium text-white'
+        : 'text-sm font-medium text-[var(--text-primary)]'
+      : isHome
+        ? 'text-sm text-white/70 transition-colors hover:text-white'
+        : 'text-sm text-[var(--text-secondary)] transition-colors hover:text-[var(--text-primary)]';
 
   return (
-    <nav className="sticky top-0 z-50 backdrop-blur-xl bg-[var(--bg-primary)]/80 border-b border-[var(--border)]">
-      <div className="max-w-6xl mx-auto px-6 flex items-center justify-between h-14">
-        {/* Logo */}
-        <a href="/" className="flex items-center gap-2.5">
+    <nav
+      className={cn(
+        'sticky top-0 z-50 backdrop-blur-2xl',
+        isHome
+          ? 'border-b border-white/10 bg-[#070b1f]/70'
+          : 'border-b border-black/5 bg-white/90'
+      )}
+    >
+      <div className="mx-auto flex h-16 max-w-[1400px] items-center justify-between px-6">
+        <a href="/" className="flex items-center gap-3">
           <Image
-            src="/logo.png"
+            src={isHome ? '/logo-transparent.png' : '/logo1-transparent.png'}
             alt="Auctorum"
-            width={24}
-            height={24}
-            className="h-6 w-auto"
+            width={28}
+            height={28}
+            className="h-7 w-auto"
           />
-          <span className="text-xs font-semibold tracking-[0.2em] uppercase text-[var(--text-primary)]">
-            AUCTORUM
+          <span
+            className={cn(
+              'text-sm font-semibold tracking-[0.08em]',
+              isHome ? 'text-white' : 'text-[var(--text-primary)]'
+            )}
+          >
+            Auctorum
           </span>
         </a>
 
-        {/* Desktop links */}
-        <div className="hidden md:flex items-center gap-6">
-          <a href={activePage === 'home' ? '#vision' : '/'} className={linkClass('home')}>
-            Vision
+        <div className="hidden items-center gap-8 md:flex">
+          <a href="/" className={cn(linkClass('home'), 'hidden lg:inline-flex')}>
+            About
           </a>
           <a href="/systems" className={linkClass('systems')}>
             Systems
@@ -42,22 +58,56 @@ export function Navbar({ activePage }: { activePage?: ActivePage }) {
             Platform
           </a>
           <a
-            href="https://github.com/cocopsn/auctorum-systems"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+            href="/#tech-breakdown"
+            className={cn(
+              'text-sm transition-colors',
+              isHome
+                ? 'text-white/70 hover:text-white'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            )}
           >
-            GitHub
+            Architecture
+          </a>
+          <a
+            href="mailto:contacto@auctorum.com.mx"
+            className={cn(
+              'text-sm transition-colors',
+              isHome
+                ? 'text-white/70 hover:text-white'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            )}
+          >
+            Log in
           </a>
         </div>
 
-        {/* Mobile hamburger */}
+        <a
+          href="mailto:contacto@auctorum.com.mx?subject=Sign%20up%20Auctorum"
+          className={cn(
+            'hidden rounded-full px-5 py-2.5 text-sm font-medium transition md:inline-flex',
+            isHome
+              ? 'border border-white/10 bg-white/[0.08] text-white hover:bg-white/[0.12]'
+              : 'border border-black/5 bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:border-[var(--border-hover)]'
+          )}
+        >
+          Sign up
+        </a>
+
         <button
           onClick={() => setOpen(!open)}
-          className="md:hidden p-2 text-[var(--text-secondary)]"
+          className={cn(
+            'p-2 md:hidden',
+            isHome ? 'text-white/80' : 'text-[var(--text-secondary)]'
+          )}
           aria-label="Menu"
         >
-          <svg viewBox="0 0 24 24" fill="none" className="w-5 h-5" stroke="currentColor" strokeWidth="1.5">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            className="h-5 w-5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          >
             {open ? (
               <path d="M6 6l12 12M6 18L18 6" />
             ) : (
@@ -67,15 +117,26 @@ export function Navbar({ activePage }: { activePage?: ActivePage }) {
         </button>
       </div>
 
-      {/* Mobile menu */}
       {open && (
-        <div className="md:hidden flex flex-col gap-1 px-6 pb-4 bg-[var(--bg-primary)]/95 backdrop-blur-xl border-b border-[var(--border)]">
+        <div
+          className={cn(
+            'flex flex-col gap-1 px-6 pb-4 md:hidden backdrop-blur-2xl',
+            isHome
+              ? 'border-b border-white/10 bg-[#070b1f]/95'
+              : 'border-b border-black/5 bg-white/95'
+          )}
+        >
           <a
-            href={activePage === 'home' ? '#vision' : '/'}
+            href="/"
             onClick={() => setOpen(false)}
-            className={`${linkClass('home')} py-2`}
+            className={cn(
+              'py-2 text-sm',
+              isHome
+                ? 'text-white/70 hover:text-white'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            )}
           >
-            Vision
+            About
           </a>
           <a href="/systems" onClick={() => setOpen(false)} className={`${linkClass('systems')} py-2`}>
             Systems
@@ -84,12 +145,38 @@ export function Navbar({ activePage }: { activePage?: ActivePage }) {
             Platform
           </a>
           <a
-            href="https://github.com/cocopsn/auctorum-systems"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-sm text-[var(--text-tertiary)] hover:text-[var(--text-primary)] py-2"
+            href="/#tech-breakdown"
+            onClick={() => setOpen(false)}
+            className={cn(
+              'py-2 text-sm',
+              isHome
+                ? 'text-white/70 hover:text-white'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            )}
           >
-            GitHub
+            Architecture
+          </a>
+          <a
+            href="mailto:contacto@auctorum.com.mx"
+            className={cn(
+              'py-2 text-sm',
+              isHome
+                ? 'text-white/70 hover:text-white'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            )}
+          >
+            Log in
+          </a>
+          <a
+            href="mailto:contacto@auctorum.com.mx?subject=Sign%20up%20Auctorum"
+            className={cn(
+              'mt-2 inline-flex rounded-full px-5 py-2.5 text-sm font-medium',
+              isHome
+                ? 'border border-white/10 bg-white/[0.08] text-white'
+                : 'border border-black/5 bg-[var(--bg-secondary)] text-[var(--text-primary)]'
+            )}
+          >
+            Sign up
           </a>
         </div>
       )}
