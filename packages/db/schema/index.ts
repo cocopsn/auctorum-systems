@@ -17,3 +17,16 @@ export { clinicalNotes, type ClinicalNote, type NewClinicalNote } from './clinic
 export { appointmentEvents, type AppointmentEvent } from './appointment-events';
 export { intakeForms, intakeResponses, type IntakeField, type IntakeForm, type IntakeResponse } from './intake-forms';
 export { aiKnowledgeFiles, aiUsageEvents, type AiKnowledgeFile, type NewAiKnowledgeFile, type AiUsageEvent, type NewAiUsageEvent } from './ai';
+
+// Agente 2 Backend (Checkpoint 2)
+export { conversations, type Conversation, type NewConversation } from './conversations';
+export { messages, type Message, type NewMessage } from './messages';
+export { campaigns, type Campaign, type NewCampaign } from './campaigns';
+export { campaignMessages, type CampaignMessage, type NewCampaignMessage } from './campaign-messages';
+export { payments, type Payment, type NewPayment } from './payments';
+export { invoices, type Invoice, type NewInvoice } from './invoices';
+export { followUps, type FollowUp, type NewFollowUp } from './follow-ups';
+export { funnelStages, type FunnelStage, type NewFunnelStage } from './funnel-stages';
+export { clientFunnel, type ClientFunnel, type NewClientFunnel } from './client-funnel';
+export { botFaqs, type BotFaq, type NewBotFaq } from './bot-faqs';
+export { onboardingProgress, type OnboardingProgress, type NewOnboardingProgress, type OnboardingSteps } from './onboarding-progress';
