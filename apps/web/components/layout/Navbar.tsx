@@ -69,7 +69,7 @@ export function Navbar({ activePage }: { activePage?: ActivePage }) {
             Architecture
           </a>
           <a
-            href="mailto:contacto@auctorum.com.mx"
+            href="/login"
             className={cn(
               'text-sm transition-colors',
               isHome
@@ -82,7 +82,7 @@ export function Navbar({ activePage }: { activePage?: ActivePage }) {
         </div>
 
         <a
-          href="mailto:contacto@auctorum.com.mx?subject=Sign%20up%20Auctorum"
+          href="/signup"
           className={cn(
             'hidden rounded-full px-5 py-2.5 text-sm font-medium transition md:inline-flex',
             isHome
@@ -157,7 +157,8 @@ export function Navbar({ activePage }: { activePage?: ActivePage }) {
             Architecture
           </a>
           <a
-            href="mailto:contacto@auctorum.com.mx"
+            href="/login"
+            onClick={() => setOpen(false)}
             className={cn(
               'py-2 text-sm',
               isHome
@@ -168,7 +169,8 @@ export function Navbar({ activePage }: { activePage?: ActivePage }) {
             Log in
           </a>
           <a
-            href="mailto:contacto@auctorum.com.mx?subject=Sign%20up%20Auctorum"
+            href="/signup"
+            onClick={() => setOpen(false)}
             className={cn(
               'mt-2 inline-flex rounded-full px-5 py-2.5 text-sm font-medium',
               isHome

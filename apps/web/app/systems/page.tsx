@@ -149,10 +149,10 @@ export default function SystemsPage() {
           ¿Interesado en una solución para tu negocio?
         </h2>
         <a
-          href="mailto:contacto@auctorum.com.mx"
+          href="/signup"
           className="inline-block bg-[var(--accent)] text-white px-6 py-2.5 rounded-lg mt-6 text-sm font-medium hover:bg-[var(--accent-hover)] transition-colors"
         >
-          Escríbenos &rarr;
+          Crear cuenta gratis &rarr;
         </a>
       </section>
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseMiddleware } from '@/lib/supabase-ssr';
 
 // Static routes — NOT tenants, skip middleware rewrite
-const STATIC_ROUTES = ['/systems', '/platform', '/login', '/api', '/_next', '/favicon.ico', '/logo.png', '/logo1.png', '/robots.txt'];
+const STATIC_ROUTES = ['/systems', '/platform', '/login', '/signup', '/api', '/_next', '/favicon.ico', '/logo.png', '/logo1.png', '/robots.txt'];
 
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'auctorum.com.mx';
 
