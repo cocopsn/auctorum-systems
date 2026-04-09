@@ -125,7 +125,15 @@ export function AvailabilityCalendar({
       </div>
 
       {loading && (
-        <div className="mt-6 text-center text-xs text-[var(--text-tertiary)]">Cargando disponibilidad...</div>
+        <div
+          role="status"
+          aria-label="Cargando disponibilidad"
+          className="mt-6 grid grid-cols-3 sm:grid-cols-4 gap-2 animate-pulse"
+        >
+          {Array.from({ length: 12 }).map((_, i) => (
+            <div key={i} className="h-10 rounded-lg bg-[var(--bg-tertiary)]" />
+          ))}
+        </div>
       )}
 
       {selectedDate && !loading && (

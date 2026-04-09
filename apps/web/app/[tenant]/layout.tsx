@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import type { TenantConfig } from '@quote-engine/db';
 import { getMockTenant } from '../../lib/mock-data';
 import { ShareButton } from '../../components/catalog/ShareButton';
-import Image from 'next/image';
+import { TenantLogoBadge } from '../../components/tenant/TenantLogoBadge';
 
 interface TenantLayoutProps {
   children: React.ReactNode;
@@ -43,15 +43,7 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
       <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-[var(--bg-primary)]/80 backdrop-blur-xl">
         <div className="mx-auto max-w-6xl px-6 flex items-center justify-between h-14">
           <div className="flex items-center gap-3">
-            {tenant.logoUrl && (
-              <Image
-                src={tenant.logoUrl}
-                alt={tenant.name}
-                width={32}
-                height={32}
-                className="rounded-lg object-contain"
-              />
-            )}
+            <TenantLogoBadge logoUrl={tenant.logoUrl} name={tenant.name} />
             <div>
               <h1 className="text-sm font-semibold text-[var(--text-primary)] tracking-tight">
                 {tenant.name}

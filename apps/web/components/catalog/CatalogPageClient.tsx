@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import type { Product } from '@quote-engine/db';
 import type { TenantConfig } from '@quote-engine/db';
@@ -22,6 +22,8 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
   const [showCart, setShowCart] = useState(false);
   const [addedId, setAddedId] = useState<string | null>(null);
   const [cartLoaded, setCartLoaded] = useState(false);
+  const [cartHeight, setCartHeight] = useState(0);
+  const cartRef = useRef<HTMLDivElement>(null);
 
   const cartKey = `auctorum-cart-${tenantName.toLowerCase().replace(/\s+/g, '-')}`;
 
@@ -50,6 +52,21 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
       localStorage.removeItem(cartKey);
     }
   }, [cart, cartLoaded, cartKey]);
+
+  // Measure cart height so the catalog grid never sits underneath it.
+  useEffect(() => {
+    if (cart.length === 0) {
+      setCartHeight(0);
+      return;
+    }
+    const el = cartRef.current;
+    if (!el) return;
+    const update = () => setCartHeight(el.offsetHeight);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [cart.length, showCart]);
 
   const addToCart = (product: Product) => {
     setCart(prev => {
@@ -91,7 +108,10 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
   const categories = [...new Set(products.map(p => p.category || 'General'))];
 
   return (
-    <div className="relative pb-32">
+    <div
+      className="relative"
+      style={{ paddingBottom: cartHeight > 0 ? cartHeight + 24 : 32 }}
+    >
       <div className="mb-10">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)] tracking-tight">
           Catálogo de productos
@@ -200,11 +220,15 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
 
       {/* Floating cart */}
       {cart.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up">
+        <div
+          ref={cartRef}
+          className="fixed bottom-0 left-0 right-0 z-50 animate-slide-up"
+          style={{ paddingBottom: 'max(0px, env(safe-area-inset-bottom))' }}
+        >
           <div className="bg-[var(--bg-elevated)]/95 backdrop-blur-xl border-t border-[var(--border)]">
             <div className="mx-auto max-w-6xl px-6 py-3">
               {showCart && (
-                <div className="mb-3 max-h-48 overflow-y-auto divide-y divide-[var(--border)] rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)]">
+                <div className="mb-3 max-h-56 overflow-y-auto divide-y divide-[var(--border)] rounded-lg bg-[var(--bg-secondary)] border border-[var(--border)]">
                   {cart.map(item => (
                     <div key={item.product.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
                       <div className="flex-1 min-w-0">

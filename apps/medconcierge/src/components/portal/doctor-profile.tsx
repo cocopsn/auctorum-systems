@@ -24,7 +24,7 @@ export function DoctorProfile({
     <div className="max-w-4xl mx-auto px-6 py-8">
       {/* Hero Card */}
       <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl overflow-hidden">
-        <div className="relative h-32 bg-gradient-to-br from-[var(--accent)] to-blue-600 opacity-80">
+        <div className="relative h-32 bg-gradient-to-br from-[var(--tenant-primary)] to-[var(--accent)] opacity-80">
           <div
             className="absolute inset-0 opacity-10"
             style={{
@@ -36,7 +36,7 @@ export function DoctorProfile({
         <div className="px-6 pb-6 -mt-12">
           <div className="flex flex-col sm:flex-row sm:items-end gap-5">
             <div className="w-24 h-24 rounded-full bg-[var(--bg-secondary)] ring-4 ring-[var(--bg-secondary)] flex items-center justify-center">
-              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--accent)] to-blue-500 flex items-center justify-center text-3xl font-bold text-white">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[var(--tenant-primary)] to-[var(--accent)] flex items-center justify-center text-3xl font-bold text-white">
                 {doctor.specialty.charAt(0)}
               </div>
             </div>
