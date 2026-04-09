@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Image from 'next/image';
 import type { Product } from '@quote-engine/db';
 import type { TenantConfig } from '@quote-engine/db';
-import { ShoppingCart, Plus, Minus, X, ChevronUp, ChevronDown, ArrowRight } from 'lucide-react';
+import { ShoppingCart, Plus, Minus, X, ChevronUp, ChevronDown, ArrowRight, Search } from 'lucide-react';
 
 interface CartItem {
   product: Product;
@@ -24,6 +24,10 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
   const [cartLoaded, setCartLoaded] = useState(false);
   const [cartHeight, setCartHeight] = useState(0);
   const cartRef = useRef<HTMLDivElement>(null);
+
+  // CP12: catalog search + filters (client-side, independent from cart state)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const cartKey = `auctorum-cart-${tenantName.toLowerCase().replace(/\s+/g, '-')}`;
 
@@ -105,14 +109,117 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
   const formatMXN = (amount: number) =>
     new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(amount);
 
-  const categories = [...new Set(products.map(p => p.category || 'General'))];
+  const categories = useMemo(
+    () => [...new Set(products.map(p => p.category || 'General'))],
+    [products],
+  );
+
+  // CP12: memoized client-side filter. Keyed on products + search + category
+  // so cart re-renders don't invalidate. Substring-matches name/description/sku.
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return products.filter(p => {
+      const matchesCategory =
+        !selectedCategory || (p.category || 'General') === selectedCategory;
+      if (!matchesCategory) return false;
+      if (!q) return true;
+      const hay = [p.name, p.description || '', p.sku || ''].join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+  }, [products, searchQuery, selectedCategory]);
+
+  const hasFilters = searchQuery.trim().length > 0 || selectedCategory !== null;
+
+  // Helper: renders a single product card. Defined inline so it closes over
+  // cart/addedId/addToCart/updateQuantity/formatMXN without prop drilling.
+  // Used from both the flat filtered grid and the default grouped grid.
+  const renderProductCard = (product: Product) => {
+    const inCart = cart.find(item => item.product.id === product.id);
+    const justAdded = addedId === product.id;
+    return (
+      <div
+        key={product.id}
+        className="group bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl overflow-hidden hover:border-[var(--border-hover)] transition-all duration-200"
+      >
+        {product.imageUrl && (
+          <div className="overflow-hidden bg-[var(--bg-tertiary)] relative h-40">
+            <Image
+              src={product.imageUrl}
+              alt={product.name}
+              fill
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+          </div>
+        )}
+        <div className="p-5">
+          <div className="flex justify-between items-start gap-3 mb-1">
+            <div className="min-w-0">
+              <h4 className="font-semibold text-[var(--text-primary)] text-sm leading-tight">
+                {product.name}
+              </h4>
+              {product.sku && (
+                <p className="text-[11px] font-mono text-[var(--text-tertiary)] mt-0.5">
+                  SKU: {product.sku}
+                </p>
+              )}
+            </div>
+            <span className="text-base font-bold whitespace-nowrap text-[var(--accent)]">
+              {formatMXN(parseFloat(product.unitPrice))}
+            </span>
+          </div>
+
+          {product.description && (
+            <p className="text-xs text-[var(--text-secondary)] mb-4 line-clamp-2 leading-relaxed">
+              {product.description}
+            </p>
+          )}
+
+          <div className="flex items-center justify-between pt-3 border-t border-[var(--border)]">
+            <span className="text-[11px] font-mono text-[var(--text-tertiary)] uppercase tracking-wide">
+              por {product.unitType}
+            </span>
+            {inCart ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => updateQuantity(product.id, inCart.quantity - 1)}
+                  className="w-7 h-7 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] transition-colors"
+                  aria-label={`Reducir cantidad de ${product.name}`}
+                >
+                  <Minus className="h-3 w-3" />
+                </button>
+                <span className="text-sm font-semibold w-7 text-center text-[var(--text-primary)]">
+                  {inCart.quantity}
+                </span>
+                <button
+                  onClick={() => updateQuantity(product.id, inCart.quantity + 1)}
+                  className="w-7 h-7 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] transition-colors"
+                  aria-label={`Aumentar cantidad de ${product.name}`}
+                >
+                  <Plus className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => addToCart(product)}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all ${justAdded ? 'scale-95' : ''}`}
+              >
+                <Plus className="h-3 w-3" />
+                Agregar
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
       className="relative"
       style={{ paddingBottom: cartHeight > 0 ? cartHeight + 24 : 32 }}
     >
-      <div className="mb-10">
+      <div className="mb-8">
         <h2 className="text-2xl font-semibold text-[var(--text-primary)] tracking-tight">
           Catálogo de productos
         </h2>
@@ -121,102 +228,127 @@ export default function CatalogPageClient({ products, tenantName, tenantConfig }
         </p>
       </div>
 
-      {categories.map(category => (
-        <div key={category} className="mb-10">
-          <div className="flex items-center gap-3 mb-5">
-            <div className="w-1 h-5 rounded-full bg-[var(--accent)]" />
-            <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide">
-              {category}
-            </h3>
-            <div className="flex-1 h-px bg-[var(--border)]" />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {products
-              .filter(p => (p.category || 'General') === category)
-              .map(product => {
-                const inCart = cart.find(item => item.product.id === product.id);
-                const justAdded = addedId === product.id;
-                return (
-                  <div
-                    key={product.id}
-                    className="group bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl overflow-hidden hover:border-[var(--border-hover)] transition-all duration-200"
-                  >
-                    {product.imageUrl && (
-                      <div className="overflow-hidden bg-[var(--bg-tertiary)] relative h-40">
-                        <Image
-                          src={product.imageUrl}
-                          alt={product.name}
-                          fill
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                          className="object-cover transition-transform duration-300 group-hover:scale-105"
-                        />
-                      </div>
-                    )}
-                    <div className="p-5">
-                      <div className="flex justify-between items-start gap-3 mb-1">
-                        <div className="min-w-0">
-                          <h4 className="font-semibold text-[var(--text-primary)] text-sm leading-tight">
-                            {product.name}
-                          </h4>
-                          {product.sku && (
-                            <p className="text-[11px] font-mono text-[var(--text-tertiary)] mt-0.5">
-                              SKU: {product.sku}
-                            </p>
-                          )}
-                        </div>
-                        <span className="text-base font-bold whitespace-nowrap text-[var(--accent)]">
-                          {formatMXN(parseFloat(product.unitPrice))}
-                        </span>
-                      </div>
-
-                      {product.description && (
-                        <p className="text-xs text-[var(--text-secondary)] mb-4 line-clamp-2 leading-relaxed">
-                          {product.description}
-                        </p>
-                      )}
-
-                      <div className="flex items-center justify-between pt-3 border-t border-[var(--border)]">
-                        <span className="text-[11px] font-mono text-[var(--text-tertiary)] uppercase tracking-wide">
-                          por {product.unitType}
-                        </span>
-                        {inCart ? (
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={() => updateQuantity(product.id, inCart.quantity - 1)}
-                              className="w-7 h-7 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] transition-colors"
-                              aria-label={`Reducir cantidad de ${product.name}`}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </button>
-                            <span className="text-sm font-semibold w-7 text-center text-[var(--text-primary)]">
-                              {inCart.quantity}
-                            </span>
-                            <button
-                              onClick={() => updateQuantity(product.id, inCart.quantity + 1)}
-                              className="w-7 h-7 rounded-lg border border-[var(--border)] flex items-center justify-center text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] transition-colors"
-                              aria-label={`Aumentar cantidad de ${product.name}`}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => addToCart(product)}
-                            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-all ${justAdded ? 'scale-95' : ''}`}
-                          >
-                            <Plus className="h-3 w-3" />
-                            Agregar
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-          </div>
+      {/* CP12: search + filters */}
+      <div className="mb-8 space-y-4">
+        {/* Search input */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-tertiary)] pointer-events-none" />
+          <label htmlFor="catalog-search" className="sr-only">
+            Buscar productos
+          </label>
+          <input
+            id="catalog-search"
+            type="search"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Buscar productos..."
+            className="w-full pl-10 pr-10 py-2.5 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30 focus:border-[var(--accent)] transition-colors"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              aria-label="Limpiar búsqueda"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
-      ))}
+
+        {/* Category pills — hidden when tenant has 0 or 1 category */}
+        {categories.length > 1 && (
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setSelectedCategory(null)}
+              aria-pressed={selectedCategory === null}
+              className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                selectedCategory === null
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-hover)]'
+              }`}
+            >
+              Todas
+            </button>
+            {categories.map(cat => (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setSelectedCategory(cat)}
+                aria-pressed={selectedCategory === cat}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  selectedCategory === cat
+                    ? 'bg-[var(--accent)] text-white'
+                    : 'bg-[var(--bg-secondary)] border border-[var(--border)] text-[var(--text-secondary)] hover:border-[var(--border-hover)]'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Result counter — only shown when filtering */}
+        {hasFilters && (
+          <p className="text-xs text-[var(--text-tertiary)]">
+            Mostrando {filteredProducts.length} de {products.length} producto
+            {products.length !== 1 ? 's' : ''}
+          </p>
+        )}
+      </div>
+
+      {filteredProducts.length === 0 ? (
+        /* Empty state */
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-16 h-16 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center mb-4">
+            <Search className="w-7 h-7 text-[var(--text-tertiary)] opacity-40" />
+          </div>
+          <h3 className="text-base font-semibold text-[var(--text-primary)] mb-2">
+            Sin resultados
+          </h3>
+          <p className="text-sm text-[var(--text-tertiary)] mb-4 max-w-sm">
+            No encontramos productos que coincidan con tu búsqueda.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setSearchQuery('');
+              setSelectedCategory(null);
+            }}
+            className="px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
+          >
+            Limpiar filtros
+          </button>
+        </div>
+      ) : hasFilters ? (
+        /* Flat grid when filtering (no category headers) */
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredProducts.map(renderProductCard)}
+        </div>
+      ) : (
+        /* Default: category-grouped grid (existing behavior preserved) */
+        categories.map(category => {
+          const inCategory = filteredProducts.filter(
+            p => (p.category || 'General') === category,
+          );
+          if (inCategory.length === 0) return null;
+          return (
+            <div key={category} className="mb-10">
+              <div className="flex items-center gap-3 mb-5">
+                <div className="w-1 h-5 rounded-full bg-[var(--accent)]" />
+                <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide">
+                  {category}
+                </h3>
+                <div className="flex-1 h-px bg-[var(--border)]" />
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {inCategory.map(renderProductCard)}
+              </div>
+            </div>
+          );
+        })
+      )}
 
       {/* Floating cart */}
       {cart.length > 0 && (
