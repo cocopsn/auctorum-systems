@@ -109,3 +109,86 @@ export async function notifyNewAppointment(
     })
   }
 }
+
+export async function notifyAppointmentCancelled(
+  appointment: Appointment,
+  patient: Patient,
+  tenantId: string,
+  reason?: string,
+) {
+  const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1)
+  if (!tenant) return
+  const config = tenant.config as TenantConfig
+
+  const displayDate = new Date(appointment.date + 'T12:00:00').toLocaleDateString('es-MX', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+  const displayTime = appointment.startTime.slice(0, 5)
+
+  const patientMsg = [
+    `*Cita cancelada*`,
+    ``,
+    `Hola ${patient.name}, su cita con ${tenant.name} del ${displayDate} a las ${displayTime} ha sido cancelada.`,
+    reason ? `\nMotivo: ${reason}` : '',
+    ``,
+    `Para reagendar, comuníquese al ${config.contact?.phone ?? config.contact?.whatsapp ?? 'consultorio'}.`,
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  await sendWhatsAppMessage(patient.phone, patientMsg)
+
+  if (config.contact?.whatsapp) {
+    const doctorMsg = [
+      `Cita CANCELADA`,
+      `Paciente: ${patient.name}`,
+      `Fecha: ${displayDate} ${displayTime}`,
+      reason ? `Motivo: ${reason}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
+    await sendWhatsAppMessage(config.contact.whatsapp, doctorMsg)
+  }
+}
+
+export async function notifyAppointmentRescheduled(
+  appointment: Appointment,
+  patient: Patient,
+  tenantId: string,
+  oldDate: string,
+  oldStartTime: string,
+) {
+  const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1)
+  if (!tenant) return
+  const config = tenant.config as TenantConfig
+
+  const newDateDisplay = new Date(appointment.date + 'T12:00:00').toLocaleDateString('es-MX', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+  const newTimeDisplay = appointment.startTime.slice(0, 5)
+  const oldDateDisplay = new Date(oldDate + 'T12:00:00').toLocaleDateString('es-MX', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  })
+  const oldTimeDisplay = oldStartTime.slice(0, 5)
+
+  const patientMsg = [
+    `*Cita reagendada*`,
+    ``,
+    `Hola ${patient.name}, su cita con ${tenant.name} ha sido reagendada.`,
+    ``,
+    `Antes: ${oldDateDisplay} ${oldTimeDisplay}`,
+    `Ahora: ${newDateDisplay} ${newTimeDisplay}`,
+    ``,
+    `Direccion: ${config.contact?.address ?? 'Consultar con el consultorio'}`,
+    ``,
+    `Responda CONFIRMO para confirmar o CANCELO para cancelar.`,
+  ].join('\n')
+
+  await sendWhatsAppMessage(patient.phone, patientMsg)
+}

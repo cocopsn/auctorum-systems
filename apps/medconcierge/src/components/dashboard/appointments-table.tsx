@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, ChevronDown } from 'lucide-react'
+import { Search, ChevronDown, Ban, CalendarClock } from 'lucide-react'
 import { StatusBadge } from './status-badge'
+import { CancelAppointmentDialog } from './cancel-appointment-dialog'
+import { RescheduleAppointmentDialog } from './reschedule-appointment-dialog'
 
 type AppointmentRow = {
   id: string
@@ -26,13 +28,29 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Canceladas' },
 ]
 
-export function AppointmentsTable() {
+type CancelDialogState = {
+  id: string
+  patientName: string
+  date: string
+  startTime: string
+}
+
+type RescheduleDialogState = {
+  id: string
+  patientName: string
+  currentDate: string
+  currentStartTime: string
+}
+
+export function AppointmentsTable({ tenantId }: { tenantId: string }) {
   const [rows, setRows] = useState<AppointmentRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
+  const [cancelDialog, setCancelDialog] = useState<CancelDialogState | null>(null)
+  const [rescheduleDialog, setRescheduleDialog] = useState<RescheduleDialogState | null>(null)
 
   const fetchData = () => {
     setLoading(true)
@@ -137,21 +155,57 @@ export function AppointmentsTable() {
                       <StatusBadge status={row.status ?? 'scheduled'} />
                     </td>
                     <td className="px-4 py-3">
-                      <div className="relative group">
-                        <button className="flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
-                          Cambiar <ChevronDown className="w-3 h-3" />
-                        </button>
-                        <div className="hidden group-hover:block absolute right-0 top-full mt-1 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg shadow-lg z-10 min-w-[140px]">
-                          {['confirmed', 'in_progress', 'completed', 'no_show', 'cancelled'].map((s) => (
-                            <button
-                              key={s}
-                              onClick={() => updateStatus(row.id, s)}
-                              className="block w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-tertiary)] transition-colors"
-                            >
-                              <StatusBadge status={s} />
-                            </button>
-                          ))}
+                      <div className="flex items-center gap-2">
+                        <div className="relative group">
+                          <button className="flex items-center gap-1 text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)]">
+                            Cambiar <ChevronDown className="w-3 h-3" />
+                          </button>
+                          <div className="hidden group-hover:block absolute right-0 top-full mt-1 bg-[var(--bg-elevated)] border border-[var(--border)] rounded-lg shadow-lg z-10 min-w-[140px]">
+                            {['confirmed', 'in_progress', 'completed', 'no_show'].map((s) => (
+                              <button
+                                key={s}
+                                onClick={() => updateStatus(row.id, s)}
+                                className="block w-full text-left px-3 py-2 text-xs hover:bg-[var(--bg-tertiary)] transition-colors"
+                              >
+                                <StatusBadge status={s} />
+                              </button>
+                            ))}
+                          </div>
                         </div>
+                        {row.status !== 'cancelled' && row.status !== 'completed' && (
+                          <>
+                            <button
+                              type="button"
+                              title="Reagendar"
+                              onClick={() =>
+                                setRescheduleDialog({
+                                  id: row.id,
+                                  patientName: row.patientName,
+                                  currentDate: row.date,
+                                  currentStartTime: row.startTime,
+                                })
+                              }
+                              className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--accent)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            >
+                              <CalendarClock className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
+                              title="Cancelar cita"
+                              onClick={() =>
+                                setCancelDialog({
+                                  id: row.id,
+                                  patientName: row.patientName,
+                                  date: row.date,
+                                  startTime: row.startTime,
+                                })
+                              }
+                              className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-[var(--error)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                            >
+                              <Ban className="w-4 h-4" />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -161,6 +215,31 @@ export function AppointmentsTable() {
           </table>
         </div>
       </div>
+
+      {cancelDialog && (
+        <CancelAppointmentDialog
+          appointmentId={cancelDialog.id}
+          patientName={cancelDialog.patientName}
+          date={cancelDialog.date}
+          startTime={cancelDialog.startTime}
+          open={true}
+          onClose={() => setCancelDialog(null)}
+          onCancelled={fetchData}
+        />
+      )}
+
+      {rescheduleDialog && (
+        <RescheduleAppointmentDialog
+          appointmentId={rescheduleDialog.id}
+          tenantId={tenantId}
+          patientName={rescheduleDialog.patientName}
+          currentDate={rescheduleDialog.currentDate}
+          currentStartTime={rescheduleDialog.currentStartTime}
+          open={true}
+          onClose={() => setRescheduleDialog(null)}
+          onRescheduled={fetchData}
+        />
+      )}
     </div>
   )
 }
