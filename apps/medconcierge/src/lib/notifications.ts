@@ -27,7 +27,7 @@ export async function notifyNewAppointment(
   const displayTime = appointment.startTime.slice(0, 5)
 
   // WhatsApp to patient
-  if (config.notifications!.whatsapp_on_new_appointment) {
+  if (config.notifications?.whatsapp_on_new_appointment) {
     const patientMsg = [
       `Su cita con ${tenant.name} está confirmada para ${displayDate} a las ${displayTime}.`,
       `Dirección: ${config.contact.address}`,
@@ -39,7 +39,7 @@ export async function notifyNewAppointment(
   }
 
   // WhatsApp to doctor
-  if (config.notifications!.whatsapp_on_new_appointment) {
+  if (config.notifications?.whatsapp_on_new_appointment) {
     const doctorMsg = [
       `Nueva cita: ${patient.name}`,
       `Fecha: ${displayDate} ${displayTime}`,
@@ -52,7 +52,7 @@ export async function notifyNewAppointment(
   }
 
   // Email to patient
-  if (config.notifications!.email_on_new_appointment && patient.email) {
+  if (config.notifications?.email_on_new_appointment && patient.email) {
     const calendarUrl = buildGoogleCalendarUrl({
       title: `Cita con ${tenant.name}`,
       date: appointment.date,

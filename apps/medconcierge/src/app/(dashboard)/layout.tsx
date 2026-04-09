@@ -1,5 +1,7 @@
+import { redirect } from 'next/navigation'
 import { AppShell, type DashboardNavItem } from '@quote-engine/ui'
 import {
+  Bell,
   Bot,
   CalendarCheck,
   CalendarDays,
@@ -8,12 +10,12 @@ import {
   Settings,
   Users,
 } from 'lucide-react'
-import { eq } from 'drizzle-orm'
-import { db, tenants } from '@quote-engine/db'
+import { getAuthTenant } from '@/lib/auth'
 import { ToastContainer } from '@/components/ui/Toast'
 
 const navItems: DashboardNavItem[] = [
   { href: '/agenda', label: 'Agenda', icon: CalendarDays },
+  { href: '/recordatorios', label: 'Recordatorios', icon: Bell },
   { href: '/citas', label: 'Citas', icon: CalendarCheck },
   { href: '/pacientes', label: 'Pacientes', icon: Users },
   { href: '/notas', label: 'Notas Clinicas', icon: FileText },
@@ -22,25 +24,14 @@ const navItems: DashboardNavItem[] = [
   { href: '/settings', label: 'Configuracion', icon: Settings },
 ]
 
-async function getDemoTenant() {
-  const [tenant] = await db
-    .select()
-    .from(tenants)
-    .where(eq(tenants.slug, 'dra-martinez'))
-    .limit(1)
-  return tenant
-}
-
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  const tenant = await getDemoTenant()
-
-  if (!tenant) {
-    return <div className="min-h-screen bg-gray-50 p-8 text-rose-600">Tenant not found. Run seed first.</div>
-  }
+  const auth = await getAuthTenant()
+  if (!auth) redirect('/login')
+  const tenant = auth.tenant
 
   return (
     <>
