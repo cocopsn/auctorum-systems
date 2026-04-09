@@ -36,6 +36,12 @@ export default function SettingsClient({ tenantSlug, tenantName, logoUrl, config
   const [paymentTerms, setPaymentTerms] = useState(config.quote_settings!.payment_terms);
   const [deliveryTerms, setDeliveryTerms] = useState(config.quote_settings!.delivery_terms);
   const [customFooter, setCustomFooter] = useState(config.quote_settings!.custom_footer);
+  const [autoPrefix, setAutoPrefix] = useState(
+    config.quote_settings?.auto_number_prefix || 'COT'
+  );
+  const [showSku, setShowSku] = useState(
+    config.quote_settings?.show_sku !== false
+  );
 
   const [loading, setLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -66,6 +72,8 @@ export default function SettingsClient({ tenantSlug, tenantName, logoUrl, config
           payment_terms: paymentTerms,
           delivery_terms: deliveryTerms,
           custom_footer: customFooter,
+          auto_number_prefix: autoPrefix.toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 10) || 'COT',
+          show_sku: showSku,
         },
         ai: config.ai,
       },
@@ -216,6 +224,34 @@ export default function SettingsClient({ tenantSlug, tenantName, logoUrl, config
             rows={2} placeholder="Precios sujetos a cambio sin previo aviso."
             className={`${inputCls} resize-none`} />
         </Field>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Prefijo de folio">
+            <input
+              type="text"
+              value={autoPrefix}
+              onChange={e => setAutoPrefix(e.target.value)}
+              maxLength={10}
+              placeholder="COT"
+              className={`${inputCls} uppercase`}
+            />
+            <p className="text-xs text-[var(--text-tertiary)] mt-1">
+              Aparecerá antes del número (ej: COT-0001).
+            </p>
+          </Field>
+          <Field label="Mostrar SKU en PDF">
+            <label className="inline-flex items-center gap-2 py-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showSku}
+                onChange={e => setShowSku(e.target.checked)}
+                className="h-4 w-4 rounded border-[var(--border)]"
+              />
+              <span className="text-sm text-[var(--text-secondary)]">
+                Incluir columna SKU en el PDF
+              </span>
+            </label>
+          </Field>
+        </div>
       </Section>
 
       {error && (

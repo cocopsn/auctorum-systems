@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, boolean, jsonb, timestamp, integer } from 'drizzle-orm/pg-core';
 
 export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -8,6 +8,7 @@ export const tenants = pgTable('tenants', {
   config: jsonb('config').notNull().default({}),
   isActive: boolean('is_active').default(true),
   plan: varchar('plan', { length: 20 }).default('basico'),
+  quoteSequence: integer('quote_sequence').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 });

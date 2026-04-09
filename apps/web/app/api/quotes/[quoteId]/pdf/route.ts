@@ -6,6 +6,23 @@ import type { TenantConfig } from '@quote-engine/db';
 
 type RouteContext = { params: { quoteId: string } };
 
+// Fetches a tenant-provided logo URL and returns it as a base64 data URL
+// suitable for @react-pdf/renderer <Image src=...>. 5s timeout; any error
+// (network, non-200, timeout) returns null so the PDF still renders.
+async function fetchLogoBase64(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    const contentType = res.headers.get('content-type') || 'image/png';
+    const buf = Buffer.from(await res.arrayBuffer());
+    return `data:${contentType};base64,${buf.toString('base64')}`;
+  } catch (err) {
+    console.error('[pdf] logo fetch failed', err);
+    return null;
+  }
+}
+
 // GET /api/quotes/[quoteId]/pdf
 // Generates a PDF for the quote on the fly and streams it to the client.
 export async function GET(_request: NextRequest, { params }: RouteContext) {
@@ -42,6 +59,12 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
 
     const config = tenant.config as TenantConfig;
 
+    // Resolve branding: logo (best-effort) and folio (prefix + padded tenant seq).
+    const logoBase64 = await fetchLogoBase64(tenant.logoUrl);
+    const prefix = config.quote_settings?.auto_number_prefix?.trim() || 'COT';
+    const seqNumber = quote.tenantSeq ?? quote.quoteNumber;
+    const folio = `${prefix}-${String(seqNumber ?? 0).padStart(4, '0')}`;
+
     // Generate PDF buffer
     const pdfBuffer = await generateQuotePDF({
       tenant,
@@ -56,9 +79,11 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
         unitType: i.unitType ?? undefined,
         lineTotal: i.lineTotal,
       })),
+      logoBase64,
+      folio,
     });
 
-    const filename = `cotizacion-${String(quote.quoteNumber).padStart(4, '0')}.pdf`;
+    const filename = `cotizacion-${folio}.pdf`;
 
     return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,

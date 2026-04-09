@@ -21,6 +21,8 @@ interface GenerateQuotePDFParams {
   config: TenantConfig;
   quote: Quote;
   items: QuoteItemData[];
+  logoBase64?: string | null;
+  folio?: string;
 }
 
 const formatMXN = (amount: number | string) => {
@@ -57,14 +59,17 @@ const styles = StyleSheet.create({
   totalLabel: { flex: 1, textAlign: 'right', paddingRight: 15, fontSize: 10 },
   totalValue: { width: 100, textAlign: 'right', fontSize: 10 },
   totalFinal: { fontFamily: 'Helvetica-Bold', fontSize: 14 },
-  terms: { marginTop: 20, padding: 15, backgroundColor: '#f8f9fa', borderRadius: 4 },
-  termsTitle: { fontFamily: 'Helvetica-Bold', fontSize: 9, marginBottom: 6 },
+  terms: { marginTop: 20, padding: 15, backgroundColor: '#f8f9fa', borderRadius: 4, borderLeftWidth: 3 },
+  termsTitle: { fontFamily: 'Helvetica-Bold', fontSize: 9, marginBottom: 6, paddingBottom: 4, borderBottomWidth: 0.5 },
   termsText: { fontSize: 8, color: '#666', lineHeight: 1.5 },
   footer: { position: 'absolute', bottom: 30, left: 40, right: 40, textAlign: 'center', fontSize: 8, color: '#999' },
 });
 
-function QuoteDocument({ tenant, config, quote, items }: GenerateQuotePDFParams) {
+function QuoteDocument({ tenant, config, quote, items, logoBase64, folio }: GenerateQuotePDFParams) {
   const primaryColor = config.colors.primary;
+  const secondaryColor = config.colors.secondary || primaryColor;
+  const showSku = config.quote_settings?.show_sku !== false;
+  const displayFolio = folio ?? String(quote.quoteNumber ?? '').padStart(4, '0');
   const now = new Date();
   const validUntil = new Date(now);
   validUntil.setDate(validUntil.getDate() + (config.quote_settings?.validity_days ?? 15));
@@ -72,9 +77,12 @@ function QuoteDocument({ tenant, config, quote, items }: GenerateQuotePDFParams)
   return (
     <Document>
       <Page size="LETTER" style={styles.page}>
-        {/* Header: company name + info (logo omitted to prevent network-dependent failures on VPS) */}
+        {/* Header: logo (if available) + company name/info */}
         <View style={styles.header}>
-          <View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {logoBase64 && (
+              <Image src={logoBase64} style={{ width: 80, height: 80, objectFit: 'contain' }} />
+            )}
             <Text style={[styles.companyName, { color: primaryColor }]}>{tenant.name}</Text>
           </View>
           <View style={styles.companyInfo}>
@@ -87,8 +95,9 @@ function QuoteDocument({ tenant, config, quote, items }: GenerateQuotePDFParams)
           </View>
         </View>
 
-        {/* Colored divider */}
+        {/* Colored divider (primary over secondary accent) */}
         <View style={[styles.divider, { borderBottomColor: primaryColor }]} />
+        <View style={{ borderBottomWidth: 0.5, borderBottomColor: secondaryColor, marginBottom: 15, marginTop: -14 }} />
 
         {/* Quote metadata + client info */}
         <View style={styles.quoteInfo}>
@@ -102,7 +111,7 @@ function QuoteDocument({ tenant, config, quote, items }: GenerateQuotePDFParams)
           <View style={[styles.infoBlock, { textAlign: 'right' }]}>
             <Text style={styles.label}>Cotización No.</Text>
             <Text style={[styles.value, { fontFamily: 'Helvetica-Bold', fontSize: 16, color: primaryColor }]}>
-              {String(quote.quoteNumber).padStart(4, '0')}
+              {displayFolio}
             </Text>
             <Text style={styles.label}>Fecha de emisión</Text>
             <Text style={styles.value}>{formatDate(now)}</Text>
@@ -115,7 +124,7 @@ function QuoteDocument({ tenant, config, quote, items }: GenerateQuotePDFParams)
         <View style={styles.table}>
           <View style={[styles.tableHeader, { backgroundColor: primaryColor }]}>
             <Text style={[styles.tableHeaderText, styles.colProduct]}>Producto</Text>
-            <Text style={[styles.tableHeaderText, styles.colSku]}>SKU</Text>
+            {showSku && <Text style={[styles.tableHeaderText, styles.colSku]}>SKU</Text>}
             <Text style={[styles.tableHeaderText, styles.colQty]}>Cant.</Text>
             <Text style={[styles.tableHeaderText, styles.colPrice]}>P. Unitario</Text>
             <Text style={[styles.tableHeaderText, styles.colTotal]}>Total</Text>
@@ -123,7 +132,9 @@ function QuoteDocument({ tenant, config, quote, items }: GenerateQuotePDFParams)
           {items.map((item, i) => (
             <View key={i} style={[styles.tableRow, i % 2 === 1 ? styles.tableRowAlt : {}]}>
               <Text style={styles.colProduct}>{item.productName}</Text>
-              <Text style={[styles.colSku, { color: '#999', fontSize: 9 }]}>{item.productSku || '-'}</Text>
+              {showSku && (
+                <Text style={[styles.colSku, { color: '#999', fontSize: 9 }]}>{item.productSku || '-'}</Text>
+              )}
               <Text style={styles.colQty}>
                 {item.quantity} {item.unitType || ''}
               </Text>
@@ -143,7 +154,7 @@ function QuoteDocument({ tenant, config, quote, items }: GenerateQuotePDFParams)
           </View>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>
-              IVA ({(parseFloat(quote.taxRate || '0.16') * 100).toFixed(0)}%):
+              IVA ({Math.round(parseFloat(quote.taxRate || String(config.quote_settings?.tax_rate ?? 0.16)) * 100)}%):
             </Text>
             <Text style={styles.totalValue}>{formatMXN(quote.taxAmount)}</Text>
           </View>
@@ -157,8 +168,8 @@ function QuoteDocument({ tenant, config, quote, items }: GenerateQuotePDFParams)
         </View>
 
         {/* Terms */}
-        <View style={styles.terms}>
-          <Text style={styles.termsTitle}>Condiciones</Text>
+        <View style={[styles.terms, { borderLeftColor: secondaryColor }]}>
+          <Text style={[styles.termsTitle, { borderBottomColor: secondaryColor }]}>Condiciones</Text>
           <Text style={styles.termsText}>Forma de pago: {config.quote_settings?.payment_terms ?? 'Por definir'}</Text>
           <Text style={styles.termsText}>Tiempo de entrega: {config.quote_settings?.delivery_terms ?? 'Por definir'}</Text>
           <Text style={styles.termsText}>Vigencia: {config.quote_settings?.validity_days ?? 15} días a partir de la fecha de emisión</Text>

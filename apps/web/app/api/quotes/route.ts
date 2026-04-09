@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db, tenants, products, quotes, quoteItems, quoteEvents, clients, type Product } from '@quote-engine/db';
-import { eq, inArray, and, isNull } from 'drizzle-orm';
+import { eq, inArray, and, isNull, sql } from 'drizzle-orm';
 import type { TenantConfig } from '@quote-engine/db';
 import { generateQuotePDF } from '@quote-engine/pdf';
 import { sendWhatsAppQuote } from '@quote-engine/notifications/whatsapp';
@@ -126,8 +126,18 @@ export async function POST(request: NextRequest) {
 
     // 7. Insert quote + items (wrapped in transaction)
     const quote = await db.transaction(async (tx) => {
+      // Atomically increment the tenant's per-tenant quote counter.
+      // UPDATE ... RETURNING is race-safe: concurrent transactions see
+      // distinct returned values.
+      const [seqRow] = await tx
+        .update(tenants)
+        .set({ quoteSequence: sql`${tenants.quoteSequence} + 1` })
+        .where(eq(tenants.id, tenant.id))
+        .returning({ seq: tenants.quoteSequence });
+
       const [newQuote] = await tx.insert(quotes).values({
         tenantId: tenant.id,
+        tenantSeq: seqRow.seq,
         trackingToken,
         clientName: data.clientName,
         clientEmail: data.clientEmail || null,
