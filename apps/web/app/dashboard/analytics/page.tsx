@@ -1,5 +1,5 @@
-import { db, quotes, quoteItems, clients, tenants } from '@quote-engine/db';
-import { eq, desc, sql, and, gte } from 'drizzle-orm';
+import { db, quotes, quoteItems, quoteEvents, clients, tenants } from '@quote-engine/db';
+import { eq, desc, sql, and, gte, inArray } from 'drizzle-orm';
 import { getTenant } from '@/lib/tenant';
 import { MOCK_TENANT, MOCK_QUOTES, MOCK_PRODUCTS } from '@/lib/mock-data';
 
@@ -42,6 +42,7 @@ function getMockAnalytics() {
       { status: 'Enviadas', count: 1, color: 'bg-[var(--accent)]' },
       { status: 'Vistas', count: 1, color: 'bg-[var(--warning)]' },
     ],
+    funnel: { sent: 3, opened: 2, accepted: 1 },
   };
 }
 
@@ -90,6 +91,28 @@ async function getAnalytics(tenantId: string) {
     .orderBy(desc(clients.totalQuotedAmount))
     .limit(5);
 
+  // Funnel: COUNT(DISTINCT quote_id) per stage, for quotes born in the 30-day window.
+  // Anchored on quotes.created_at so cohorts stay consistent with the KPI cards above.
+  const funnelRows = await db
+    .select({
+      eventType: quoteEvents.eventType,
+      count: sql<number>`count(distinct ${quoteEvents.quoteId})::int`,
+    })
+    .from(quoteEvents)
+    .innerJoin(quotes, eq(quoteEvents.quoteId, quotes.id))
+    .where(and(
+      eq(quoteEvents.tenantId, tenantId),
+      gte(quotes.createdAt, thirtyDaysAgo),
+      inArray(quoteEvents.eventType, ['sent', 'opened', 'accepted']),
+    ))
+    .groupBy(quoteEvents.eventType);
+
+  const funnel = {
+    sent: funnelRows.find(r => r.eventType === 'sent')?.count ?? 0,
+    opened: funnelRows.find(r => r.eventType === 'opened')?.count ?? 0,
+    accepted: funnelRows.find(r => r.eventType === 'accepted')?.count ?? 0,
+  };
+
   const conversionRate = totals.count > 0 ? Math.round((accepted.count / totals.count) * 100) : 0;
   const avgQuoteValue = totals.count > 0 ? totals.total / totals.count : 0;
 
@@ -101,6 +124,7 @@ async function getAnalytics(tenantId: string) {
     avgQuoteValue,
     topProducts,
     topClients,
+    funnel,
   };
 }
 
@@ -152,6 +176,61 @@ export default async function AnalyticsPage() {
           <p className="text-3xl font-bold text-[var(--text-primary)] mt-2">{data.totalQuotes}</p>
           <p className="text-xs text-[var(--text-tertiary)] mt-1">generadas en 30 dias</p>
         </div>
+      </div>
+
+      {/* Funnel section — sent → opened → accepted */}
+      <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-6 mb-6">
+        <div className="mb-5">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">Funnel de conversion</h2>
+          <p className="text-xs text-[var(--text-tertiary)] mt-0.5">Enviadas - Abiertas - Aceptadas - ultimos 30 dias</p>
+        </div>
+        {(() => {
+          const f = data.funnel ?? { sent: 0, opened: 0, accepted: 0 };
+          const sent = f.sent;
+          const openedShown = Math.min(f.opened, sent);
+          const acceptedShown = Math.min(f.accepted, sent);
+          const hasData = sent > 0 || f.opened > 0 || f.accepted > 0;
+          if (!hasData) {
+            return <p className="text-center text-[var(--text-tertiary)] py-6 text-sm">Sin datos suficientes todavia</p>;
+          }
+          const pct = (n: number) => sent > 0 ? Math.round((n / sent) * 100) : 0;
+          const openedRate = sent > 0 ? Math.round((f.opened / sent) * 100) : 0;
+          const acceptedRate = f.opened > 0 ? Math.round((f.accepted / f.opened) * 100) : 0;
+
+          const stages = [
+            { key: 'sent', label: 'Enviadas', rawCount: sent, width: 100, color: 'var(--accent)' },
+            { key: 'opened', label: 'Abiertas', rawCount: f.opened, width: pct(openedShown), color: 'var(--warning)' },
+            { key: 'accepted', label: 'Aceptadas', rawCount: f.accepted, width: pct(acceptedShown), color: 'var(--success)' },
+          ];
+
+          return (
+            <div className="space-y-4">
+              {stages.map((s, idx) => (
+                <div key={s.key}>
+                  <div className="flex justify-between items-baseline mb-1.5">
+                    <span className="text-sm font-medium text-[var(--text-secondary)]">{s.label}</span>
+                    <span className="text-sm text-[var(--text-tertiary)]">
+                      <span className="font-mono font-semibold text-[var(--text-primary)]">{s.rawCount}</span>
+                      {' - '}
+                      {s.width}% del total
+                    </span>
+                  </div>
+                  <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-3 overflow-hidden">
+                    <div
+                      className="h-3 rounded-full transition-all"
+                      style={{ width: `${Math.max(s.width, 2)}%`, backgroundColor: s.color }}
+                    />
+                  </div>
+                  {idx < stages.length - 1 && (
+                    <p className="text-[11px] text-[var(--text-tertiary)] mt-1.5 font-mono">
+                      {idx === 0 ? `${openedRate}% apertura` : `${acceptedRate}% aceptacion`}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          );
+        })()}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
