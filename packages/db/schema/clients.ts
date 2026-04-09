@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, integer, decimal, timestamp, unique } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, integer, decimal, timestamp, text, unique } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
 
 export const clients = pgTable('clients', {
@@ -13,6 +13,9 @@ export const clients = pgTable('clients', {
   totalAccepted: integer('total_accepted').default(0),
   totalAcceptedAmount: decimal('total_accepted_amount', { precision: 14, scale: 2 }).default('0'),
   lastQuoteAt: timestamp('last_quote_at', { withTimezone: true }),
+  // Mini-CRM (CP11)
+  notes: text('notes'),
+  status: varchar('status', { length: 20 }).notNull().default('lead'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),

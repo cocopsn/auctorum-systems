@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { db, clients, tenants, type Client } from '@quote-engine/db';
 import { eq, desc } from 'drizzle-orm';
 import { getTenant } from '@/lib/tenant';
@@ -5,10 +6,24 @@ import { MOCK_TENANT } from '@/lib/mock-data';
 
 export const dynamic = 'force-dynamic';
 
+// Mini-CRM status labels + badge colors — kept local to the list page
+// to avoid importing client-component constants from a server file.
+const STATUS_LABELS: Record<string, string> = {
+  lead: 'Lead',
+  customer: 'Cliente',
+  inactive: 'Inactivo',
+};
+
+const STATUS_COLORS: Record<string, string> = {
+  lead: 'bg-[var(--accent-muted)] text-[var(--accent)]',
+  customer: 'bg-[var(--success)]/10 text-[var(--success)]',
+  inactive: 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]',
+};
+
 const MOCK_CLIENTS = [
-  { id: '1', name: 'Juan Perez', email: 'juan@magna.com', phone: '8441234567', company: 'Magna International', totalQuotes: 5, totalQuotedAmount: '45000.00', totalAccepted: 3, totalAcceptedAmount: '32000.00', lastQuoteAt: new Date(Date.now() - 2 * 86400000), tenantId: '1', createdAt: new Date(), updatedAt: new Date() },
-  { id: '2', name: 'Maria Garcia', email: 'maria@lear.com', phone: '8449876543', company: 'Lear Corporation', totalQuotes: 3, totalQuotedAmount: '18500.00', totalAccepted: 1, totalAcceptedAmount: '6496.00', lastQuoteAt: new Date(Date.now() - 86400000), tenantId: '1', createdAt: new Date(), updatedAt: new Date() },
-  { id: '3', name: 'Carlos Lopez', email: 'carlos@stellantis.com', phone: '8445551234', company: 'Stellantis', totalQuotes: 8, totalQuotedAmount: '125000.00', totalAccepted: 6, totalAcceptedAmount: '98000.00', lastQuoteAt: new Date(Date.now() - 5 * 86400000), tenantId: '1', createdAt: new Date(), updatedAt: new Date() },
+  { id: '1', name: 'Juan Perez', email: 'juan@magna.com', phone: '8441234567', company: 'Magna International', totalQuotes: 5, totalQuotedAmount: '45000.00', totalAccepted: 3, totalAcceptedAmount: '32000.00', lastQuoteAt: new Date(Date.now() - 2 * 86400000), notes: null, status: 'customer', tenantId: '1', createdAt: new Date(), updatedAt: new Date() },
+  { id: '2', name: 'Maria Garcia', email: 'maria@lear.com', phone: '8449876543', company: 'Lear Corporation', totalQuotes: 3, totalQuotedAmount: '18500.00', totalAccepted: 1, totalAcceptedAmount: '6496.00', lastQuoteAt: new Date(Date.now() - 86400000), notes: null, status: 'lead', tenantId: '1', createdAt: new Date(), updatedAt: new Date() },
+  { id: '3', name: 'Carlos Lopez', email: 'carlos@stellantis.com', phone: '8445551234', company: 'Stellantis', totalQuotes: 8, totalQuotedAmount: '125000.00', totalAccepted: 6, totalAcceptedAmount: '98000.00', lastQuoteAt: new Date(Date.now() - 5 * 86400000), notes: null, status: 'customer', tenantId: '1', createdAt: new Date(), updatedAt: new Date() },
 ];
 
 function formatMXN(amount: string | number | null) {
@@ -77,6 +92,7 @@ export default async function ClientsPage() {
               <thead className="border-b border-[var(--border)]">
                 <tr className="text-[var(--text-tertiary)]">
                   <th className="text-left px-6 py-3 text-[11px] font-mono uppercase tracking-wide">Nombre</th>
+                  <th className="text-left px-6 py-3 text-[11px] font-mono uppercase tracking-wide hidden sm:table-cell">Estado</th>
                   <th className="text-left px-6 py-3 text-[11px] font-mono uppercase tracking-wide hidden md:table-cell">Empresa</th>
                   <th className="text-left px-6 py-3 text-[11px] font-mono uppercase tracking-wide hidden lg:table-cell">Teléfono</th>
                   <th className="text-right px-6 py-3 text-[11px] font-mono uppercase tracking-wide">Cotizaciones</th>
@@ -92,13 +108,29 @@ export default async function ClientsPage() {
                       ? Math.round(((client.totalAccepted ?? 0) / client.totalQuotes) * 100)
                       : 0;
 
+                  const statusKey = (client.status as string) || 'lead';
+
                   return (
                     <tr key={client.id} className="hover:bg-[var(--bg-elevated)] transition-colors">
                       <td className="px-6 py-3">
-                        <p className="font-medium text-[var(--text-primary)]">{client.name}</p>
-                        {client.email && (
-                          <p className="text-xs text-[var(--text-tertiary)]">{client.email}</p>
-                        )}
+                        <Link
+                          href={`/dashboard/clients/${client.id}`}
+                          className="block hover:text-[var(--accent)] transition-colors"
+                        >
+                          <p className="font-medium text-[var(--text-primary)]">{client.name}</p>
+                          {client.email && (
+                            <p className="text-xs text-[var(--text-tertiary)]">{client.email}</p>
+                          )}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-3 hidden sm:table-cell">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                            STATUS_COLORS[statusKey] || STATUS_COLORS.lead
+                          }`}
+                        >
+                          {STATUS_LABELS[statusKey] || STATUS_LABELS.lead}
+                        </span>
                       </td>
                       <td className="px-6 py-3 text-[var(--text-secondary)] hidden md:table-cell">
                         {client.company || '—'}
