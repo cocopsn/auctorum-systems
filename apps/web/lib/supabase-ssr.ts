@@ -1,10 +1,12 @@
 import { createServerClient as createSSRClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
+import { withAuthCookieDomain } from './auth-cookie'
 
 // For use in Server Components, Server Actions, Route Handlers
 export function createSupabaseServer() {
   const cookieStore = cookies()
+  const host = headers().get('host')
   return createSSRClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -14,10 +16,16 @@ export function createSupabaseServer() {
           return cookieStore.get(name)?.value
         },
         set(name: string, value: string, options: any) {
-          try { cookieStore.set({ name, value, ...options }) } catch {}
+          try {
+            const opts = withAuthCookieDomain(options ?? {}, host)
+            cookieStore.set({ name, value, ...opts })
+          } catch {}
         },
         remove(name: string, options: any) {
-          try { cookieStore.set({ name, value: '', ...options }) } catch {}
+          try {
+            const opts = withAuthCookieDomain(options ?? {}, host)
+            cookieStore.set({ name, value: '', ...opts })
+          } catch {}
         },
       },
     }
@@ -26,6 +34,7 @@ export function createSupabaseServer() {
 
 // For use in middleware
 export function createSupabaseMiddleware(request: NextRequest, response: NextResponse) {
+  const host = request.headers.get('host')
   return createSSRClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -35,12 +44,14 @@ export function createSupabaseMiddleware(request: NextRequest, response: NextRes
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: any) {
-          request.cookies.set({ name, value, ...options })
-          response.cookies.set({ name, value, ...options })
+          const opts = withAuthCookieDomain(options ?? {}, host)
+          request.cookies.set({ name, value, ...opts })
+          response.cookies.set({ name, value, ...opts })
         },
         remove(name: string, options: any) {
-          request.cookies.set({ name, value: '', ...options })
-          response.cookies.set({ name, value: '', ...options })
+          const opts = withAuthCookieDomain(options ?? {}, host)
+          request.cookies.set({ name, value: '', ...opts })
+          response.cookies.set({ name, value: '', ...opts })
         },
       },
     }

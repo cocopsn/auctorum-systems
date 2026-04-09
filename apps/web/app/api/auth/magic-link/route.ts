@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db, users } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
-import { createServerClient } from '@/lib/supabase-server';
+import { createAnonClient } from '@/lib/supabase-server';
 import { rateLimit } from '@/lib/rate-limit';
 
 // TODO: Add rate limiting (e.g., upstash/ratelimit) — max 5 magic links per email per hour
@@ -49,7 +49,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    const supabase = createServerClient();
+    // signInWithOtp is public auth — use anon key, not service_role, to minimize blast radius
+    const supabase = createAnonClient();
     const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://auctorum.com.mx'}/api/auth/callback`;
 
     const { error } = await supabase.auth.signInWithOtp({

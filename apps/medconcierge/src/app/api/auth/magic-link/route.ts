@@ -35,9 +35,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
+    // signInWithOtp is a public auth method — use anon key to minimize blast radius
+    // (service_role key is not needed and would give this endpoint elevated permissions)
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     )
 

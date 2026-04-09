@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { withAuthCookieDomain } from '@/lib/auth-cookie'
 
 const PROTECTED_ROUTES = ['/citas', '/pacientes', '/horarios', '/notas', '/settings', '/agenda', '/ai-settings']
 
@@ -55,12 +56,14 @@ export async function middleware(request: NextRequest) {
             return request.cookies.get(name)?.value
           },
           set(name: string, value: string, options: Record<string, unknown>) {
-            request.cookies.set({ name, value, ...options })
-            response.cookies.set({ name, value, ...options })
+            const opts = withAuthCookieDomain(options ?? {}, host)
+            request.cookies.set({ name, value, ...opts })
+            response.cookies.set({ name, value, ...opts })
           },
           remove(name: string, options: Record<string, unknown>) {
-            request.cookies.set({ name, value: '', ...options })
-            response.cookies.set({ name, value: '', ...options })
+            const opts = withAuthCookieDomain(options ?? {}, host)
+            request.cookies.set({ name, value: '', ...opts })
+            response.cookies.set({ name, value: '', ...opts })
           },
         },
       }

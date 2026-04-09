@@ -38,3 +38,9 @@ logo-transparent.png
 logo1-transparent.png
 *.pdf
 download.png
+
+# Drop zones for personal/external assets — never commit these
+New folder/
+/CLAUDE*.md
+/CLAUDE*.docx
+/AUCTORUM-*.docx

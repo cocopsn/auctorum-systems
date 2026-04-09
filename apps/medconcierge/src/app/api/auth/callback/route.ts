@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { withAuthCookieDomain } from '@/lib/auth-cookie'
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url)
@@ -11,6 +12,7 @@ export async function GET(request: NextRequest) {
 
   // Redirect to /citas as the default dashboard view after login
   const response = NextResponse.redirect(`${origin}/citas`)
+  const host = request.headers.get('host')
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -21,10 +23,12 @@ export async function GET(request: NextRequest) {
           return request.cookies.get(name)?.value
         },
         set(name: string, value: string, options: Record<string, unknown>) {
-          response.cookies.set({ name, value, ...options })
+          const opts = withAuthCookieDomain(options ?? {}, host)
+          response.cookies.set({ name, value, ...opts })
         },
         remove(name: string, options: Record<string, unknown>) {
-          response.cookies.set({ name, value: '', ...options })
+          const opts = withAuthCookieDomain(options ?? {}, host)
+          response.cookies.set({ name, value: '', ...opts })
         },
       },
     }
