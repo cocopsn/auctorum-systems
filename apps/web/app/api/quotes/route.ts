@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { db, tenants, products, quotes, quoteItems, quoteEvents, clients, type Product } from '@quote-engine/db';
-import { eq, inArray, and, isNull, sql } from 'drizzle-orm';
+import { db, tenants, products, quotes, quoteItems, quoteEvents, clients, users, type Product } from '@quote-engine/db';
+import { eq, inArray, and, isNull, sql, asc } from 'drizzle-orm';
 import type { TenantConfig } from '@quote-engine/db';
 import { generateQuotePDF } from '@quote-engine/pdf';
 import { sendWhatsAppQuote } from '@quote-engine/notifications/whatsapp';
-import { sendEmailQuote } from '@quote-engine/notifications/email';
+import { sendEmailQuote, sendNewQuoteAlert } from '@quote-engine/notifications/email';
 import crypto from 'crypto';
 import { rateLimit } from '@/lib/rate-limit';
 import { sanitizeObject } from '@/lib/sanitize';
@@ -220,8 +220,30 @@ export async function POST(request: NextRequest) {
     }
 
     // TODO: Upload PDF to Supabase Storage and get public URL
-    const trackingUrl = `${process.env.NEXT_PUBLIC_APP_DOMAIN ? 'https://' + data.tenantSlug + '.' + process.env.NEXT_PUBLIC_APP_DOMAIN : ''}/q/${trackingToken}`;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_DOMAIN
+      ? `https://${data.tenantSlug}.${process.env.NEXT_PUBLIC_APP_DOMAIN}`
+      : '';
+    const trackingUrl = `${baseUrl}/q/${trackingToken}`;
     const pdfUrl = `/api/quotes/${quote.id}/pdf`;
+    // Pixel URL for email open tracking (only when APP_DOMAIN is set,
+    // otherwise the pixel img tag is omitted from the email).
+    const pixelUrl = baseUrl ? `${baseUrl}/api/t/${trackingToken}` : null;
+    // Dashboard CTA for the owner alert email.
+    const dashboardUrl = baseUrl ? `${baseUrl}/dashboard/quotes` : '/dashboard/quotes';
+
+    // Resolve tenant owner email: prefer first admin user, fall back to
+    // tenant contact email. Skip the alert silently if neither exists.
+    const [adminUser] = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(and(eq(users.tenantId, tenant.id), eq(users.role, 'admin')))
+      .orderBy(asc(users.createdAt))
+      .limit(1);
+    const ownerEmail = adminUser?.email || config.contact.email || null;
+
+    // Folio for the alert email (matches the PDF route pattern).
+    const alertPrefix = config.quote_settings?.auto_number_prefix?.trim() || 'COT';
+    const alertFolio = `${alertPrefix}-${String(quote.tenantSeq ?? quote.quoteNumber ?? 0).padStart(4, '0')}`;
 
     // Update quote with PDF URL and mark as sent
     await db.update(quotes)
@@ -263,6 +285,19 @@ export async function POST(request: NextRequest) {
         quoteNumber: quote.quoteNumber,
         total,
         pdfBuffer,
+        config,
+        pixelUrl,
+      }),
+      ownerEmail && sendNewQuoteAlert({
+        to: ownerEmail,
+        tenantName: tenant.name,
+        quoteFolio: alertFolio,
+        clientName: data.clientName,
+        clientCompany: data.clientCompany,
+        clientPhone: data.clientPhone,
+        clientEmail: data.clientEmail || null,
+        total,
+        dashboardUrl,
         config,
       }),
     ]).catch(console.error);
