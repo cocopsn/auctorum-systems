@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { and, count, eq, gte, lte, sql } from 'drizzle-orm';
-import { db, appointments, patients, tenants } from '@quote-engine/db';
+import { redirect } from 'next/navigation';
+import { db, appointments, patients } from '@quote-engine/db';
 import {
   AiInsightCard,
   DonutCard,
@@ -11,15 +12,7 @@ import {
   StatusBadge,
 } from '@quote-engine/ui';
 import { CalendarCheck, DollarSign, HeartPulse, Users } from 'lucide-react';
-
-async function getTenantId() {
-  const [tenant] = await db
-    .select({ id: tenants.id, name: tenants.name })
-    .from(tenants)
-    .where(eq(tenants.slug, 'dra-martinez'))
-    .limit(1);
-  return tenant;
-}
+import { getAuthTenant } from '@/lib/auth';
 
 function formatMXN(amount: number | string) {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
@@ -27,8 +20,9 @@ function formatMXN(amount: number | string) {
 }
 
 export default async function AgendaPage() {
-  const tenant = await getTenantId();
-  if (!tenant) return <div className="text-rose-600">No tenant found</div>;
+  const auth = await getAuthTenant();
+  if (!auth) redirect('/login');
+  const tenant = auth.tenant;
 
   const today = new Date().toISOString().split('T')[0];
   const monthStart = new Date();

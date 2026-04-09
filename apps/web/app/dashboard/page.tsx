@@ -1,5 +1,15 @@
-import { db, quotes, clients, tenants } from '@quote-engine/db';
-import { and, desc, eq, gte, sql } from 'drizzle-orm';
+import {
+  db,
+  quotes,
+  clients,
+  tenants,
+  messages,
+  conversations,
+  botFaqs,
+  funnelStages,
+  clientFunnel,
+} from '@quote-engine/db';
+import { and, count, desc, eq, gte, lt, sql } from 'drizzle-orm';
 import { getTenant } from '@/lib/tenant';
 import { MOCK_TENANT, MOCK_QUOTES } from '@/lib/mock-data';
 import {
@@ -22,6 +32,7 @@ function formatMXN(amount: number | string) {
 async function getDashboardData(tenantId: string) {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
 
   const [monthStats] = await db
     .select({
@@ -48,7 +59,78 @@ async function getDashboardData(tenantId: string) {
     .orderBy(desc(quotes.createdAt))
     .limit(5);
 
-  return { monthStats, acceptedStats, prospects, recentQuotes };
+  // WhatsApp open rate: outbound messages with readAt set / total outbound (this month).
+  // messages.tenantId doesn't exist directly, so JOIN conversations.
+  const [messageStats] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      delivered: sql<number>`count(*) filter (where ${messages.readAt} is not null)::int`,
+      botSent: sql<number>`count(*) filter (where ${messages.senderType} = 'bot')::int`,
+    })
+    .from(messages)
+    .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+    .where(
+      and(
+        eq(conversations.tenantId, tenantId),
+        eq(messages.direction, 'outbound'),
+        gte(messages.createdAt, monthStart),
+      ),
+    );
+
+  // FAQs activas
+  const [faqStats] = await db
+    .select({ count: count() })
+    .from(botFaqs)
+    .where(and(eq(botFaqs.tenantId, tenantId), eq(botFaqs.active, true)));
+
+  // Month-over-month growth: quotes and clients
+  const [prevQuoteCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(quotes)
+    .where(
+      and(
+        eq(quotes.tenantId, tenantId),
+        gte(quotes.createdAt, prevMonthStart),
+        lt(quotes.createdAt, monthStart),
+      ),
+    );
+
+  const [prevClientCount] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(clients)
+    .where(
+      and(
+        eq(clients.tenantId, tenantId),
+        gte(clients.createdAt, prevMonthStart),
+        lt(clients.createdAt, monthStart),
+      ),
+    );
+
+  // Pipeline funnel: % de clientes en stage final vs total tracked
+  const stageDistribution = await db
+    .select({
+      id: funnelStages.id,
+      name: funnelStages.name,
+      position: funnelStages.position,
+      count: sql<number>`count(${clientFunnel.clientId})::int`,
+    })
+    .from(funnelStages)
+    .leftJoin(clientFunnel, eq(clientFunnel.stageId, funnelStages.id))
+    .where(eq(funnelStages.tenantId, tenantId))
+    .groupBy(funnelStages.id, funnelStages.name, funnelStages.position)
+    .orderBy(funnelStages.position);
+
+  return {
+    monthStats,
+    acceptedStats,
+    prospects,
+    recentQuotes,
+    messageStats,
+    faqStats,
+    prevQuoteCount,
+    prevClientCount,
+    stageDistribution,
+  };
 }
 
 function mockDashboardData() {
@@ -57,7 +139,17 @@ function mockDashboardData() {
     acceptedStats: { count: MOCK_QUOTES.filter((quote) => quote.status === 'accepted').length },
     prospects: { count: 7 },
     recentQuotes: MOCK_QUOTES.slice(0, 5),
+    messageStats: { total: 0, delivered: 0, botSent: 0 },
+    faqStats: { count: 0 },
+    prevQuoteCount: { count: 0 },
+    prevClientCount: { count: 0 },
+    stageDistribution: [] as Array<{ id: string; name: string; position: number; count: number }>,
   };
+}
+
+function pctDelta(current: number, prev: number): number {
+  if (prev === 0) return current > 0 ? 100 : 0;
+  return Math.round(((current - prev) / prev) * 100);
 }
 
 const statusTone: Record<string, 'success' | 'warning' | 'danger' | 'indigo' | 'neutral'> = {
@@ -87,7 +179,30 @@ export default async function DashboardPage() {
     data = mockDashboardData();
   }
 
-  const openRate = data.monthStats.count ? Math.min(94, Math.max(38, Math.round((data.acceptedStats.count / data.monthStats.count) * 100) + 42)) : 0;
+  const openRate = data.messageStats.total > 0
+    ? Math.round((data.messageStats.delivered / data.messageStats.total) * 100)
+    : 0;
+  const botRate = data.messageStats.total > 0
+    ? Math.round((data.messageStats.botSent / data.messageStats.total) * 100)
+    : 0;
+  const faqCount: number = data.faqStats.count ?? 0;
+  const faqProgress = Math.min(100, faqCount * 10);
+
+  const quoteGrowth = pctDelta(data.monthStats.count, data.prevQuoteCount.count);
+  const clientGrowth = pctDelta(data.prospects.count, data.prevClientCount.count);
+  const quoteGrowthAbs = Math.min(100, Math.abs(quoteGrowth));
+  const clientGrowthAbs = Math.min(100, Math.abs(clientGrowth));
+
+  // Pipeline donut: % de clientes que llegaron al stage final
+  const totalInFunnel = data.stageDistribution.reduce(
+    (sum: number, stage: { count: number }) => sum + stage.count,
+    0,
+  );
+  const lastStage = data.stageDistribution[data.stageDistribution.length - 1];
+  const pipelineConvRate = totalInFunnel > 0 && lastStage
+    ? Math.round((lastStage.count / totalInFunnel) * 100)
+    : 0;
+  const pipelineLabel = lastStage?.name ?? 'Cerrados';
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -115,14 +230,24 @@ export default async function DashboardPage() {
           <LineChartCard title="Rendimiento de Cotizaciones" subtitle="Generadas vs Aprobadas · ultimos 30 dias" seriesA="Generadas" seriesB="Aprobadas" />
         </div>
         <div className="xl:col-span-3">
-          <DonutCard title="Pipeline Comercial" label="Aprobadas" value={`${data.acceptedStats.count}`} />
+          <DonutCard title="Pipeline Comercial" label={pipelineLabel} value={`${pipelineConvRate}%`} />
         </div>
         <div className="xl:col-span-2">
           <ProgressList
             title="Top Automations"
             items={[
-              { label: 'Follow-up WhatsApp', value: '87%', meta: '342 enviados', progress: 87 },
-              { label: 'Reactivacion', value: '57%', meta: '89 completados', progress: 57 },
+              {
+                label: 'Bot autoresponse',
+                value: `${botRate}%`,
+                meta: `${data.messageStats.botSent} enviados`,
+                progress: botRate,
+              },
+              {
+                label: 'FAQs activas',
+                value: `${faqCount}`,
+                meta: 'respuestas auto',
+                progress: faqProgress,
+              },
             ]}
           />
         </div>
@@ -132,8 +257,18 @@ export default async function DashboardPage() {
         <ProgressList
           title="Crecimiento"
           items={[
-            { label: 'Prospectos nuevos', value: '+18%', meta: 'vs mes anterior', progress: 78 },
-            { label: 'Cotizaciones vistas', value: '+11%', meta: 'apertura WhatsApp', progress: 64 },
+            {
+              label: 'Cotizaciones',
+              value: `${quoteGrowth >= 0 ? '+' : ''}${quoteGrowth}%`,
+              meta: 'vs mes anterior',
+              progress: quoteGrowthAbs,
+            },
+            {
+              label: 'Prospectos nuevos',
+              value: `${clientGrowth >= 0 ? '+' : ''}${clientGrowth}%`,
+              meta: 'vs mes anterior',
+              progress: clientGrowthAbs,
+            },
           ]}
         />
         <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm xl:col-span-1">

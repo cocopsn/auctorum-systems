@@ -5,6 +5,7 @@ import {
   Bot,
   FileText,
   LayoutDashboard,
+  MessageSquare,
   Package,
   Settings,
   Users,
@@ -15,6 +16,7 @@ import { ToastContainer } from '../../components/ui/Toast';
 const navItems: DashboardNavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/dashboard/quotes', label: 'Cotizaciones', icon: FileText },
+  { href: '/dashboard/conversations', label: 'Conversaciones', icon: MessageSquare },
   { href: '/dashboard/products', label: 'Productos', icon: Package },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/dashboard/clients', label: 'Clientes', icon: Users },
