@@ -39,6 +39,7 @@ export function BookingWizard({
   const [step, setStep] = useState<Step>('calendar')
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
+  const [portalToken, setPortalToken] = useState<string | null>(null)
 
   const handleSlotSelect = (date: string, slot: Slot) => {
     setSelectedDate(date)
@@ -80,12 +81,22 @@ export function BookingWizard({
             </p>
           )}
         </div>
-        <a
-          href="/"
-          className="inline-block mt-6 px-5 py-2 text-sm font-medium text-[var(--accent)] border border-[var(--border)] rounded-lg hover:border-[var(--border-hover)] transition-colors"
-        >
-          Volver al perfil
-        </a>
+        <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
+          <a
+            href="/"
+            className="px-5 py-2 text-sm font-medium text-[var(--accent)] border border-[var(--border)] rounded-lg hover:border-[var(--border-hover)] transition-colors"
+          >
+            Volver al perfil
+          </a>
+          {portalToken && (
+            <a
+              href={`/portal/${portalToken}`}
+              className="px-5 py-2.5 text-sm font-medium text-white bg-[var(--accent)] rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
+            >
+              Ver mi portal
+            </a>
+          )}
+        </div>
       </div>
     )
   }
@@ -135,7 +146,7 @@ export function BookingWizard({
           slot={selectedSlot}
           insuranceProviders={insuranceProviders}
           onBack={() => setStep('calendar')}
-          onSuccess={() => setStep('success')}
+          onSuccess={(data) => { setPortalToken(data.portalToken); setStep('success') }}
         />
       )}
     </div>

@@ -18,6 +18,7 @@ export const patients = pgTable('patients', {
   insuranceProvider: varchar('insurance_provider', { length: 255 }),
   insurancePolicy: varchar('insurance_policy', { length: 100 }),
   notes: text('notes'),
+  portalToken: varchar('portal_token', { length: 36 }).notNull().$defaultFn(() => crypto.randomUUID()),
   totalAppointments: integer('total_appointments').default(0),
   totalNoShows: integer('total_no_shows').default(0),
   totalSpent: decimal('total_spent', { precision: 12, scale: 2 }).default('0'),

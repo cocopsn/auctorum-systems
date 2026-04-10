@@ -23,7 +23,7 @@ export function BookingForm({
   slot: Slot
   insuranceProviders: string[]
   onBack: () => void
-  onSuccess: (data: { appointmentId: string }) => void
+  onSuccess: (data: { appointmentId: string; portalToken: string }) => void
 }) {
   const [form, setForm] = useState<BookingFormInput>({
     patientName: '',
@@ -86,7 +86,7 @@ export function BookingForm({
       }
 
       const data = await res.json()
-      onSuccess({ appointmentId: data.appointment.id })
+      onSuccess({ appointmentId: data.appointment.id, portalToken: data.patient.portalToken })
     } catch {
       setServerError('Error de conexión. Intente de nuevo.')
       setSubmitting(false)
