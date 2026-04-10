@@ -3,48 +3,54 @@ export const dynamic = "force-dynamic";
 import { notFound } from 'next/navigation'
 import { eq, and, desc } from 'drizzle-orm'
 import { db } from '@quote-engine/db'
-import { patients, appointments, clinicalNotes, tenants } from '@quote-engine/db'
+import { patients, patientFiles, appointments, clinicalNotes } from '@quote-engine/db'
+import { requireAuth } from '@/lib/auth'
 import { StatusBadge } from '@/components/dashboard/status-badge'
-import { User, Phone, Mail, Shield, AlertTriangle, Calendar } from 'lucide-react'
+import PatientDetailClient from '@/components/patients/PatientDetailClient'
+import { User, Phone, Mail, Calendar } from 'lucide-react'
 
-async function getTenantId() {
-  const [tenant] = await db
-    .select({ id: tenants.id })
-    .from(tenants)
-    .where(eq(tenants.slug, 'dra-martinez'))
-    .limit(1)
-  return tenant?.id
-}
+// ============================================================
+// Patient detail — server component.
+// Resolves the patient through requireAuth() tenant scoping,
+// loads related files + appointments + clinical notes in
+// parallel, then hands the editable sections off to
+// PatientDetailClient for debounced autosave and file uploads.
+// ============================================================
 
 export default async function PatientDetailPage({
   params,
 }: {
   params: { id: string }
 }) {
-  const tenantId = await getTenantId()
-  if (!tenantId) notFound()
+  const { tenant } = await requireAuth()
 
   const [patient] = await db
     .select()
     .from(patients)
-    .where(and(eq(patients.id, params.id), eq(patients.tenantId, tenantId)))
+    .where(and(eq(patients.id, params.id), eq(patients.tenantId, tenant.id)))
     .limit(1)
 
   if (!patient) notFound()
 
-  const patientAppointments = await db
-    .select()
-    .from(appointments)
-    .where(eq(appointments.patientId, patient.id))
-    .orderBy(desc(appointments.date))
-    .limit(20)
-
-  const notes = await db
-    .select()
-    .from(clinicalNotes)
-    .where(eq(clinicalNotes.patientId, patient.id))
-    .orderBy(desc(clinicalNotes.createdAt))
-    .limit(10)
+  const [files, patientAppointments, notes] = await Promise.all([
+    db
+      .select()
+      .from(patientFiles)
+      .where(eq(patientFiles.patientId, patient.id))
+      .orderBy(desc(patientFiles.createdAt)),
+    db
+      .select()
+      .from(appointments)
+      .where(eq(appointments.patientId, patient.id))
+      .orderBy(desc(appointments.date))
+      .limit(20),
+    db
+      .select()
+      .from(clinicalNotes)
+      .where(eq(clinicalNotes.patientId, patient.id))
+      .orderBy(desc(clinicalNotes.createdAt))
+      .limit(10),
+  ])
 
   return (
     <div>
@@ -95,31 +101,10 @@ export default async function PatientDetailPage({
             <p className="text-xs text-[var(--text-tertiary)]">Tasa no-show</p>
           </div>
         </div>
-
-        {/* Medical info */}
-        {(patient.allergies || patient.chronicConditions || patient.insuranceProvider) && (
-          <div className="mt-4 pt-4 border-t border-[var(--border)] space-y-2">
-            {patient.allergies && (
-              <div className="flex items-start gap-2 text-sm">
-                <AlertTriangle className="w-4 h-4 text-[var(--error)] mt-0.5" />
-                <div className="text-[var(--text-secondary)]"><span className="font-medium text-[var(--text-primary)]">Alergias:</span> {patient.allergies}</div>
-              </div>
-            )}
-            {patient.chronicConditions && (
-              <div className="flex items-start gap-2 text-sm">
-                <AlertTriangle className="w-4 h-4 text-[var(--warning)] mt-0.5" />
-                <div className="text-[var(--text-secondary)]"><span className="font-medium text-[var(--text-primary)]">Condiciones crónicas:</span> {patient.chronicConditions}</div>
-              </div>
-            )}
-            {patient.insuranceProvider && (
-              <div className="flex items-start gap-2 text-sm">
-                <Shield className="w-4 h-4 text-[var(--accent)] mt-0.5" />
-                <div className="text-[var(--text-secondary)]"><span className="font-medium text-[var(--text-primary)]">Seguro:</span> {patient.insuranceProvider} {patient.insurancePolicy && `(${patient.insurancePolicy})`}</div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
+
+      {/* Editable clinical records + file attachments */}
+      <PatientDetailClient patient={patient} files={files} />
 
       {/* Appointment History */}
       <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-6 mb-6">
@@ -145,10 +130,10 @@ export default async function PatientDetailPage({
         )}
       </div>
 
-      {/* Clinical Notes */}
+      {/* Per-appointment Clinical Notes */}
       {notes.length > 0 && (
         <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-6">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Notas Clínicas</h2>
+          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Notas de consulta</h2>
           <div className="space-y-3">
             {notes.map((note) => (
               <div key={note.id} className="p-3 bg-[var(--bg-tertiary)] rounded-lg">

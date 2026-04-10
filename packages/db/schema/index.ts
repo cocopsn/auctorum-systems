@@ -11,6 +11,7 @@ export { clients, type Client, type NewClient } from './clients';
 // MedConcierge
 export { doctors, type Doctor, type NewDoctor } from './doctors';
 export { patients, type Patient, type NewPatient } from './patients';
+export { patientFiles, type PatientFile, type NewPatientFile } from './patient-files';
 export { appointments, type Appointment, type NewAppointment } from './appointments';
 export { schedules, scheduleBlocks, type Schedule, type NewSchedule, type ScheduleBlock } from './schedules';
 export { clinicalNotes, type ClinicalNote, type NewClinicalNote } from './clinical-notes';

@@ -12,6 +12,7 @@ export const patients = pgTable('patients', {
   bloodType: varchar('blood_type', { length: 5 }),
   allergies: text('allergies'),
   chronicConditions: text('chronic_conditions'),
+  medications: text('medications'),
   emergencyContactName: varchar('emergency_contact_name', { length: 255 }),
   emergencyContactPhone: varchar('emergency_contact_phone', { length: 50 }),
   insuranceProvider: varchar('insurance_provider', { length: 255 }),
