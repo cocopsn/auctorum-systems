@@ -41,11 +41,11 @@ export default function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <Image
-            src="/logo.png"
+            src="/AUCTORUMMORADO.png"
             alt="Auctorum"
-            width={48}
-            height={48}
-            className="mx-auto mb-4"
+            width={120}
+            height={120}
+            className="mx-auto mb-4 h-16 w-auto"
           />
           <h1 className="text-xl font-semibold text-[var(--text-primary)]">Auctorum Systems</h1>
           <p className="text-sm text-[var(--text-tertiary)] mt-1">Motor de Cotizaciones B2B</p>

@@ -31,6 +31,7 @@ export function AppShell({
   subtitle = "Here's what's happening today.",
   ctaHref = '/dashboard/ai-settings',
   logoutAction = '/api/auth/logout',
+  logoUrl,
 }: {
   children: ReactNode;
   navItems: DashboardNavItem[];
@@ -42,6 +43,7 @@ export function AppShell({
   subtitle?: string;
   ctaHref?: string;
   logoutAction?: string;
+  logoUrl?: string;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -67,9 +69,13 @@ export function AppShell({
         }`}
       >
         <div className="flex h-16 items-center gap-3 border-b border-gray-100 px-5">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-sm font-bold text-white">
-            AS
-          </div>
+          {logoUrl ? (
+            <img src={logoUrl} alt={brand} className="h-10 w-10 rounded-xl object-contain" />
+          ) : (
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-sm font-bold text-white">
+              {brand.slice(0, 2).toUpperCase()}
+            </div>
+          )}
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-gray-900">{brand}</p>
             <p className="truncate text-xs text-gray-500">{appName}</p>

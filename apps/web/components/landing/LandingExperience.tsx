@@ -572,7 +572,7 @@ export function LandingExperience() {
           <div className="flex flex-col items-center justify-between gap-5 rounded-[26px] border border-white/10 bg-white/[0.04] px-6 py-6 text-sm text-gray-400 backdrop-blur-xl md:flex-row">
             <div className="flex items-center gap-3">
               <Image
-                src="/logo-transparent.png"
+                src="/AUCTORUMMORADO.png"
                 alt="Auctorum"
                 width={28}
                 height={28}

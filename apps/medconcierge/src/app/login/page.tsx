@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, FormEvent } from 'react'
+import Image from 'next/image'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -39,11 +40,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col justify-center items-center px-6">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-[var(--accent-muted)] mb-4">
-            <svg className="w-6 h-6 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12Z" />
-            </svg>
-          </div>
+          <Image src="/AUCTORUMMORADO.png" alt="Auctorum" width={120} height={120} className="mx-auto mb-0 h-16 w-auto" />
           <h1 className="text-xl font-semibold text-[var(--text-primary)]">Concierge Médico</h1>
           <p className="text-sm text-[var(--text-tertiary)] mt-1">Acceso para doctores</p>
         </div>

@@ -32,6 +32,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <AppShell
         navItems={navItems}
         brand="Auctorum Systems"
+        logoUrl="/logo-transparent.png"
         appName="Quote Engine"
         userName="Admin"
         greeting="Welcome back, Admin!"

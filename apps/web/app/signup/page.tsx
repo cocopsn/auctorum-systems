@@ -94,7 +94,7 @@ export default function SignupPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Image
-            src="/logo.png"
+            src="/AUCTORUMMORADO.png"
             alt="Auctorum"
             width={48}
             height={48}

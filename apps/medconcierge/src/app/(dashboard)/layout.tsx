@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { AppShell, type DashboardNavItem } from '@quote-engine/ui'
 import {
   Bell,
+  MessageSquare,
   Bot,
   CalendarCheck,
   CalendarDays,
@@ -16,6 +17,7 @@ import { ToastContainer } from '@/components/ui/Toast'
 const navItems: DashboardNavItem[] = [
   { href: '/agenda', label: 'Agenda', icon: CalendarDays },
   { href: '/recordatorios', label: 'Recordatorios', icon: Bell },
+  { href: '/conversaciones', label: 'Conversaciones', icon: MessageSquare },
   { href: '/citas', label: 'Citas', icon: CalendarCheck },
   { href: '/pacientes', label: 'Pacientes', icon: Users },
   { href: '/notas', label: 'Notas Clinicas', icon: FileText },
@@ -38,6 +40,7 @@ export default async function DashboardLayout({
       <AppShell
         navItems={navItems}
         brand={tenant.name}
+        logoUrl="/logo-transparent.png"
         appName="MedConcierge"
         userName={tenant.name}
         greeting={`Welcome back, ${tenant.name}!`}
