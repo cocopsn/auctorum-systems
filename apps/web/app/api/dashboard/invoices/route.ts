@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthTenant } from '@/lib/auth';
+import { getAuthTenant, requireRole } from '@/lib/auth';
 import { db, invoices, clients, tenants } from '@quote-engine/db';
 import { eq, and, desc, gte, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -112,7 +112,7 @@ const createInvoiceSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const auth = await getAuthTenant();
+  const auth = await requireRole(['admin', 'operator']);
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   let body: unknown;

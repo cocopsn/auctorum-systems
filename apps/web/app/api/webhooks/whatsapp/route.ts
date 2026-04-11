@@ -1,17 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, quotes, quoteEvents, clients } from '@quote-engine/db';
 import { eq, and, desc } from 'drizzle-orm';
+import crypto from 'crypto';
 
 // ============================================================
 // WhatsApp Cloud API Webhook
 // GET:  Meta challenge verification
-// POST: Process incoming messages → log to quote_events
+// POST: Process incoming messages \u2192 log to quote_events
 // Docs: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks
 // ============================================================
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN ?? '';
 
-// GET /api/webhooks/whatsapp — Meta webhook challenge verification
+// --------------- HMAC Signature Verification ---------------
+function verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
+  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  if (!appSecret || appSecret === 'PLACEHOLDER_CONFIGURE_IN_META') {
+    console.warn('WHATSAPP_APP_SECRET not configured \u2014 skipping HMAC verification');
+    return true;
+  }
+  if (!signatureHeader) return false;
+  const expectedSig =
+    'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(expectedSig),
+      Buffer.from(signatureHeader),
+    );
+  } catch {
+    return false;
+  }
+}
+
+// GET /api/webhooks/whatsapp \u2014 Meta webhook challenge verification
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get('hub.mode');
@@ -26,10 +47,19 @@ export async function GET(request: NextRequest) {
   return new NextResponse('Forbidden', { status: 403 });
 }
 
-// POST /api/webhooks/whatsapp — Incoming message handler
+// POST /api/webhooks/whatsapp \u2014 Incoming message handler
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Read raw body first for HMAC verification, then parse JSON
+    const rawBody = await request.text();
+    const signature = request.headers.get('x-hub-signature-256');
+
+    if (!verifyWebhookSignature(rawBody, signature)) {
+      console.warn('WhatsApp webhook: invalid HMAC signature');
+      return new NextResponse('Invalid signature', { status: 403 });
+    }
+
+    const body = JSON.parse(rawBody);
 
     // Acknowledge immediately (Meta requires < 200ms response)
     // Process asynchronously below
@@ -81,7 +111,7 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
 
   console.log(`WhatsApp message from ${from}: [${msgType}] ${text}`);
 
-  // Normalize the phone number — strip non-digits and remove Mexico country code
+  // Normalize the phone number \u2014 strip non-digits and remove Mexico country code
   // to match the format stored in the clients table.
   const cleanPhone = from?.replace(/\D/g, '').replace(/^52/, '') ?? '';
 

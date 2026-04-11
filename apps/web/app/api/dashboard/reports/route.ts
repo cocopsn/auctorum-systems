@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, quotes } from '@quote-engine/db'
-import { eq, and, gte, lte, sql, count } from 'drizzle-orm'
+import { eq, and, gte, lte, sql, count, desc } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
@@ -14,13 +14,25 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate') || new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
     const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0]
 
+    // Mandatory pagination for the underlying quotes query (FIX 7.2)
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(500, parseInt(searchParams.get('limit') || '200'))
+    const offset = (page - 1) * limit
+
     const conditions = and(
       eq(quotes.tenantId, auth.tenant.id),
       gte(quotes.createdAt, new Date(startDate)),
       lte(quotes.createdAt, new Date(endDate + 'T23:59:59Z'))
     )
 
-    const allQuotes = await db.select().from(quotes).where(conditions)
+    // Use paginated query instead of loading all quotes into memory
+    const allQuotes = await db
+      .select()
+      .from(quotes)
+      .where(conditions)
+      .orderBy(desc(quotes.createdAt))
+      .limit(limit)
+      .offset(offset)
 
     const totalQuotes = allQuotes.length
     const totalValue = allQuotes.reduce((sum, q) => sum + Number(q.total || 0), 0)
@@ -39,6 +51,7 @@ export async function GET(request: NextRequest) {
       quotesByStatus,
       startDate,
       endDate,
+      pagination: { page, limit, offset },
     })
   } catch (err: any) {
     console.error('Reports GET error:', err)

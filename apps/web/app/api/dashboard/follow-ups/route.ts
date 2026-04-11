@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, followUps, clients } from '@quote-engine/db'
-import { eq, and, desc } from 'drizzle-orm'
+import { eq, and, desc, isNull, sql } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { z } from 'zod'
 
@@ -13,6 +13,16 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || 'all'
+
+    // Mandatory pagination (FIX 7.2)
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(100, parseInt(searchParams.get('limit') || '50'))
+    const offset = (page - 1) * limit
+
+    // Build where conditions — filter out soft-deleted records (FIX 7.1)
+    const conditions = status !== 'all'
+      ? and(eq(followUps.tenantId, auth.tenant.id), eq(followUps.status, status), isNull(followUps.deletedAt))
+      : and(eq(followUps.tenantId, auth.tenant.id), isNull(followUps.deletedAt))
 
     const data = await db
       .select({
@@ -29,14 +39,12 @@ export async function GET(request: NextRequest) {
       })
       .from(followUps)
       .leftJoin(clients, eq(followUps.clientId, clients.id))
-      .where(
-        status !== 'all'
-          ? and(eq(followUps.tenantId, auth.tenant.id), eq(followUps.status, status))
-          : eq(followUps.tenantId, auth.tenant.id)
-      )
+      .where(conditions)
       .orderBy(desc(followUps.scheduledAt))
+      .limit(limit)
+      .offset(offset)
 
-    return NextResponse.json({ followUps: data })
+    return NextResponse.json({ followUps: data, pagination: { page, limit, offset } })
   } catch (err: any) {
     console.error('Follow-ups GET error:', err)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

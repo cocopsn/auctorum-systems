@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthTenant } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 import { db, invoices } from '@quote-engine/db';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
@@ -19,7 +19,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
-  const auth = await getAuthTenant();
+  const auth = await requireRole(['admin']);
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   let body: unknown;

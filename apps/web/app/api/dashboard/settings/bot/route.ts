@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@quote-engine/db'
 import { sql } from 'drizzle-orm'
-import { getAuthTenant } from '@/lib/auth'
+import { getAuthTenant, requireRole } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
@@ -23,7 +23,7 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = await getAuthTenant()
+    const auth = await requireRole(['admin'])
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const body = await request.json()

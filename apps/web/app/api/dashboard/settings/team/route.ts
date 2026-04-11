@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, users } from '@quote-engine/db'
 import { eq, and } from 'drizzle-orm'
-import { getAuthTenant } from '@/lib/auth'
+import { getAuthTenant, requireRole } from '@/lib/auth'
 import { createClient } from '@supabase/supabase-js'
 import { z } from 'zod'
 
@@ -37,12 +37,8 @@ const inviteSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await getAuthTenant()
+    const auth = await requireRole(['admin'])
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-
-    if (auth.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Solo admin puede invitar' }, { status: 403 })
-    }
 
     const body = await request.json()
     const parsed = inviteSchema.safeParse(body)

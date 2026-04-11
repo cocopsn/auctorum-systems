@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthTenant } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import crypto from 'crypto';
@@ -45,7 +45,7 @@ function base32Encode(buffer: Buffer): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await getAuthTenant();
+    const auth = await requireRole(['admin']);
     if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }

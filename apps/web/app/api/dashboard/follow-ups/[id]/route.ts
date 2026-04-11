@@ -41,6 +41,7 @@ export async function PATCH(
   }
 }
 
+// Soft delete (FIX 7.1) — set deletedAt instead of hard delete
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -49,9 +50,15 @@ export async function DELETE(
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-    await db
-      .delete(followUps)
+    const [deleted] = await db
+      .update(followUps)
+      .set({ deletedAt: new Date() })
       .where(and(eq(followUps.id, params.id), eq(followUps.tenantId, auth.tenant.id)))
+      .returning()
+
+    if (!deleted) {
+      return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+    }
 
     return NextResponse.json({ success: true })
   } catch (err: any) {

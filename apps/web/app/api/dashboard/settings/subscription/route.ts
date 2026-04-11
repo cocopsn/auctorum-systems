@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthTenant } from '@/lib/auth';
+import { getAuthTenant, requireRole } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -36,16 +36,15 @@ export async function GET(request: NextRequest) {
 const PLAN_AMOUNTS: Record<string, number> = {
   free: 0,
   pro: 1500,
-  enterprise: 0,
 };
 
 const patchSchema = z.object({
-  plan: z.enum(['free', 'pro', 'enterprise']),
+  plan: z.enum(['free', 'pro']),
 });
 
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = await getAuthTenant();
+    const auth = await requireRole(['admin']);
     if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }

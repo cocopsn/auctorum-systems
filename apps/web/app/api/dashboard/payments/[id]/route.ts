@@ -6,6 +6,14 @@ import { db, payments } from '@quote-engine/db';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
 
+// Valid status transitions (FIX 5.3 — payment status transition check)
+const validTransitions: Record<string, string[]> = {
+  pending: ['completed', 'failed'],
+  completed: ['refunded'],
+  failed: [],
+  refunded: [],
+};
+
 // ---------------------------------------------------------------------------
 // PATCH /api/dashboard/payments/[id]
 // ---------------------------------------------------------------------------
@@ -34,12 +42,34 @@ export async function PATCH(
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
+  const newStatus = parsed.data.status;
+
+  // Fetch current payment to validate status transition
+  const [currentPayment] = await db
+    .select({ id: payments.id, status: payments.status })
+    .from(payments)
+    .where(and(eq(payments.id, params.id), eq(payments.tenantId, auth.tenant.id)))
+    .limit(1);
+
+  if (!currentPayment) {
+    return NextResponse.json({ error: 'Pago no encontrado' }, { status: 404 });
+  }
+
+  // Check valid transition
+  const allowed = validTransitions[currentPayment.status] ?? [];
+  if (!allowed.includes(newStatus)) {
+    return NextResponse.json(
+      { error: `No se puede cambiar de '${currentPayment.status}' a '${newStatus}'. Transiciones validas: ${allowed.join(', ') || 'ninguna'}` },
+      { status: 400 }
+    );
+  }
+
   const updateData: Record<string, unknown> = {
-    status: parsed.data.status,
+    status: newStatus,
   };
 
   // If marking as completed, set paid_at timestamp
-  if (parsed.data.status === 'completed') {
+  if (newStatus === 'completed') {
     updateData.paidAt = new Date();
   }
 

@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthTenant } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -11,14 +12,7 @@ import crypto from 'crypto';
 // TOTP verification — manual HMAC-SHA1 implementation, no external lib
 // ---------------------------------------------------------------------------
 
-/**
- * Generate a TOTP code from a hex secret and a counter value.
- * Algorithm: RFC 6238 / RFC 4226
- *  - HMAC-SHA1(secret, counter as 8-byte big-endian)
- *  - Dynamic truncation to 6 digits
- */
 function generateTOTP(secretHex: string, counter: number): string {
-  // Convert counter to 8-byte big-endian buffer
   const counterBuffer = Buffer.alloc(8);
   let tmp = counter;
   for (let i = 7; i >= 0; i--) {
@@ -28,12 +22,10 @@ function generateTOTP(secretHex: string, counter: number): string {
 
   const secretBuffer = Buffer.from(secretHex, 'hex');
 
-  // HMAC-SHA1
   const hmac = crypto.createHmac('sha1', secretBuffer);
   hmac.update(counterBuffer);
   const hash = hmac.digest();
 
-  // Dynamic truncation
   const offset = hash[hash.length - 1] & 0x0f;
   const binary =
     ((hash[offset] & 0x7f) << 24) |
@@ -45,10 +37,6 @@ function generateTOTP(secretHex: string, counter: number): string {
   return otp.toString().padStart(6, '0');
 }
 
-/**
- * Verify a TOTP code against the stored secret.
- * Checks current window and +/- 1 for clock skew tolerance.
- */
 function verifyTOTP(secretHex: string, code: string): boolean {
   const timeStep = 30;
   const currentCounter = Math.floor(Date.now() / 1000 / timeStep);
@@ -73,9 +61,15 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await getAuthTenant();
+    const auth = await requireRole(['admin']);
     if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    // Rate limit: 5 attempts/minute per user (FIX 4.1a)
+    const rl = rateLimit(`2fa-verify:${auth.user.id}`, 5, 60_000);
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Demasiados intentos. Espera un minuto.' }, { status: 429 });
     }
 
     const body = await request.json();

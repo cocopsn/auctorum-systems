@@ -3,8 +3,26 @@ import { db, quotes, quoteItems, tenants } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
 import { generateQuotePDF } from '@quote-engine/pdf';
 import type { TenantConfig } from '@quote-engine/db';
+import crypto from 'crypto';
 
 type RouteContext = { params: { quoteId: string } };
+
+function verifyPdfSignature(quoteId: string, sig: string | null): boolean {
+  if (!sig) return false;
+  const secret = process.env.PDF_SIGNING_SECRET || 'auctorum-pdf-secret';
+  const dayKey = Math.floor(Date.now() / 86400000).toString();
+  const expected = crypto.createHmac('sha256', secret).update(quoteId + ':' + dayKey).digest('hex').substring(0, 16);
+  // Also check yesterday's key for timezone edge cases
+  const yesterdayKey = (Math.floor(Date.now() / 86400000) - 1).toString();
+  const expectedYesterday = crypto.createHmac('sha256', secret).update(quoteId + ':' + yesterdayKey).digest('hex').substring(0, 16);
+  return sig === expected || sig === expectedYesterday;
+}
+
+function generatePdfSignature(quoteId: string): string {
+  const secret = process.env.PDF_SIGNING_SECRET || 'auctorum-pdf-secret';
+  const dayKey = Math.floor(Date.now() / 86400000).toString();
+  return crypto.createHmac('sha256', secret).update(quoteId + ':' + dayKey).digest('hex').substring(0, 16);
+}
 
 // Fetches a tenant-provided logo URL and returns it as a base64 data URL
 // suitable for @react-pdf/renderer <Image src=...>. 5s timeout; any error
@@ -28,6 +46,13 @@ async function fetchLogoBase64(url: string | null): Promise<string | null> {
 export async function GET(_request: NextRequest, { params }: RouteContext) {
   try {
     const { quoteId } = params;
+
+    // Verify signature before any DB query
+    const { searchParams } = new URL(_request.url);
+    const sig = searchParams.get('sig');
+    if (!verifyPdfSignature(quoteId, sig)) {
+      return new NextResponse('Unauthorized', { status: 401 });
+    }
 
     // Fetch quote
     const [quote] = await db

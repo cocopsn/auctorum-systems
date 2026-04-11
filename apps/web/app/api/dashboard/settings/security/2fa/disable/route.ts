@@ -1,7 +1,8 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthTenant } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -59,9 +60,15 @@ const bodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await getAuthTenant();
+    const auth = await requireRole(['admin']);
     if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    // Rate limit: 5 attempts/minute per user (FIX 4.1b)
+    const rl = rateLimit(`2fa-disable:${auth.user.id}`, 5, 60_000);
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Demasiados intentos. Espera un minuto.' }, { status: 429 });
     }
 
     const body = await request.json();

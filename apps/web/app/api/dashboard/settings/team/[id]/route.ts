@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, users } from '@quote-engine/db'
 import { eq, and } from 'drizzle-orm'
-import { getAuthTenant } from '@/lib/auth'
+import { requireRole } from '@/lib/auth'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
@@ -15,12 +15,8 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
-    const auth = await getAuthTenant()
+    const auth = await requireRole(['admin'])
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-
-    if (auth.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Solo admin puede modificar roles' }, { status: 403 })
-    }
 
     const memberId = params.id
     if (memberId === auth.user.id) {
@@ -63,12 +59,8 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    const auth = await getAuthTenant()
+    const auth = await requireRole(['admin'])
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-
-    if (auth.user.role !== 'admin') {
-      return NextResponse.json({ error: 'Solo admin puede eliminar miembros' }, { status: 403 })
-    }
 
     const memberId = params.id
     if (memberId === auth.user.id) {

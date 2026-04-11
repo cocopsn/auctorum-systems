@@ -21,6 +21,7 @@ export const followUps = pgTable('follow_ups', {
   status: varchar('status', { length: 20 }).notNull().default('scheduled'), // scheduled|sent|responded|cancelled
   messageTemplate: text('message_template'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
 }, (t) => ({
   tenantStatusSchedIdx: index('idx_follow_ups_tenant_status_sched').on(t.tenantId, t.status, t.scheduledAt),
 }))

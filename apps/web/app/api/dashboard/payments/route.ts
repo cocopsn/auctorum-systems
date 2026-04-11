@@ -1,13 +1,14 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthTenant } from '@/lib/auth';
+import { getAuthTenant, requireRole } from '@/lib/auth';
 import { db, payments, clients } from '@quote-engine/db';
 import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { rateLimit } from '@/lib/rate-limit';
 
 // ---------------------------------------------------------------------------
-// GET /api/dashboard/payments
+// GET /api/dashboard/payments — with mandatory pagination
 // ---------------------------------------------------------------------------
 export async function GET(request: NextRequest) {
   const auth = await getAuthTenant();
@@ -18,6 +19,11 @@ export async function GET(request: NextRequest) {
   const startDate = searchParams.get('startDate');
   const endDate = searchParams.get('endDate');
   const processor = searchParams.get('processor');
+
+  // Mandatory pagination
+  const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
+  const limit = Math.min(100, parseInt(searchParams.get('limit') || '50'));
+  const offset = (page - 1) * limit;
 
   // Build where conditions
   const conditions: any[] = [
@@ -30,7 +36,7 @@ export async function GET(request: NextRequest) {
   if (startDate) conditions.push(gte(payments.createdAt, new Date(startDate)));
   if (endDate) conditions.push(lte(payments.createdAt, new Date(endDate)));
 
-  // Fetch payments joined with clients
+  // Fetch payments joined with clients — with pagination
   const rows = await db
     .select({
       id: payments.id,
@@ -54,7 +60,9 @@ export async function GET(request: NextRequest) {
     .from(payments)
     .leftJoin(clients, eq(payments.clientId, clients.id))
     .where(and(...conditions))
-    .orderBy(desc(payments.createdAt));
+    .orderBy(desc(payments.createdAt))
+    .limit(limit)
+    .offset(offset);
 
   // KPIs — scoped to current month
   const now = new Date();
@@ -71,6 +79,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     payments: rows,
+    pagination: { page, limit, offset },
     kpis: {
       totalCollected: Number(kpis.total_collected),
       countThisMonth: Number(kpis.count_this_month),
@@ -80,11 +89,11 @@ export async function GET(request: NextRequest) {
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/dashboard/payments
+// POST /api/dashboard/payments — with rate limiting
 // ---------------------------------------------------------------------------
 const createPaymentSchema = z.object({
   amount: z.number().positive('El monto debe ser positivo'),
-  method: z.string().min(1, 'El método es requerido'),
+  method: z.string().min(1, 'El metodo es requerido'),
   clientId: z.string().uuid().optional(),
   patientId: z.string().uuid().optional(),
   budgetId: z.string().uuid().optional(),
@@ -94,8 +103,14 @@ const createPaymentSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  const auth = await getAuthTenant();
+  const auth = await requireRole(['admin', 'operator']);
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  // Rate limit: 10/minute per tenant
+  const rl = rateLimit(`payments-create:${auth.tenant.id}`, 10, 60_000);
+  if (!rl.success) {
+    return NextResponse.json({ error: 'Demasiados intentos' }, { status: 429 });
+  }
 
   let body: unknown;
   try {

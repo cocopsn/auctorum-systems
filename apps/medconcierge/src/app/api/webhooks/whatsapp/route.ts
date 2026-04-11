@@ -5,6 +5,27 @@ import { eq, and, gte, asc, sql } from 'drizzle-orm'
 import { db, appointments, patients, appointmentEvents } from '@quote-engine/db'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { notifyAppointmentCancelled } from '@/lib/notifications'
+import crypto from 'crypto'
+
+// --------------- HMAC Signature Verification ---------------
+function verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
+  const appSecret = process.env.WHATSAPP_APP_SECRET
+  if (!appSecret || appSecret === 'PLACEHOLDER_CONFIGURE_IN_META') {
+    console.warn('WHATSAPP_APP_SECRET not configured \u2014 skipping HMAC verification')
+    return true
+  }
+  if (!signatureHeader) return false
+  const expectedSig =
+    'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex')
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(expectedSig),
+      Buffer.from(signatureHeader),
+    )
+  } catch {
+    return false
+  }
+}
 
 // GET: Meta verification challenge
 export async function GET(req: NextRequest) {
@@ -21,16 +42,31 @@ export async function GET(req: NextRequest) {
 
 // POST: incoming messages
 export async function POST(req: NextRequest) {
-  // ACK 200 immediately — Meta requires a fast response
-  const body = await req.json().catch(() => null)
+  try {
+    // Read raw body first for HMAC verification, then parse JSON
+    const rawBody = await req.text()
+    const signature = req.headers.get('x-hub-signature-256')
 
-  if (body) {
-    processInBackground(body).catch((e) =>
-      console.error('[whatsapp webhook] bg error', e),
-    )
+    if (!verifyWebhookSignature(rawBody, signature)) {
+      console.warn('[whatsapp webhook] invalid HMAC signature')
+      return new NextResponse('Invalid signature', { status: 403 })
+    }
+
+    const body: WebhookPayload | null = (() => {
+      try { return JSON.parse(rawBody) } catch { return null }
+    })()
+
+    if (body) {
+      processInBackground(body).catch((e) =>
+        console.error('[whatsapp webhook] bg error', e),
+      )
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('[whatsapp webhook] parse error:', error)
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
   }
-
-  return NextResponse.json({ ok: true })
 }
 
 type WebhookPayload = {
@@ -60,19 +96,36 @@ async function processInBackground(body: WebhookPayload) {
   const normalized = from.replace(/\D/g, '').replace(/^52/, '')
   if (!normalized) return
 
-  // Find soonest upcoming scheduled appointment for this phone (cross-tenant).
-  // Phones in patients are stored without country code (lib/appointments.ts
-  // normalizes via .slice(-10)) so a suffix LIKE match handles both.
+  // FIX 2.3: Resolve tenant_id from the patient first, then filter
+  // appointments by tenant_id to prevent cross-tenant data leakage.
   const today = new Date().toISOString().split('T')[0]
+
+  // First find the patient by phone
+  const [matchedPatient] = await db
+    .select({ id: patients.id, tenantId: patients.tenantId })
+    .from(patients)
+    .where(
+      sql`REGEXP_REPLACE(${patients.phone}, '[^0-9]', '', 'g') LIKE ${'%' + normalized}`,
+    )
+    .limit(1)
+
+  if (!matchedPatient) {
+    console.log(
+      `[whatsapp webhook] no patient found for normalized=${normalized}`,
+    )
+    return
+  }
+
+  // Now find the soonest upcoming scheduled appointment for this patient,
+  // scoped to their tenant_id (FIX 2.3 \u2014 tenant isolation).
   const [row] = await db
     .select({ appt: appointments, patient: patients })
     .from(appointments)
     .innerJoin(patients, eq(patients.id, appointments.patientId))
     .where(
       and(
-        sql`REGEXP_REPLACE(${patients.phone}, '[^0-9]', '', 'g') LIKE ${
-          '%' + normalized
-        }`,
+        eq(appointments.patientId, matchedPatient.id),
+        eq(appointments.tenantId, matchedPatient.tenantId),
         eq(appointments.status, 'scheduled'),
         gte(appointments.date, today),
       ),
@@ -82,7 +135,7 @@ async function processInBackground(body: WebhookPayload) {
 
   if (!row) {
     console.log(
-      `[whatsapp webhook] no scheduled appointment for normalized=${normalized}`,
+      `[whatsapp webhook] no scheduled appointment for patient=${matchedPatient.id} tenant=${matchedPatient.tenantId}`,
     )
     return
   }
@@ -124,7 +177,7 @@ async function processInBackground(body: WebhookPayload) {
       row.appt,
       row.patient,
       row.appt.tenantId,
-      'Cancelada por el paciente vía WhatsApp',
+      'Cancelada por el paciente v\u00eda WhatsApp',
     ).catch((e) => console.error('[webhook cancel] notify failed', e))
     return
   }

@@ -1,9 +1,10 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthTenant } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
+import { rateLimit } from '@/lib/rate-limit';
 
 // POST /api/dashboard/campaigns/[id]/send
 // "Send" a campaign — MVP: count matching clients, mark as completed immediately
@@ -12,9 +13,15 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const auth = await getAuthTenant();
+    const auth = await requireRole(['admin']);
     if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    // Rate limit: 1/minute per tenant
+    const rl = rateLimit(`campaign-send:${auth.tenant.id}`, 1, 60_000);
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Solo puedes enviar una campana por minuto' }, { status: 429 });
     }
 
     const { id } = params;
@@ -49,13 +56,11 @@ export async function POST(
     let recipientCount = 0;
 
     if (!audienceFilter || Object.keys(audienceFilter).length === 0) {
-      // No filter — count all clients for the tenant
       const countResult = await db.execute(
         sql`SELECT COUNT(*)::int AS count FROM clients WHERE tenant_id = ${auth.tenant.id}`
       );
       recipientCount = ((countResult as any[])[0] as { count: number })?.count ?? 0;
     } else {
-      // Filter by funnel stage if present
       if (audienceFilter.funnelStage) {
         const countResult = await db.execute(
           sql`SELECT COUNT(*)::int AS count
@@ -65,9 +70,7 @@ export async function POST(
         );
         recipientCount =
           ((countResult as any[])[0] as { count: number })?.count ?? 0;
-      }
-      // Filter by recent days
-      else if (audienceFilter.recentDays) {
+      } else if (audienceFilter.recentDays) {
         const days = Number(audienceFilter.recentDays);
         const countResult = await db.execute(
           sql`SELECT COUNT(*)::int AS count
@@ -77,9 +80,7 @@ export async function POST(
         );
         recipientCount =
           ((countResult as any[])[0] as { count: number })?.count ?? 0;
-      }
-      // Fallback: all clients
-      else {
+      } else {
         const countResult = await db.execute(
           sql`SELECT COUNT(*)::int AS count FROM clients WHERE tenant_id = ${auth.tenant.id}`
         );

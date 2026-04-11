@@ -78,7 +78,12 @@ export async function GET(request: NextRequest) {
         spinEl.style.display='none';
         msgEl.textContent='Error de autenticacion';
         errEl.style.display='block';
-        errEl.innerHTML=reason+'<br><a href="/login">Volver al login</a>';
+        errEl.textContent=reason;
+        var link=document.createElement('a');
+        link.href='/login';
+        link.textContent='Volver al login';
+        errEl.appendChild(document.createElement('br'));
+        errEl.appendChild(link);
       }
 
       try{

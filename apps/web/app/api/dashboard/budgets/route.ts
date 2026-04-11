@@ -14,13 +14,18 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') || 'all'
 
+    // Mandatory pagination (FIX 7.2)
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(100, parseInt(searchParams.get('limit') || '50'))
+    const offset = (page - 1) * limit
+
     let query = status !== 'all'
-      ? sql`SELECT b.*, c.name as client_name, p.name as patient_name FROM budgets b LEFT JOIN clients c ON b.client_id = c.id LEFT JOIN patients p ON b.patient_id = p.id WHERE b.tenant_id = ${auth.tenant.id} AND b.status = ${status} ORDER BY b.created_at DESC`
-      : sql`SELECT b.*, c.name as client_name, p.name as patient_name FROM budgets b LEFT JOIN clients c ON b.client_id = c.id LEFT JOIN patients p ON b.patient_id = p.id WHERE b.tenant_id = ${auth.tenant.id} ORDER BY b.created_at DESC`
+      ? sql`SELECT b.*, c.name as client_name, p.name as patient_name FROM budgets b LEFT JOIN clients c ON b.client_id = c.id LEFT JOIN patients p ON b.patient_id = p.id WHERE b.tenant_id = ${auth.tenant.id} AND b.status = ${status} ORDER BY b.created_at DESC LIMIT ${limit} OFFSET ${offset}`
+      : sql`SELECT b.*, c.name as client_name, p.name as patient_name FROM budgets b LEFT JOIN clients c ON b.client_id = c.id LEFT JOIN patients p ON b.patient_id = p.id WHERE b.tenant_id = ${auth.tenant.id} ORDER BY b.created_at DESC LIMIT ${limit} OFFSET ${offset}`
 
     const data = await db.execute(query)
 
-    return NextResponse.json({ budgets: data })
+    return NextResponse.json({ budgets: data, pagination: { page, limit, offset } })
   } catch (err: any) {
     console.error('Budgets GET error:', err)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthTenant } from '@/lib/auth';
+import { getAuthTenant, requireRole } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -63,7 +63,7 @@ const CreateCampaignSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await getAuthTenant();
+    const auth = await requireRole(['admin', 'operator']);
     if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }

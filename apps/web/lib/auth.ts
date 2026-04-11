@@ -55,3 +55,11 @@ export async function getAuthTenant(): Promise<{ user: User; tenant: Tenant } | 
 
   return { user, tenant }
 }
+
+export async function requireRole(allowedRoles: string[]): Promise<{ user: User; tenant: Tenant } | null> {
+  const auth = await getAuthTenant();
+  if (!auth) return null;
+  const userRole = (auth.user as any).role || 'viewer';
+  if (!allowedRoles.includes(userRole)) return null;
+  return auth;
+}

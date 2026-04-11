@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db, quotes, quoteEvents } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
+import { rateLimit } from '@/lib/rate-limit';
 
 // ============================================================
 // GET /api/t/[token] — Email open tracking pixel
@@ -9,11 +10,6 @@ import { eq } from 'drizzle-orm';
 // `opened` event for the quote identified by the tracking token.
 // Always returns the pixel, even on lookup or DB errors, so email
 // clients never render a broken image.
-//
-// This improves funnel coverage: clients who read the email +
-// attached PDF without ever visiting /q/[token] still fire an
-// `opened` event. The CP9 funnel uses COUNT(DISTINCT quote_id),
-// so pixel opens and page opens collapse into the same stage.
 // ============================================================
 
 // 1x1 transparent GIF (43 bytes, GIF89a)
@@ -42,6 +38,11 @@ export async function GET(
   try {
     const token = params.token?.slice(0, 64);
     if (!token) return pixelResponse();
+
+    // Rate limit by IP: 60/minute per IP
+    const ip = _request.headers.get('x-forwarded-for') ?? 'unknown';
+    const { success: rlOk } = rateLimit(`tracking-pixel:${ip}`, 60, 60_000);
+    if (!rlOk) return pixelResponse();
 
     const [quote] = await db
       .select({ id: quotes.id, tenantId: quotes.tenantId })
