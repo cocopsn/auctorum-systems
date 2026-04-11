@@ -26,6 +26,11 @@ export const invoices = pgTable('invoices', {
   errorMessage: text('error_message'),
   stampedAt: timestamp('stamped_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  // Tier 3 columns
+  patientId: uuid('patient_id'),
+  subtotal: decimal('subtotal', { precision: 12, scale: 2 }),
+  iva: decimal('iva', { precision: 12, scale: 2 }),
+  cfdiUuid: varchar('cfdi_uuid', { length: 255 }),
 }, (t) => ({
   tenantStatusIdx: index('idx_invoices_tenant_status').on(t.tenantId, t.status),
 }))

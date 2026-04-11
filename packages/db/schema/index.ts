@@ -34,3 +34,7 @@ export { onboardingProgress, type OnboardingProgress, type NewOnboardingProgress
 
 // Tier 2
 export { budgets, type Budget, type NewBudget } from './budgets';
+
+// Tier 3
+export { integrations, type Integration, type NewIntegration } from './integrations';
+export { subscriptions, type Subscription, type NewSubscription } from './subscriptions';

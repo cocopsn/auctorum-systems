@@ -11,6 +11,16 @@ export const tenants = pgTable('tenants', {
   quoteSequence: integer('quote_sequence').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  // Tier 2 columns
+  botMessages: jsonb('bot_messages').default({}),
+  botConfig: jsonb('bot_config').default({}),
+  budgetSequence: integer('budget_sequence').default(0),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  // Tier 3 columns
+  paymentConfig: jsonb('payment_config').default({}),
+  invoiceConfig: jsonb('invoice_config').default({}),
+  invoiceSequence: integer('invoice_sequence').default(0),
+  channelsConfig: jsonb('channels_config').default({}),
 });
 
 // TypeScript types derived from schema
@@ -133,7 +143,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     tax_rate: 0.16,
     validity_days: 15,
     payment_terms: '50% anticipo, 50% contra entrega',
-    delivery_terms: '3-5 días hábiles',
+    delivery_terms: '3-5 dias habiles',
     custom_footer: 'Precios sujetos a cambio sin previo aviso.',
   },
 };

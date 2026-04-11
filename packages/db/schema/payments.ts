@@ -23,6 +23,11 @@ export const payments = pgTable('payments', {
   notes: text('notes'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  // Tier 3 columns
+  patientId: uuid('patient_id'),
+  budgetId: uuid('budget_id'),
+  processorPaymentId: varchar('processor_payment_id', { length: 255 }),
+  paidAt: timestamp('paid_at', { withTimezone: true }),
 }, (t) => ({
   tenantStatusIdx: index('idx_payments_tenant_status').on(t.tenantId, t.status),
   tenantCreatedIdx: index('idx_payments_tenant_created').on(t.tenantId, t.createdAt),
