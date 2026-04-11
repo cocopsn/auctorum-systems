@@ -20,6 +20,14 @@ const MONTH_NAMES = [
   'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
 ]
 
+/** Format a Date as YYYY-MM-DD using LOCAL timezone (not UTC) to prevent +1 day offset */
+function toLocalDate(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const dd = String(d.getDate()).padStart(2, '0')
+  return y + '-' + m + '-' + dd
+}
+
 export function AvailabilityCalendar({
   tenantId,
   onSlotSelect,
@@ -41,8 +49,8 @@ export function AvailabilityCalendar({
 
   useEffect(() => {
     setLoading(true)
-    const startDate = weekStart.toISOString().split('T')[0]
-    const endDate = weekEnd.toISOString().split('T')[0]
+    const startDate = toLocalDate(weekStart)
+    const endDate = toLocalDate(weekEnd)
 
     fetch(`/api/availability?tenantId=${tenantId}&startDate=${startDate}&endDate=${endDate}`)
       .then((res) => res.json())
@@ -89,10 +97,10 @@ export function AvailabilityCalendar({
       {/* Day Grid */}
       <div className="grid grid-cols-7 gap-2">
         {weekDays.map((day) => {
-          const dateStr = day.toISOString().split('T')[0]
+          const dateStr = toLocalDate(day)
           const dateData = dates.find((d) => d.date === dateStr)
           const hasAvailable = dateData?.slots.some((s) => s.available)
-          const isPast = day < today && dateStr !== today.toISOString().split('T')[0]
+          const isPast = day < today && dateStr !== toLocalDate(today)
           const isSelected = dateStr === selectedDate
 
           return (

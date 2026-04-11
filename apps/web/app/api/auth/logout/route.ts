@@ -4,5 +4,10 @@ import { createSupabaseServer } from '@/lib/supabase-ssr'
 export async function POST(request: NextRequest) {
   const supabase = createSupabaseServer()
   await supabase.auth.signOut()
-  return NextResponse.redirect(new URL('/login', request.url))
+
+  const host = request.headers.get('host') || 'auctorum.com.mx'
+  const protocol = request.headers.get('x-forwarded-proto') || 'https'
+  const realOrigin = protocol + '://' + host
+
+  return NextResponse.redirect(realOrigin + '/login')
 }

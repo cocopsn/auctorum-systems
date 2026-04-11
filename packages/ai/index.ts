@@ -48,6 +48,12 @@ async function openaiFetch<T>(path: string, init: RequestInit = {}): Promise<T> 
 
   if (!response.ok) {
     const detail = await response.text();
+    if (response.status === 429 || detail.includes('quota') || detail.includes('billing')) {
+      throw new Error('El servicio de IA no esta disponible en este momento. Contacta al administrador para verificar la cuota de OpenAI.');
+    }
+    if (response.status === 401) {
+      throw new Error('La clave de API de OpenAI es invalida o ha expirado.');
+    }
     throw new Error(`OpenAI ${response.status}: ${detail}`);
   }
 

@@ -149,7 +149,7 @@ export default async function AnalyticsPage() {
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
         <h1 className="text-xl font-semibold text-[var(--text-primary)]">Analytics</h1>
-        <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Metricas de conversion, productos y clientes (30 dias)</p>
+        <p className="text-sm text-[var(--text-tertiary)] mt-0.5">Métricas de conversión, productos y clientes (30 días)</p>
       </div>
 
       {/* KPI Cards */}
@@ -191,7 +191,7 @@ export default async function AnalyticsPage() {
           const acceptedShown = Math.min(f.accepted, sent);
           const hasData = sent > 0 || f.opened > 0 || f.accepted > 0;
           if (!hasData) {
-            return <p className="text-center text-[var(--text-tertiary)] py-6 text-sm">Sin datos suficientes todavia</p>;
+            return <p className="text-center text-[var(--text-tertiary)] py-6 text-sm">Sin datos suficientes todavía</p>;
           }
           const pct = (n: number) => sent > 0 ? Math.round((n / sent) * 100) : 0;
           const openedRate = sent > 0 ? Math.round((f.opened / sent) * 100) : 0;
@@ -257,7 +257,7 @@ export default async function AnalyticsPage() {
                 );
               })
             ) : (
-              <p className="text-center text-[var(--text-tertiary)] py-8 text-sm">Sin datos de productos todavia</p>
+              <p className="text-center text-[var(--text-tertiary)] py-8 text-sm">Sin datos de productos todavía</p>
             )}
           </div>
         </div>
@@ -297,7 +297,7 @@ export default async function AnalyticsPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="text-center py-8 text-[var(--text-tertiary)] text-sm">Sin datos de clientes todavia</td>
+                    <td colSpan={4} className="text-center py-8 text-[var(--text-tertiary)] text-sm">Sin datos de clientes todavía</td>
                   </tr>
                 )}
               </tbody>

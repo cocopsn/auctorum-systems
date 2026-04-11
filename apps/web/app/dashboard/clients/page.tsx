@@ -80,8 +80,8 @@ export default async function ClientsPage() {
                 <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
-            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Sin clientes todavia</h3>
-            <p className="text-sm text-[var(--text-tertiary)] mb-6 max-w-sm">Los clientes aparecen aqui automaticamente al recibir cotizaciones desde su portal.</p>
+            <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">Sin clientes todavía</h3>
+            <p className="text-sm text-[var(--text-tertiary)] mb-6 max-w-sm">Los clientes aparecen aquí automáticamente al recibir cotizaciones desde su portal.</p>
             <a href="/dashboard/settings" className="px-4 py-2 bg-[var(--accent)] text-white text-sm rounded-lg hover:bg-[var(--accent-hover)] transition-colors">
               Configurar portal
             </a>

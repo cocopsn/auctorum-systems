@@ -19,10 +19,10 @@ import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 
 const fadeUp = {
-  initial: { opacity: 0, y: 36 },
+  initial: { opacity: 1, y: 0 },
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true, amount: 0.2 },
-  transition: { duration: 0.7, ease: 'easeOut' as const },
+  transition: { duration: 0.5, ease: 'easeOut' as const },
 };
 
 const clients = ['AUCTORUM SYSTEMS', 'MEDCONCIERGE', 'ZERO-TRUST', 'WHATSAPP AI'];
