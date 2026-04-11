@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db, users } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
-import { createSupabaseServer } from '@/lib/supabase-ssr';
+import { createClient } from '@supabase/supabase-js';
 import { rateLimit } from '@/lib/rate-limit';
 
 const magicLinkSchema = z.object({
@@ -39,9 +39,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
-    // Use SSR client (with cookie handlers) so the PKCE code_verifier
-    // is persisted in a cookie. The callback route will read it back.
-    const supabase = createSupabaseServer();
+    // Use plain createClient (implicit flow) — NOT the SSR client which forces
+    // PKCE and depends on code_verifier cookies surviving across the email click.
+    // The callback route's implicit handler processes #access_token fragments.
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
+
     const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://auctorum.com.mx'}/api/auth/callback`;
 
     const { error } = await supabase.auth.signInWithOtp({
