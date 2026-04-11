@@ -34,8 +34,8 @@ agent_docs/credentials.md
 
 # Temporary root files (source assets, external docs)
 brand-identity*.md
-logo-transparent.png
-logo1-transparent.png
+/logo-transparent.png
+/logo1-transparent.png
 *.pdf
 download.png
 

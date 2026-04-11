@@ -2,22 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db, users } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
-import { createAnonClient } from '@/lib/supabase-server';
+import { createSupabaseServer } from '@/lib/supabase-ssr';
 import { rateLimit } from '@/lib/rate-limit';
 
-// TODO: Add rate limiting (e.g., upstash/ratelimit) — max 5 magic links per email per hour
-// to prevent abuse. Check IP + email combination before calling Supabase.
-
 const magicLinkSchema = z.object({
-  email: z.string().email('Correo electrónico inválido').max(255),
+  email: z.string().email('Correo electronico invalido').max(255),
 });
 
-// POST /api/auth/magic-link
-// Validates the email, checks that a user record exists in the DB,
-// and sends a Supabase magic link to the given address.
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting: 5 req/min per IP
     const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
     const { success: rateLimitOk } = rateLimit(`magic-link:${ip}`, 5, 60_000);
     if (!rateLimitOk) {
@@ -36,8 +29,6 @@ export async function POST(request: NextRequest) {
 
     const { email } = parsed.data;
 
-    // Verify the user exists in our users table before sending a magic link.
-    // This prevents login attempts for emails that were never registered.
     const [existingUser] = await db
       .select({ id: users.id, email: users.email })
       .from(users)
@@ -45,12 +36,12 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!existingUser) {
-      // Return generic success to avoid leaking whether an email is registered.
       return NextResponse.json({ success: true });
     }
 
-    // signInWithOtp is public auth — use anon key, not service_role, to minimize blast radius
-    const supabase = createAnonClient();
+    // Use SSR client (with cookie handlers) so the PKCE code_verifier
+    // is persisted in a cookie. The callback route will read it back.
+    const supabase = createSupabaseServer();
     const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://auctorum.com.mx'}/api/auth/callback`;
 
     const { error } = await supabase.auth.signInWithOtp({
@@ -58,6 +49,7 @@ export async function POST(request: NextRequest) {
       options: { emailRedirectTo: redirectTo },
     });
 
+    console.log("Supabase OTP response:", JSON.stringify({ error, email }));
     if (error) {
       console.error('Magic link send error:', error.message);
       return NextResponse.json(

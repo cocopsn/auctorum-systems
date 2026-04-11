@@ -23,8 +23,10 @@ export function createServerClient() {
  * Safe to use in server-side auth flows with user-scoped keys.
  */
 export function createAnonClient() {
+  // Force PKCE flow for magic links
   return createClient(supabaseUrl, anonKey, {
     auth: {
+      flowType: 'pkce',
       autoRefreshToken: false,
       persistSession: false,
     },

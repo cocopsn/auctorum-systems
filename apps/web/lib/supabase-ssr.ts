@@ -11,6 +11,9 @@ export function createSupabaseServer() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      auth: {
+        flowType: 'pkce',
+      },
       cookies: {
         get(name: string) {
           return cookieStore.get(name)?.value
@@ -39,6 +42,9 @@ export function createSupabaseMiddleware(request: NextRequest, response: NextRes
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      auth: {
+        flowType: 'pkce',
+      },
       cookies: {
         get(name: string) {
           return request.cookies.get(name)?.value
