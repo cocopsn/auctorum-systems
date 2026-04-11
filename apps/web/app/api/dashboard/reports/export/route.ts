@@ -2,8 +2,17 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, quotes } from '@quote-engine/db'
 import { eq, and, gte, lte } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+
+const exportQuerySchema = z.object({
+  startDate: z.string().regex(dateRegex, 'startDate debe ser YYYY-MM-DD').optional(),
+  endDate: z.string().regex(dateRegex, 'endDate debe ser YYYY-MM-DD').optional(),
+  type: z.enum(['csv', 'pdf']).optional().default('csv'),
+})
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,9 +20,19 @@ export async function GET(request: NextRequest) {
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const startDate = searchParams.get('startDate') || new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
-    const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0]
-    const type = searchParams.get('type') || 'csv'
+    const queryObj: Record<string, string> = {}
+    if (searchParams.get('startDate')) queryObj.startDate = searchParams.get('startDate')!
+    if (searchParams.get('endDate')) queryObj.endDate = searchParams.get('endDate')!
+    if (searchParams.get('type')) queryObj.type = searchParams.get('type')!
+
+    const parsed = exportQuerySchema.safeParse(queryObj)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Parametros invalidos', details: parsed.error.flatten() }, { status: 400 })
+    }
+
+    const startDate = parsed.data.startDate || new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
+    const endDate = parsed.data.endDate || new Date().toISOString().split('T')[0]
+    const type = parsed.data.type
 
     const conditions = and(
       eq(quotes.tenantId, auth.tenant.id),

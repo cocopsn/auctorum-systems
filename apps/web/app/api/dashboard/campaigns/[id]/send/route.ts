@@ -24,6 +24,35 @@ export async function POST(
       return NextResponse.json({ error: 'Solo puedes enviar una campana por minuto' }, { status: 429 });
     }
 
+    // Campaign limits by plan (H9)
+    const [sub] = await db.execute(
+      sql`SELECT plan FROM subscriptions WHERE tenant_id = ${auth.tenant.id} ORDER BY created_at DESC LIMIT 1`
+    ) as any[];
+    const plan = sub?.plan || 'free';
+
+    const CAMPAIGN_LIMITS: Record<string, number> = {
+      free: 1,
+      pro: 10,
+      enterprise: 100,
+    };
+
+    const [countResult] = await db.execute(
+      sql`SELECT COUNT(*)::int as cnt FROM campaigns
+          WHERE tenant_id = ${auth.tenant.id}
+          AND status = 'completed'
+          AND completed_at >= DATE_TRUNC('month', NOW())`
+    ) as any[];
+
+    const monthlyCount = countResult?.cnt || 0;
+    const maxAllowed = CAMPAIGN_LIMITS[plan] || 1;
+
+    if (monthlyCount >= maxAllowed) {
+      return NextResponse.json(
+        { error: `Limite de campanas alcanzado para tu plan (${maxAllowed}/mes)` },
+        { status: 429 }
+      );
+    }
+
     const { id } = params;
 
     // Fetch the campaign

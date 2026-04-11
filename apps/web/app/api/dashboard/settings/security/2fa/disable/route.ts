@@ -7,6 +7,7 @@ import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { decrypt } from '@/lib/crypto';
 
 // ---------------------------------------------------------------------------
 // TOTP verification — same implementation as verify endpoint
@@ -96,7 +97,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const secretHex = row.two_factor_secret as string;
+    // Decrypt the secret (H4 — handles both encrypted and legacy plain hex)
+    let secretHex: string;
+    const stored = row.two_factor_secret as string;
+    try {
+      // Try to decrypt (new format - base64 encoded encrypted)
+      secretHex = decrypt(stored);
+    } catch {
+      // Fallback to legacy plain hex format
+      secretHex = stored;
+    }
 
     // Verify the TOTP code
     if (!verifyTOTP(secretHex, code)) {

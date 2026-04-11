@@ -3,6 +3,7 @@ import { db, followUps, clients } from '@quote-engine/db'
 import { eq, and, desc, isNull, sql } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { z } from 'zod'
+import { sanitizeText } from '@/lib/sanitize'
 
 export const dynamic = 'force-dynamic'
 
@@ -69,12 +70,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
     }
 
+    const messageTemplate = parsed.data.messageTemplate
+      ? sanitizeText(parsed.data.messageTemplate)
+      : null
+
     const [created] = await db.insert(followUps).values({
       tenantId: auth.tenant.id,
       clientId: parsed.data.clientId,
       type: parsed.data.type,
       scheduledAt: new Date(parsed.data.scheduledAt),
-      messageTemplate: parsed.data.messageTemplate || null,
+      messageTemplate,
       status: 'scheduled',
     }).returning()
 

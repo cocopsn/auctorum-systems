@@ -2,8 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, clientFunnel, funnelStages } from '@quote-engine/db'
 import { eq, and } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+
+const moveSchema = z.object({
+  clientId: z.string().uuid('clientId debe ser UUID valido'),
+  stageId: z.string().uuid('stageId debe ser UUID valido'),
+})
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -11,11 +17,12 @@ export async function PATCH(request: NextRequest) {
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const body = await request.json()
-    const { clientId, stageId } = body
-
-    if (!clientId || !stageId) {
-      return NextResponse.json({ error: 'clientId y stageId son requeridos' }, { status: 400 })
+    const parsed = moveSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Datos invalidos', details: parsed.error.flatten() }, { status: 400 })
     }
+
+    const { clientId, stageId } = parsed.data
 
     // Verify stage belongs to tenant
     const [stage] = await db

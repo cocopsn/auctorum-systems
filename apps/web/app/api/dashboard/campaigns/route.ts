@@ -5,6 +5,7 @@ import { getAuthTenant, requireRole } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { sanitizeText } from '@/lib/sanitize';
 
 // GET /api/dashboard/campaigns
 // List campaigns + 4 KPIs
@@ -78,7 +79,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { name, messageBody, audienceFilter, scheduledAt } = parsed.data;
+    const { audienceFilter, scheduledAt } = parsed.data;
+    const name = sanitizeText(parsed.data.name);
+    const messageBody = sanitizeText(parsed.data.messageBody);
     const audienceJson = audienceFilter
       ? JSON.stringify(audienceFilter)
       : null;

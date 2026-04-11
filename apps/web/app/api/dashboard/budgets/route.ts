@@ -3,6 +3,7 @@ import { db } from '@quote-engine/db'
 import { eq, and, desc, sql } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { z } from 'zod'
+import { sanitizeText } from '@/lib/sanitize'
 
 export const dynamic = 'force-dynamic'
 
@@ -57,7 +58,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
     }
 
-    const { items, notes, validUntil, clientId, patientId } = parsed.data
+    const { validUntil, clientId, patientId } = parsed.data
+
+    // Sanitize text fields
+    const notes = parsed.data.notes ? sanitizeText(parsed.data.notes) : null
+    const items = parsed.data.items.map(item => ({
+      ...item,
+      name: sanitizeText(item.name),
+    }))
 
     // Auto-generate folio
     const [seqResult] = await db.execute(
@@ -72,7 +80,7 @@ export async function POST(request: NextRequest) {
 
     const [created] = await db.execute(
       sql`INSERT INTO budgets (tenant_id, client_id, patient_id, folio, items, subtotal, tax, total, notes, valid_until, status)
-          VALUES (${auth.tenant.id}, ${clientId || null}, ${patientId || null}, ${folio}, ${JSON.stringify(items)}::jsonb, ${subtotal}, ${tax}, ${total}, ${notes || null}, ${validUntil || null}, 'pending')
+          VALUES (${auth.tenant.id}, ${clientId || null}, ${patientId || null}, ${folio}, ${JSON.stringify(items)}::jsonb, ${subtotal}, ${tax}, ${total}, ${notes}, ${validUntil || null}, 'pending')
           RETURNING *`
     ) as any[]
 

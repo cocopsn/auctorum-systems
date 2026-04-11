@@ -3,6 +3,8 @@ import { db, conversations, messages } from '@quote-engine/db'
 import { eq, and, lt, desc } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { sendWhatsAppMessage } from '@quote-engine/notifications'
+import { z } from 'zod'
+import { sanitizeText } from '@/lib/sanitize'
 
 export const dynamic = 'force-dynamic'
 
@@ -68,6 +70,10 @@ export async function GET(
   }
 }
 
+const sendMessageSchema = z.object({
+  content: z.string().min(1, 'content es requerido').max(4000),
+})
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -79,9 +85,12 @@ export async function POST(
     }
 
     const body = await request.json()
-    if (!body.content || typeof body.content !== 'string') {
-      return NextResponse.json({ error: 'content es requerido' }, { status: 400 })
+    const parsed = sendMessageSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Datos invalidos', details: parsed.error.flatten() }, { status: 400 })
     }
+
+    const sanitizedContent = sanitizeText(parsed.data.content.trim())
 
     const [conv] = await db
       .select()
@@ -105,7 +114,7 @@ export async function POST(
         conversationId: params.id,
         direction: 'outbound',
         senderType: 'manual',
-        content: body.content.trim(),
+        content: sanitizedContent,
       })
       .returning()
 
@@ -130,7 +139,7 @@ export async function POST(
             .where(eq(clients.id, conv.clientId))
             .limit(1)
           if (client?.phone) {
-            await sendWhatsAppMessage({ to: client.phone, message: body.content.trim() })
+            await sendWhatsAppMessage({ to: client.phone, message: sanitizedContent })
           }
         }
       } catch (waErr) {

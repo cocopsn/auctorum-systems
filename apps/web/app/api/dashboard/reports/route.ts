@@ -2,8 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, quotes } from '@quote-engine/db'
 import { eq, and, gte, lte, sql, count, desc } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+
+const reportsQuerySchema = z.object({
+  startDate: z.string().regex(dateRegex, 'startDate debe ser YYYY-MM-DD').optional(),
+  endDate: z.string().regex(dateRegex, 'endDate debe ser YYYY-MM-DD').optional(),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(500).optional().default(200),
+})
 
 export async function GET(request: NextRequest) {
   try {
@@ -11,12 +21,21 @@ export async function GET(request: NextRequest) {
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const { searchParams } = new URL(request.url)
-    const startDate = searchParams.get('startDate') || new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
-    const endDate = searchParams.get('endDate') || new Date().toISOString().split('T')[0]
+    const queryObj: Record<string, string> = {}
+    if (searchParams.get('startDate')) queryObj.startDate = searchParams.get('startDate')!
+    if (searchParams.get('endDate')) queryObj.endDate = searchParams.get('endDate')!
+    if (searchParams.get('page')) queryObj.page = searchParams.get('page')!
+    if (searchParams.get('limit')) queryObj.limit = searchParams.get('limit')!
 
-    // Mandatory pagination for the underlying quotes query (FIX 7.2)
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
-    const limit = Math.min(500, parseInt(searchParams.get('limit') || '200'))
+    const parsed = reportsQuerySchema.safeParse(queryObj)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Parametros invalidos', details: parsed.error.flatten() }, { status: 400 })
+    }
+
+    const startDate = parsed.data.startDate || new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
+    const endDate = parsed.data.endDate || new Date().toISOString().split('T')[0]
+    const page = parsed.data.page
+    const limit = parsed.data.limit
     const offset = (page - 1) * limit
 
     const conditions = and(

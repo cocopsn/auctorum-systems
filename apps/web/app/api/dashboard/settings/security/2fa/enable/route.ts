@@ -5,6 +5,7 @@ import { requireRole } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import crypto from 'crypto';
+import { encrypt } from '@/lib/crypto';
 
 // ---------------------------------------------------------------------------
 // Base32 encoder (RFC 4648) — no external library
@@ -66,9 +67,12 @@ export async function POST(request: NextRequest) {
     const secretBuffer = Buffer.from(secretHex, 'hex');
     const base32Secret = base32Encode(secretBuffer);
 
-    // Store the hex secret in the database (NOT yet verified)
+    // Encrypt the secret before storing (H4 — TOTP secret encryption at-rest)
+    const encryptedSecret = encrypt(secretHex);
+
+    // Store the encrypted secret in the database (NOT yet verified)
     await db.execute(
-      sql`UPDATE users SET two_factor_secret = ${secretHex}, updated_at = NOW() WHERE id = ${auth.user.id}`
+      sql`UPDATE users SET two_factor_secret = ${encryptedSecret}, updated_at = NOW() WHERE id = ${auth.user.id}`
     );
 
     // Build the otpauth URI

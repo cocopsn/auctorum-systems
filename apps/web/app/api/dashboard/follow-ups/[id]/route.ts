@@ -2,8 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, followUps } from '@quote-engine/db'
 import { eq, and } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod'
+import { sanitizeText } from '@/lib/sanitize'
 
 export const dynamic = 'force-dynamic'
+
+const followUpPatchSchema = z.object({
+  status: z.enum(['scheduled', 'sent', 'cancelled', 'failed']).optional(),
+  scheduledAt: z.string().optional(),
+  messageTemplate: z.string().max(1000).optional(),
+}).refine(data => data.status !== undefined || data.scheduledAt !== undefined || data.messageTemplate !== undefined, {
+  message: 'Al menos un campo es requerido',
+})
 
 export async function PATCH(
   request: NextRequest,
@@ -14,14 +24,17 @@ export async function PATCH(
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const body = await request.json()
+    const parsed = followUpPatchSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Datos invalidos', details: parsed.error.flatten() }, { status: 400 })
+    }
+
     const updates: Record<string, any> = {}
 
-    if (body.status) updates.status = body.status
-    if (body.scheduledAt) updates.scheduledAt = new Date(body.scheduledAt)
-    if (body.messageTemplate !== undefined) updates.messageTemplate = body.messageTemplate
-
-    if (Object.keys(updates).length === 0) {
-      return NextResponse.json({ error: 'No hay cambios' }, { status: 400 })
+    if (parsed.data.status) updates.status = parsed.data.status
+    if (parsed.data.scheduledAt) updates.scheduledAt = new Date(parsed.data.scheduledAt)
+    if (parsed.data.messageTemplate !== undefined) {
+      updates.messageTemplate = sanitizeText(parsed.data.messageTemplate)
     }
 
     const [updated] = await db

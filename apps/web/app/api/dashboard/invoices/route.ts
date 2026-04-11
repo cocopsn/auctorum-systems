@@ -5,6 +5,7 @@ import { getAuthTenant, requireRole } from '@/lib/auth';
 import { db, invoices, clients, tenants } from '@quote-engine/db';
 import { eq, and, desc, gte, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { sanitizeText } from '@/lib/sanitize';
 
 // ---------------------------------------------------------------------------
 // GET /api/dashboard/invoices
@@ -129,6 +130,13 @@ export async function POST(request: NextRequest) {
 
   const data = parsed.data;
 
+  // Sanitize text fields
+  const razonSocial = sanitizeText(data.razonSocial);
+  const items = data.items.map(item => ({
+    ...item,
+    description: sanitizeText(item.description),
+  }));
+
   // Auto-generate folio
   const [seqResult] = await db.execute(
     sql`UPDATE tenants SET invoice_sequence = COALESCE(invoice_sequence, 0) + 1 WHERE id = ${auth.tenant.id} RETURNING invoice_sequence`,
@@ -137,7 +145,7 @@ export async function POST(request: NextRequest) {
   const folio = `FAC-${String(seq).padStart(4, '0')}`;
 
   // Calculate totals
-  const subtotal = data.items.reduce((sum, item) => sum + item.amount, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
   const iva = Math.round(subtotal * 0.16 * 100) / 100;
   const total = Math.round((subtotal + iva) * 100) / 100;
 
@@ -150,7 +158,7 @@ export async function POST(request: NextRequest) {
       paymentId: data.paymentId ?? null,
       folio,
       rfc: data.rfc.toUpperCase(),
-      razonSocial: data.razonSocial,
+      razonSocial,
       usoCfdi: data.usoCfdi,
       regimenFiscal: data.regimenFiscal,
       cpZip: data.cpZip,

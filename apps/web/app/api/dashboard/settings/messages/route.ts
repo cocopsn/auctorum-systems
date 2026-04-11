@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, tenants } from '@quote-engine/db'
 import { eq, sql } from 'drizzle-orm'
 import { getAuthTenant, requireRole } from '@/lib/auth'
+import { z } from 'zod'
+import { sanitizeText } from '@/lib/sanitize'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,6 +35,16 @@ export async function GET() {
   }
 }
 
+const messagesSchema = z.object({
+  welcome: z.string().max(1000).optional(),
+  out_of_catalog: z.string().max(1000).optional(),
+  out_of_stock: z.string().max(1000).optional(),
+  order_confirmed: z.string().max(1000).optional(),
+  appointment_confirmed: z.string().max(1000).optional(),
+  appointment_reminder: z.string().max(1000).optional(),
+  recall: z.string().max(1000).optional(),
+}).passthrough()
+
 export async function PATCH(request: NextRequest) {
   try {
     const auth = await requireRole(['admin'])
@@ -45,11 +57,24 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'messages es requerido' }, { status: 400 })
     }
 
+    const parsed = messagesSchema.safeParse(messages)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Datos invalidos', details: parsed.error.flatten() }, { status: 400 })
+    }
+
+    // Sanitize all string values
+    const sanitized: Record<string, unknown> = { ...parsed.data }
+    for (const key of Object.keys(sanitized)) {
+      if (typeof sanitized[key] === 'string') {
+        sanitized[key] = sanitizeText(sanitized[key] as string)
+      }
+    }
+
     await db.execute(
-      sql`UPDATE tenants SET bot_messages = ${JSON.stringify(messages)}::jsonb WHERE id = ${auth.tenant.id}`
+      sql`UPDATE tenants SET bot_messages = ${JSON.stringify(sanitized)}::jsonb WHERE id = ${auth.tenant.id}`
     )
 
-    return NextResponse.json({ messages })
+    return NextResponse.json({ messages: sanitized })
   } catch (err: any) {
     console.error('bot messages PATCH error:', err)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

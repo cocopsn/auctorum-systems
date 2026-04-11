@@ -2,8 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, conversations } from '@quote-engine/db'
 import { eq, and } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
+
+const conversationPatchSchema = z.object({
+  status: z.enum(['open', 'closed', 'archived']).optional(),
+  botPaused: z.boolean().optional(),
+}).refine(data => data.status !== undefined || data.botPaused !== undefined, {
+  message: 'Al menos un campo es requerido (status o botPaused)',
+})
 
 export async function PATCH(
   request: NextRequest,
@@ -16,6 +24,10 @@ export async function PATCH(
     }
 
     const body = await request.json()
+    const parsed = conversationPatchSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Datos invalidos', details: parsed.error.flatten() }, { status: 400 })
+    }
 
     const [conv] = await db
       .select()
@@ -33,8 +45,8 @@ export async function PATCH(
     }
 
     const updates: Record<string, any> = {}
-    if (body.status !== undefined) updates.status = body.status
-    if (body.botPaused !== undefined) updates.botPaused = body.botPaused
+    if (parsed.data.status !== undefined) updates.status = parsed.data.status
+    if (parsed.data.botPaused !== undefined) updates.botPaused = parsed.data.botPaused
 
     if (Object.keys(updates).length > 0) {
       updates.updatedAt = new Date()
