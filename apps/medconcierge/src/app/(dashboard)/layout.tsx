@@ -2,12 +2,15 @@ import { redirect } from 'next/navigation'
 import { AppShell, type DashboardNavItem } from '@quote-engine/ui'
 import {
   Bell,
-  MessageSquare,
-  Bot,
   CalendarCheck,
   CalendarDays,
   Clock,
+  Bot,
   FileText,
+  GitBranch,
+  Heart,
+  MessageSquare,
+  Receipt,
   Settings,
   Users,
 } from 'lucide-react'
@@ -23,6 +26,10 @@ const navItems: DashboardNavItem[] = [
   { href: '/pacientes', label: 'Pacientes', icon: Users },
   { href: '/notas', label: 'Notas Clinicas', icon: FileText },
   { href: '/horarios', label: 'Horarios', icon: Clock },
+  { href: '/funnel', label: 'Embudo', icon: GitBranch },
+  { href: '/reports', label: 'Reportes', icon: FileText },
+  { href: '/follow-ups', label: 'Seguimientos', icon: Heart },
+  { href: '/budgets', label: 'Presupuestos', icon: Receipt },
   { href: '/ai-settings', label: 'AI Concierge', icon: Bot },
   { href: '/settings', label: 'Configuracion', icon: Settings },
 ]

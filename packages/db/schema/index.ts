@@ -31,3 +31,6 @@ export { funnelStages, type FunnelStage, type NewFunnelStage } from './funnel-st
 export { clientFunnel, type ClientFunnel, type NewClientFunnel } from './client-funnel';
 export { botFaqs, type BotFaq, type NewBotFaq } from './bot-faqs';
 export { onboardingProgress, type OnboardingProgress, type NewOnboardingProgress, type OnboardingSteps } from './onboarding-progress';
+
+// Tier 2
+export { budgets, type Budget, type NewBudget } from './budgets';

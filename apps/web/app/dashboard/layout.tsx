@@ -4,9 +4,12 @@ import {
   BarChart3,
   Bot,
   FileText,
+  GitBranch,
+  Heart,
   LayoutDashboard,
   MessageSquare,
   Package,
+  Receipt,
   Settings,
   Users,
 } from 'lucide-react';
@@ -22,6 +25,10 @@ const navItems: DashboardNavItem[] = [
   { href: '/dashboard/products', label: 'Productos', icon: Package },
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/dashboard/clients', label: 'Clientes', icon: Users },
+  { href: '/dashboard/funnel', label: 'Embudo', icon: GitBranch },
+  { href: '/dashboard/reports', label: 'Reportes', icon: FileText },
+  { href: '/dashboard/follow-ups', label: 'Seguimientos', icon: Heart },
+  { href: '/dashboard/budgets', label: 'Presupuestos', icon: Receipt },
   { href: '/dashboard/ai-settings', label: 'AI Concierge', icon: Bot },
   { href: '/dashboard/settings', label: 'Configuración', icon: Settings },
 ];

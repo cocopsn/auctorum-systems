@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Settings, MessageSquare, Bot } from 'lucide-react'
+import { Settings, MessageSquare, Bot, Users } from 'lucide-react'
 
 const settingsNav = [
   { href: '/dashboard/settings', label: 'General', icon: Settings, exact: true },
   { href: '/dashboard/settings/messages', label: 'Mensajes del Bot', icon: MessageSquare },
   { href: '/dashboard/settings/bot', label: 'Bot IA', icon: Bot },
+  { href: '/dashboard/settings/team', label: 'Equipo', icon: Users },
 ]
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
