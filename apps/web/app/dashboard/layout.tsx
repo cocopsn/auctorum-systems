@@ -13,6 +13,7 @@ import {
 import { usePathname } from 'next/navigation';
 import { AppShell, type DashboardNavItem } from '@quote-engine/ui';
 import { ToastContainer } from '../../components/ui/Toast';
+import { OnboardingGate } from '../../components/onboarding/onboarding-gate';
 
 const navItems: DashboardNavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -39,7 +40,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         subtitle="Gestión de cotizaciones, clientes y concierge AI."
         ctaHref="/dashboard/ai-settings"
       >
-        <div key={pathname}>{children}</div>
+        <OnboardingGate><div key={pathname}>{children}</div></OnboardingGate>
       </AppShell>
       <ToastContainer />
     </>

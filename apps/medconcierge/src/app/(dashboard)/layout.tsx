@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { getAuthTenant } from '@/lib/auth'
 import { ToastContainer } from '@/components/ui/Toast'
+import { OnboardingGate } from '@/components/onboarding/onboarding-gate'
 
 const navItems: DashboardNavItem[] = [
   { href: '/agenda', label: 'Agenda', icon: CalendarDays },
@@ -48,7 +49,7 @@ export default async function DashboardLayout({
         ctaHref="/ai-settings"
         logoutAction="/api/auth/logout"
       >
-        {children}
+        <OnboardingGate>{children}</OnboardingGate>
       </AppShell>
       <ToastContainer />
     </>
