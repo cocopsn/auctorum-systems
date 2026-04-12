@@ -94,9 +94,11 @@ export async function middleware(request: NextRequest) {
 
   // Portal routes — rewrite to [slug] dynamic route
   if (slug) {
-    const response = NextResponse.rewrite(
-      new URL(`/${slug}${url.pathname}`, request.url)
-    )
+    url.pathname = `/${slug}${pathname}`
+    // Force http: for internal rewrite to prevent EPROTO when behind
+    // Cloudflare/nginx that sets X-Forwarded-Proto: https
+    const internalUrl = url.toString().replace(/^https:/, 'http:')
+    const response = NextResponse.rewrite(internalUrl)
     response.headers.set('x-tenant-slug', slug)
     return response
   }
@@ -106,6 +108,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
