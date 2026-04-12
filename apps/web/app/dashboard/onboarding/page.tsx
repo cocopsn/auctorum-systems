@@ -12,7 +12,7 @@ export default function OnboardingPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard/onboarding')
+      const res = await fetch('/api/dashboard/onboarding', { credentials: 'include' })
       if (!res.ok) throw new Error('Error al cargar onboarding')
       const json = await res.json()
       setData(json)

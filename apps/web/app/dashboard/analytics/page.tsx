@@ -15,7 +15,7 @@ export default function AnalyticsPage() {
 
   const fetchAnalytics = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard/analytics')
+      const res = await fetch('/api/dashboard/analytics', { credentials: 'include' })
       if (!res.ok) throw new Error('Error al cargar analytics')
       const json = await res.json()
       setData(json)

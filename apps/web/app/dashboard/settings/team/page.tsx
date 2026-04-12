@@ -30,7 +30,7 @@ export default function TeamPage() {
 
   const fetchTeam = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard/settings/team')
+      const res = await fetch('/api/dashboard/settings/team', { credentials: 'include' })
       const data = await res.json()
       if (data.team) setTeam(data.team)
     } catch {}
@@ -45,6 +45,7 @@ export default function TeamPage() {
     setError(null)
     try {
       const res = await fetch('/api/dashboard/settings/team', {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
@@ -67,6 +68,7 @@ export default function TeamPage() {
   async function changeRole(id: string, role: string) {
     try {
       await fetch(`/api/dashboard/settings/team/${id}`, {
+        credentials: 'include',
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role }),
@@ -78,7 +80,7 @@ export default function TeamPage() {
   async function removeMember(id: string) {
     if (!confirm('Estas seguro de eliminar este miembro?')) return
     try {
-      await fetch(`/api/dashboard/settings/team/${id}`, { method: 'DELETE' })
+      await fetch(`/api/dashboard/settings/team/${id}`, { credentials: 'include', method: 'DELETE' })
       fetchTeam()
     } catch {}
   }

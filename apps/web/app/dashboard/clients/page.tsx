@@ -37,7 +37,7 @@ export default function ClientsPage() {
 
   const fetchClients = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard/clients')
+      const res = await fetch('/api/dashboard/clients', { credentials: 'include' })
       if (!res.ok) throw new Error('Error al cargar clientes')
       const data = await res.json()
       setClientsList(data.clients || [])

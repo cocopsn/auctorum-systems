@@ -106,7 +106,7 @@ export default function PaymentsPage() {
     if (filterEndDate) params.set('endDate', filterEndDate);
 
     const qs = params.toString();
-    const res = await fetch(`/api/dashboard/payments${qs ? `?${qs}` : ''}`);
+    const res = await fetch(`/api/dashboard/payments${qs ? `?${qs}` : ''}`, { credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
       setPayments(data.payments);
@@ -119,7 +119,7 @@ export default function PaymentsPage() {
   // Fetch clients for dropdown
   // ------------------------------------------------------------------
   const fetchClients = useCallback(async () => {
-    const res = await fetch('/api/dashboard/funnel');
+    const res = await fetch('/api/dashboard/funnel', { credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
       // funnel endpoint returns clients array
@@ -148,6 +148,7 @@ export default function PaymentsPage() {
     if (formClientId) body.clientId = formClientId;
 
     const res = await fetch('/api/dashboard/payments', {
+      credentials: 'include',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -170,6 +171,7 @@ export default function PaymentsPage() {
   // ------------------------------------------------------------------
   async function updateStatus(id: string, status: string) {
     await fetch(`/api/dashboard/payments/${id}`, {
+      credentials: 'include',
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),

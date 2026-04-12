@@ -45,8 +45,8 @@ export default function FollowUpsPage() {
   const fetchData = useCallback(async () => {
     try {
       const [fuRes, clRes] = await Promise.all([
-        fetch(`/api/dashboard/follow-ups?status=${tab}`),
-        fetch('/api/dashboard/funnel'),
+        fetch(`/api/dashboard/follow-ups?status=${tab}`, { credentials: 'include' }),
+        fetch('/api/dashboard/funnel', { credentials: 'include' }),
       ])
       const fuData = await fuRes.json()
       const clData = await clRes.json()
@@ -63,6 +63,7 @@ export default function FollowUpsPage() {
     setSaving(true)
     try {
       const res = await fetch('/api/dashboard/follow-ups', {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -79,6 +80,7 @@ export default function FollowUpsPage() {
   async function updateStatus(id: string, status: string) {
     try {
       await fetch(`/api/dashboard/follow-ups/${id}`, {
+        credentials: 'include',
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),
@@ -90,7 +92,7 @@ export default function FollowUpsPage() {
   async function deleteFollowUp(id: string) {
     if (!confirm('Eliminar este seguimiento?')) return
     try {
-      await fetch(`/api/dashboard/follow-ups/${id}`, { method: 'DELETE' })
+      await fetch(`/api/dashboard/follow-ups/${id}`, { credentials: 'include', method: 'DELETE' })
       fetchData()
     } catch {}
   }

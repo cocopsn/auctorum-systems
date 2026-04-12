@@ -37,7 +37,7 @@ export default function SecuritySettingsPage() {
   const fetchStatus = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/dashboard/settings/security');
+      const res = await fetch('/api/dashboard/settings/security', { credentials: 'include' });
       if (!res.ok) throw new Error('Error al cargar estado de seguridad');
       const data = await res.json();
       setTwoFactorEnabled(data.twoFactorEnabled);
@@ -59,6 +59,7 @@ export default function SecuritySettingsPage() {
       setEnableLoading(true);
       setError(null);
       const res = await fetch('/api/dashboard/settings/security/2fa/enable', {
+        credentials: 'include',
         method: 'POST',
       });
       if (!res.ok) {
@@ -81,6 +82,7 @@ export default function SecuritySettingsPage() {
       setVerifying(true);
       setError(null);
       const res = await fetch('/api/dashboard/settings/security/2fa/verify', {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: verifyCode }),
@@ -109,6 +111,7 @@ export default function SecuritySettingsPage() {
       setDisableLoading(true);
       setError(null);
       const res = await fetch('/api/dashboard/settings/security/2fa/disable', {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: disableCode }),

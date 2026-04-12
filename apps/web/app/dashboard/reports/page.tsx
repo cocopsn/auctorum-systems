@@ -17,14 +17,19 @@ export default function ReportsPage() {
   const [endDate, setEndDate] = useState(getDateStr(today))
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchReport = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
-      const res = await fetch(`/api/dashboard/reports?startDate=${startDate}&endDate=${endDate}`)
+      const res = await fetch(`/api/dashboard/reports?startDate=${startDate}&endDate=${endDate}`, { credentials: 'include' })
+      if (!res.ok) throw new Error('Error al cargar reportes')
       const d = await res.json()
       setData(d)
-    } catch {}
+    } catch (err: any) {
+      setError(err?.message || 'Error al cargar reportes')
+    }
     setLoading(false)
   }, [startDate, endDate])
 
@@ -58,14 +63,19 @@ export default function ReportsPage() {
   }
 
   async function downloadExport(type: string) {
-    const res = await fetch(`/api/dashboard/reports/export?startDate=${startDate}&endDate=${endDate}&type=${type}`)
-    const blob = await res.blob()
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `reporte-${startDate}-${endDate}.${type === 'csv' ? 'csv' : 'html'}`
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      const res = await fetch(`/api/dashboard/reports/export?startDate=${startDate}&endDate=${endDate}&type=${type}`, { credentials: 'include' })
+      if (!res.ok) throw new Error('Error al exportar reporte')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `reporte-${startDate}-${endDate}.${type === 'csv' ? 'csv' : 'html'}`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setError('Error al exportar reporte')
+    }
   }
 
   return (
@@ -100,6 +110,10 @@ export default function ReportsPage() {
       {loading ? (
         <div className="flex items-center justify-center py-12">
           <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : error ? (
+        <div className="flex items-center justify-center py-12">
+          <p className="text-sm text-red-600">{error}</p>
         </div>
       ) : data ? (
         <>

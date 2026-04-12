@@ -60,7 +60,7 @@ export default function ConversationsPage() {
 
   const fetchConvos = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard/conversations')
+      const res = await fetch('/api/dashboard/conversations', { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setConvos(data.conversations || [])
@@ -71,7 +71,7 @@ export default function ConversationsPage() {
 
   const fetchMessages = useCallback(async (convId: string) => {
     try {
-      const res = await fetch(`/api/dashboard/conversations/${convId}/messages`)
+      const res = await fetch(`/api/dashboard/conversations/${convId}/messages`, { credentials: 'include' })
       if (res.ok) {
         const data = await res.json()
         setMsgs(data.messages || [])
@@ -104,6 +104,7 @@ export default function ConversationsPage() {
     setSending(true)
     try {
       const res = await fetch(`/api/dashboard/conversations/${selectedId}/messages`, {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: input.trim() }),
@@ -121,6 +122,7 @@ export default function ConversationsPage() {
     if (!selectedId || !selectedConvo) return
     try {
       await fetch(`/api/dashboard/conversations/${selectedId}`, {
+        credentials: 'include',
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ botPaused: !selectedConvo.botPaused }),

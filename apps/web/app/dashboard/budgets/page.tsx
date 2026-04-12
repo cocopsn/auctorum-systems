@@ -47,8 +47,8 @@ export default function BudgetsPage() {
   const fetchData = useCallback(async () => {
     try {
       const [bRes, cRes] = await Promise.all([
-        fetch(`/api/dashboard/budgets?status=${tab}`),
-        fetch('/api/dashboard/funnel'),
+        fetch(`/api/dashboard/budgets?status=${tab}`, { credentials: 'include' }),
+        fetch('/api/dashboard/funnel', { credentials: 'include' }),
       ])
       const bData = await bRes.json()
       const cData = await cRes.json()
@@ -77,6 +77,7 @@ export default function BudgetsPage() {
     setSaving(true)
     try {
       const res = await fetch('/api/dashboard/budgets', {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -99,6 +100,7 @@ export default function BudgetsPage() {
   async function updateStatus(id: string, status: string) {
     try {
       await fetch(`/api/dashboard/budgets/${id}/status`, {
+        credentials: 'include',
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status }),

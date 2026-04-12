@@ -141,7 +141,7 @@ export default function InvoicesPage() {
     if (filterStatus) params.set('status', filterStatus);
     const qs = params.toString();
 
-    const res = await fetch(`/api/dashboard/invoices${qs ? `?${qs}` : ''}`);
+    const res = await fetch(`/api/dashboard/invoices${qs ? `?${qs}` : ''}`, { credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
       setInvoicesList(data.invoices);
@@ -151,7 +151,7 @@ export default function InvoicesPage() {
   }, [searchQuery, filterStatus]);
 
   const fetchClients = useCallback(async () => {
-    const res = await fetch('/api/dashboard/funnel');
+    const res = await fetch('/api/dashboard/funnel', { credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
       setClients(data.clients ?? []);
@@ -184,6 +184,7 @@ export default function InvoicesPage() {
     if (formClientId) body.clientId = formClientId;
 
     const res = await fetch('/api/dashboard/invoices', {
+      credentials: 'include',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

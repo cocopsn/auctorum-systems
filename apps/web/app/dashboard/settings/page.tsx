@@ -12,7 +12,7 @@ export default function SettingsPage() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard/settings/tenant')
+      const res = await fetch('/api/dashboard/settings/tenant', { credentials: 'include' })
       if (!res.ok) throw new Error('Error al cargar configuración')
       const json = await res.json()
       setData(json)

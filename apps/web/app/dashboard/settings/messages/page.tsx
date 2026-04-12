@@ -23,7 +23,7 @@ export default function BotMessagesPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/dashboard/settings/messages')
+    fetch('/api/dashboard/settings/messages', { credentials: 'include' })
       .then(r => r.json())
       .then(data => setMessages(data.messages || {}))
       .catch(() => {})
@@ -36,6 +36,7 @@ export default function BotMessagesPage() {
     setError(null)
     try {
       const res = await fetch('/api/dashboard/settings/messages', {
+        credentials: 'include',
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages }),

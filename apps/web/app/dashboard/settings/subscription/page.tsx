@@ -160,7 +160,7 @@ export default function SubscriptionSettingsPage() {
   const fetchSubscription = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/dashboard/settings/subscription');
+      const res = await fetch('/api/dashboard/settings/subscription', { credentials: 'include' });
       if (!res.ok) throw new Error('Error al cargar suscripcion');
       const data = await res.json();
       setSubscription(data.subscription);
@@ -191,6 +191,7 @@ export default function SubscriptionSettingsPage() {
       setSuccess(null);
 
       const res = await fetch('/api/dashboard/settings/subscription', {
+        credentials: 'include',
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plan }),

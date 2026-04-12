@@ -34,7 +34,7 @@ export default function FunnelPage() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard/funnel')
+      const res = await fetch('/api/dashboard/funnel', { credentials: 'include' })
       if (!res.ok) throw new Error('Error al cargar embudo')
       const data = await res.json()
       if (data.stages) setStages(data.stages)
@@ -51,6 +51,7 @@ export default function FunnelPage() {
     setMovingClient(clientId)
     try {
       const res = await fetch('/api/dashboard/funnel/move', {
+        credentials: 'include',
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId, stageId }),

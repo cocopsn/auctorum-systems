@@ -61,7 +61,7 @@ export default function BotConfigPage() {
   const [showFaqForm, setShowFaqForm] = useState(false)
 
   useEffect(() => {
-    fetch('/api/dashboard/settings/bot')
+    fetch('/api/dashboard/settings/bot', { credentials: 'include' })
       .then(r => r.json())
       .then(data => {
         if (data.config && Object.keys(data.config).length > 0) {
@@ -77,6 +77,7 @@ export default function BotConfigPage() {
     setSaved(false)
     try {
       const res = await fetch('/api/dashboard/settings/bot', {
+        credentials: 'include',
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ config }),

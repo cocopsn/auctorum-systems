@@ -49,7 +49,7 @@ export default function QuotesPage() {
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
-    fetch('/api/quotes/list')
+    fetch('/api/quotes/list', { credentials: 'include' })
       .then(r => r.json())
       .then(data => { if (data.success) setQuotes(data.data); })
       .catch(console.error)

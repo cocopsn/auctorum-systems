@@ -150,7 +150,7 @@ export default function ChannelsSettingsPage() {
   const fetchChannels = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await fetch('/api/dashboard/settings/channels');
+      const res = await fetch('/api/dashboard/settings/channels', { credentials: 'include' });
       if (!res.ok) throw new Error('Error al cargar canales');
       const data = await res.json();
       setChannelsConfig(data.channelsConfig ?? {});
@@ -219,6 +219,7 @@ export default function ChannelsSettingsPage() {
       setSaving(true);
       setError(null);
       const res = await fetch('/api/dashboard/settings/channels', {
+        credentials: 'include',
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ channelsConfig }),

@@ -420,7 +420,7 @@ export default function IntegrationsPage() {
 
   const fetchIntegrations = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard/integrations');
+      const res = await fetch('/api/dashboard/integrations', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setIntegrations(data.integrations ?? []);
@@ -446,6 +446,7 @@ export default function IntegrationsPage() {
     setActionLoading(type);
     try {
       await fetch(`/api/dashboard/integrations/${type}`, {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'connect', config: config ?? {} }),
@@ -462,6 +463,7 @@ export default function IntegrationsPage() {
     setActionLoading(type);
     try {
       await fetch(`/api/dashboard/integrations/${type}`, {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'disconnect' }),
@@ -478,6 +480,7 @@ export default function IntegrationsPage() {
     setActionLoading(type);
     try {
       await fetch(`/api/dashboard/integrations/${type}`, {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'sync' }),

@@ -34,7 +34,7 @@ export default function PaymentsSettingsPage() {
   // ------------------------------------------------------------------
   useEffect(() => {
     (async () => {
-      const res = await fetch('/api/dashboard/payments/config');
+      const res = await fetch('/api/dashboard/payments/config', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         if (data.paymentConfig) {
@@ -68,6 +68,7 @@ export default function PaymentsSettingsPage() {
 
     try {
       const res = await fetch('/api/dashboard/payments/config', {
+        credentials: 'include',
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config),

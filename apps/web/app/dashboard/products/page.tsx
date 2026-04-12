@@ -14,7 +14,7 @@ export default function ProductsPage() {
 
   const fetchProducts = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard/products')
+      const res = await fetch('/api/dashboard/products', { credentials: 'include' })
       if (!res.ok) throw new Error('Error al cargar productos')
       const data = await res.json()
       setProducts(data.products || [])

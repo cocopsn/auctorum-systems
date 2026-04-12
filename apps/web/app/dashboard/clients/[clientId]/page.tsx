@@ -15,7 +15,7 @@ export default function ClientDetailPage() {
 
   const fetchClient = useCallback(async () => {
     try {
-      const res = await fetch(`/api/dashboard/clients/${clientId}`)
+      const res = await fetch(`/api/dashboard/clients/${clientId}`, { credentials: 'include' })
       if (res.status === 404) throw new Error('Cliente no encontrado')
       if (!res.ok) throw new Error('Error al cargar cliente')
       const json = await res.json()

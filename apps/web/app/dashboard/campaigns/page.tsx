@@ -155,6 +155,7 @@ function NewCampaignForm({
 
     try {
       const res = await fetch('/api/dashboard/campaigns', {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -171,6 +172,7 @@ function NewCampaignForm({
 
       if (andSend && data.campaign?.id) {
         await fetch(`/api/dashboard/campaigns/${data.campaign.id}/send`, {
+          credentials: 'include',
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
         });
@@ -408,7 +410,7 @@ export default function CampaignsPage() {
 
   const fetchCampaigns = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard/campaigns');
+      const res = await fetch('/api/dashboard/campaigns', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setCampaigns(data.campaigns ?? []);
@@ -449,6 +451,7 @@ export default function CampaignsPage() {
     setActionLoading(id);
     try {
       await fetch(`/api/dashboard/campaigns/${id}/send`, {
+        credentials: 'include',
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -464,6 +467,7 @@ export default function CampaignsPage() {
     setActionLoading(id);
     try {
       await fetch(`/api/dashboard/campaigns/${id}`, {
+        credentials: 'include',
         method: 'DELETE',
       });
       await fetchCampaigns();
