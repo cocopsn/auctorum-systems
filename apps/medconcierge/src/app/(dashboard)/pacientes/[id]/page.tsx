@@ -1,62 +1,57 @@
-export const dynamic = "force-dynamic";
+'use client'
 
-import { notFound } from 'next/navigation'
-import { eq, and, desc } from 'drizzle-orm'
-import { db } from '@quote-engine/db'
-import { patients, patientFiles, appointments, clinicalNotes } from '@quote-engine/db'
-import { requireAuth } from '@/lib/auth'
+import { useState, useEffect, useCallback } from 'react'
+import { useParams } from 'next/navigation'
+import { Loader2, User, Phone, Mail, Calendar } from 'lucide-react'
 import { StatusBadge } from '@/components/dashboard/status-badge'
 import PatientDetailClient from '@/components/patients/PatientDetailClient'
-import { User, Phone, Mail, Calendar } from 'lucide-react'
 
-// ============================================================
-// Patient detail — server component.
-// Resolves the patient through requireAuth() tenant scoping,
-// loads related files + appointments + clinical notes in
-// parallel, then hands the editable sections off to
-// PatientDetailClient for debounced autosave and file uploads.
-// ============================================================
+export default function PatientDetailPage() {
+  const params = useParams()
+  const id = params.id as string
 
-export default async function PatientDetailPage({
-  params,
-}: {
-  params: { id: string }
-}) {
-  const { tenant } = await requireAuth()
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const [patient] = await db
-    .select()
-    .from(patients)
-    .where(and(eq(patients.id, params.id), eq(patients.tenantId, tenant.id)))
-    .limit(1)
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/dashboard/pacientes/${id}`)
+      if (res.status === 404) throw new Error('Paciente no encontrado')
+      if (!res.ok) throw new Error('Error al cargar paciente')
+      const json = await res.json()
+      setData(json)
+    } catch (err: any) {
+      setError(err?.message || 'Error al cargar paciente')
+    }
+    setLoading(false)
+  }, [id])
 
-  if (!patient) notFound()
+  useEffect(() => { fetchData() }, [fetchData])
 
-  const [files, patientAppointments, notes] = await Promise.all([
-    db
-      .select()
-      .from(patientFiles)
-      .where(eq(patientFiles.patientId, patient.id))
-      .orderBy(desc(patientFiles.createdAt)),
-    db
-      .select()
-      .from(appointments)
-      .where(eq(appointments.patientId, patient.id))
-      .orderBy(desc(appointments.date))
-      .limit(20),
-    db
-      .select()
-      .from(clinicalNotes)
-      .where(eq(clinicalNotes.patientId, patient.id))
-      .orderBy(desc(clinicalNotes.createdAt))
-      .limit(10),
-  ])
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+      </div>
+    )
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <p className="text-sm text-red-600">{error || 'Error al cargar paciente'}</p>
+      </div>
+    )
+  }
+
+  const { patient, files, appointments: patientAppointments, notes } = data
 
   return (
     <div>
       <div className="mb-6">
         <a href="/pacientes" className="text-sm text-[var(--text-tertiary)] hover:text-[var(--accent)]">
-          ← Volver a pacientes
+          &larr; Volver a pacientes
         </a>
       </div>
 
@@ -116,11 +111,11 @@ export default async function PatientDetailPage({
           <p className="text-[var(--text-tertiary)] text-sm">Sin citas registradas.</p>
         ) : (
           <div className="space-y-2">
-            {patientAppointments.map((appt) => (
+            {patientAppointments.map((appt: any) => (
               <div key={appt.id} className="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-0">
                 <div>
                   <span className="text-sm font-medium text-[var(--text-primary)]">{appt.date}</span>
-                  <span className="text-sm text-[var(--text-tertiary)] ml-2 font-mono">{appt.startTime.slice(0, 5)}</span>
+                  <span className="text-sm text-[var(--text-tertiary)] ml-2 font-mono">{appt.startTime?.slice(0, 5)}</span>
                   {appt.reason && <span className="text-sm text-[var(--text-secondary)] ml-3">{appt.reason}</span>}
                 </div>
                 <StatusBadge status={appt.status ?? 'scheduled'} />
@@ -135,7 +130,7 @@ export default async function PatientDetailPage({
         <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-6">
           <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Notas de consulta</h2>
           <div className="space-y-3">
-            {notes.map((note) => (
+            {notes.map((note: any) => (
               <div key={note.id} className="p-3 bg-[var(--bg-tertiary)] rounded-lg">
                 <p className="text-xs text-[var(--text-tertiary)] mb-1">
                   {note.createdAt ? new Date(note.createdAt).toLocaleDateString('es-MX') : ''}

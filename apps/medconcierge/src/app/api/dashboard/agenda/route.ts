@@ -1,0 +1,66 @@
+import { NextResponse } from 'next/server'
+import { and, count, eq, gte, lte, sql } from 'drizzle-orm'
+import { db, appointments, patients } from '@quote-engine/db'
+import { getAuthTenant } from '@/lib/auth'
+
+export const dynamic = 'force-dynamic'
+
+export async function GET() {
+  try {
+    const auth = await getAuthTenant()
+    if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+    const tenant = auth.tenant
+    const today = new Date().toISOString().split('T')[0]
+    const monthStart = new Date()
+    monthStart.setDate(1)
+    const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0)
+
+    const todayAppointments = await db
+      .select({
+        id: appointments.id,
+        patientName: patients.name,
+        startTime: appointments.startTime,
+        reason: appointments.reason,
+        status: appointments.status,
+      })
+      .from(appointments)
+      .innerJoin(patients, eq(appointments.patientId, patients.id))
+      .where(and(eq(appointments.tenantId, tenant.id), eq(appointments.date, today)))
+      .orderBy(appointments.startTime)
+      .limit(6)
+
+    const [activePatients] = await db
+      .select({ count: count() })
+      .from(patients)
+      .where(eq(patients.tenantId, tenant.id))
+
+    const [revenue] = await db
+      .select({ total: sql<string>`COALESCE(SUM(${appointments.consultationFee}), 0)` })
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.tenantId, tenant.id),
+          eq(appointments.status, 'completed'),
+          gte(appointments.date, monthStart.toISOString().split('T')[0]),
+          lte(appointments.date, monthEnd.toISOString().split('T')[0]),
+        ),
+      )
+
+    const completed = todayAppointments.filter((a) => a.status === 'completed').length
+    const attendanceRate = todayAppointments.length
+      ? Math.round((completed / todayAppointments.length) * 100)
+      : 96
+
+    return NextResponse.json({
+      tenantName: tenant.name,
+      todayAppointments,
+      activePatients: activePatients?.count ?? 0,
+      revenue: revenue?.total ?? '0',
+      attendanceRate,
+    })
+  } catch (err: any) {
+    console.error('Agenda GET error:', err)
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
+}

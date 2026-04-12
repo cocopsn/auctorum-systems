@@ -1,43 +1,43 @@
-export const dynamic = 'force-dynamic'
+'use client'
 
-import { redirect } from 'next/navigation'
-import { and, asc, eq, gte, lte } from 'drizzle-orm'
-import { db, appointments, patients } from '@quote-engine/db'
-import { getAuthTenant } from '@/lib/auth'
+import { useState, useEffect, useCallback } from 'react'
+import { Loader2 } from 'lucide-react'
 import { RecordatoriosTable } from '@/components/dashboard/recordatorios-table'
 
-export default async function RecordatoriosPage() {
-  const auth = await getAuthTenant()
-  if (!auth) redirect('/login')
+export default function RecordatoriosPage() {
+  const [rows, setRows] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const today = new Date().toISOString().split('T')[0]
-  const in2days = new Date(Date.now() + 2 * 86400000).toISOString().split('T')[0]
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard/recordatorios')
+      if (!res.ok) throw new Error('Error al cargar recordatorios')
+      const data = await res.json()
+      setRows(data.rows || [])
+    } catch (err: any) {
+      setError(err?.message || 'Error al cargar recordatorios')
+    }
+    setLoading(false)
+  }, [])
 
-  const rows = await db
-    .select({
-      id: appointments.id,
-      date: appointments.date,
-      startTime: appointments.startTime,
-      status: appointments.status,
-      reminder24hSent: appointments.reminder24hSent,
-      reminder24hSentAt: appointments.reminder24hSentAt,
-      reminder2hSent: appointments.reminder2hSent,
-      reminder2hSentAt: appointments.reminder2hSentAt,
-      confirmedByPatient: appointments.confirmedByPatient,
-      patientName: patients.name,
-      patientPhone: patients.phone,
-    })
-    .from(appointments)
-    .innerJoin(patients, eq(patients.id, appointments.patientId))
-    .where(
-      and(
-        eq(appointments.tenantId, auth.tenant.id),
-        eq(appointments.status, 'scheduled'),
-        gte(appointments.date, today),
-        lte(appointments.date, in2days),
-      ),
+  useEffect(() => { fetchData() }, [fetchData])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+      </div>
     )
-    .orderBy(asc(appointments.date), asc(appointments.startTime))
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <p className="text-sm text-red-600">{error}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="mx-auto max-w-6xl p-6">

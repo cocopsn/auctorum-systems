@@ -1,8 +1,7 @@
-export const dynamic = 'force-dynamic';
+'use client'
 
-import { and, count, eq, gte, lte, sql } from 'drizzle-orm';
-import { redirect } from 'next/navigation';
-import { db, appointments, patients } from '@quote-engine/db';
+import { useState, useEffect, useCallback } from 'react'
+import { Loader2, CalendarCheck, DollarSign, HeartPulse, Users } from 'lucide-react'
 import {
   AiInsightCard,
   DonutCard,
@@ -10,60 +9,62 @@ import {
   LineChartCard,
   ProgressList,
   StatusBadge,
-} from '@quote-engine/ui';
-import { CalendarCheck, DollarSign, HeartPulse, Users } from 'lucide-react';
-import { getAuthTenant } from '@/lib/auth';
+} from '@quote-engine/ui'
 
 function formatMXN(amount: number | string) {
-  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(num);
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(num)
 }
 
-export default async function AgendaPage() {
-  const auth = await getAuthTenant();
-  if (!auth) redirect('/login');
-  const tenant = auth.tenant;
+export default function AgendaPage() {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const today = new Date().toISOString().split('T')[0];
-  const monthStart = new Date();
-  monthStart.setDate(1);
-  const monthEnd = new Date(monthStart.getFullYear(), monthStart.getMonth() + 1, 0);
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard/agenda')
+      if (!res.ok) throw new Error('Error al cargar agenda')
+      const json = await res.json()
+      setData(json)
+    } catch (err: any) {
+      setError(err?.message || 'Error al cargar agenda')
+    }
+    setLoading(false)
+  }, [])
 
-  const todayAppointments = await db
-    .select({
-      id: appointments.id,
-      patientName: patients.name,
-      startTime: appointments.startTime,
-      reason: appointments.reason,
-      status: appointments.status,
-    })
-    .from(appointments)
-    .innerJoin(patients, eq(appointments.patientId, patients.id))
-    .where(and(eq(appointments.tenantId, tenant.id), eq(appointments.date, today)))
-    .orderBy(appointments.startTime)
-    .limit(6);
+  useEffect(() => { fetchData() }, [fetchData])
 
-  const [activePatients] = await db.select({ count: count() }).from(patients).where(eq(patients.tenantId, tenant.id));
-  const [revenue] = await db
-    .select({ total: sql<string>`COALESCE(SUM(${appointments.consultationFee}), 0)` })
-    .from(appointments)
-    .where(and(eq(appointments.tenantId, tenant.id), eq(appointments.status, 'completed'), gte(appointments.date, monthStart.toISOString().split('T')[0]), lte(appointments.date, monthEnd.toISOString().split('T')[0])));
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+      </div>
+    )
+  }
 
-  const completed = todayAppointments.filter((appointment) => appointment.status === 'completed').length;
-  const attendanceRate = todayAppointments.length ? Math.round((completed / todayAppointments.length) * 100) : 96;
+  if (error || !data) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <p className="text-sm text-red-600">{error || 'Error al cargar agenda'}</p>
+      </div>
+    )
+  }
+
+  const { tenantName, todayAppointments, activePatients, revenue, attendanceRate } = data
 
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-8">
-        <p className="text-sm font-medium text-indigo-600">{tenant.name}</p>
+        <p className="text-sm font-medium text-indigo-600">{tenantName}</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-gray-900">Agenda clinica</h1>
         <p className="mt-2 text-sm text-gray-500">Vista diaria para pacientes, ingresos y recomendaciones del concierge.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard title="Citas Hoy" value={todayAppointments.length} trend="+8%" icon={CalendarCheck} />
-        <KpiCard title="Pacientes Activos" value={activePatients?.count ?? 0} trend="+12%" icon={Users} />
-        <KpiCard title="Ingresos (MXN)" value={formatMXN(revenue?.total ?? 0)} trend="+6%" icon={DollarSign} />
+        <KpiCard title="Pacientes Activos" value={activePatients} trend="+12%" icon={Users} />
+        <KpiCard title="Ingresos (MXN)" value={formatMXN(revenue)} trend="+6%" icon={DollarSign} />
         <KpiCard title="Tasa Asistencia" value={`${attendanceRate}%`} trend="+4%" icon={HeartPulse} />
       </div>
 
@@ -99,7 +100,7 @@ export default async function AgendaPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {todayAppointments.map((appointment) => (
+                {todayAppointments.map((appointment: any) => (
                   <tr key={appointment.id}>
                     <td className="px-4 py-4 font-medium text-gray-900">{appointment.patientName}</td>
                     <td className="px-4 py-4 text-gray-500">{appointment.startTime}</td>
@@ -120,5 +121,5 @@ export default async function AgendaPage() {
         />
       </div>
     </div>
-  );
+  )
 }
