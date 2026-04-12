@@ -61,7 +61,6 @@ export async function POST(request: NextRequest) {
       options: { emailRedirectTo: redirectTo },
     });
 
-    console.log("Supabase OTP response:", JSON.stringify({ error, email }));
     if (error) {
       console.error('Magic link send error:', error.message);
       return NextResponse.json(

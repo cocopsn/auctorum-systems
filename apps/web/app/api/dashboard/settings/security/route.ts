@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthTenant } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
+import { z } from 'zod';
 
 // GET /api/dashboard/settings/security
 // Returns 2FA status for the current user

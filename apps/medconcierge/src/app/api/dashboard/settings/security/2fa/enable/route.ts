@@ -5,6 +5,7 @@ import { getAuthTenant } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import crypto from 'crypto';
+import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
 // Base32 encoder (RFC 4648) — no external library

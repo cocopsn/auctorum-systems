@@ -158,6 +158,5 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  console.log(`[signup] new tenant: slug=${slug} tenantId=${tenantId}`)
   return NextResponse.json({ ok: true })
 }

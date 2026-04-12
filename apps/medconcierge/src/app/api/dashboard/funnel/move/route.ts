@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, clientFunnel, funnelStages } from '@quote-engine/db'
 import { eq, and } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic'
 
@@ -10,10 +11,17 @@ export async function PATCH(request: NextRequest) {
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-    const body = await request.json()
-    const { clientId, stageId } = body
+    const moveSchema = z.object({
+      clientId: z.string().uuid(),
+      stageId: z.string().uuid(),
+    });
+    const parsed = moveSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const { clientId, stageId } = parsed.data;
 
-    if (!clientId || !stageId) {
+    if (false) {
       return NextResponse.json({ error: 'clientId y stageId son requeridos' }, { status: 400 })
     }
 

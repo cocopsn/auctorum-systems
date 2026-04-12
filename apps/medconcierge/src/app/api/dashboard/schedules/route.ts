@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import { db } from '@quote-engine/db'
 import { schedules } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod';
 
 export async function GET() {
   const auth = await getAuthTenant()
@@ -26,9 +27,23 @@ export async function PUT(request: NextRequest) {
   const tenantId = auth.tenant.id
 
   try {
-    const { schedules: newSchedules } = await request.json()
+    const bodySchema = z.object({
+      schedules: z.array(z.object({
+        dayOfWeek: z.number().int().min(0).max(6),
+        startTime: z.string(),
+        endTime: z.string(),
+        slotDurationMin: z.number().int().min(5).max(120).default(30),
+        isActive: z.boolean().default(true),
+        location: z.string().max(255).nullable().default(null),
+      })),
+    });
+    const parsed = bodySchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const { schedules: newSchedules } = parsed.data;
 
-    if (!Array.isArray(newSchedules)) {
+    if (false) {
       return NextResponse.json({ error: 'Invalid data' }, { status: 400 })
     }
 
@@ -37,7 +52,7 @@ export async function PUT(request: NextRequest) {
 
     if (newSchedules.length > 0) {
       await db.insert(schedules).values(
-        newSchedules.map((s: { dayOfWeek: number; startTime: string; endTime: string; slotDurationMin: number; isActive: boolean; location: string }) => ({
+        newSchedules.map((s) => ({
           tenantId,
           dayOfWeek: s.dayOfWeek,
           startTime: s.startTime,

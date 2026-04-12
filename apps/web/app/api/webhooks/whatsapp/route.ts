@@ -16,8 +16,7 @@ const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN ?? '';
 function verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
   const appSecret = process.env.WHATSAPP_APP_SECRET;
   if (!appSecret || appSecret === 'PLACEHOLDER_CONFIGURE_IN_META') {
-    console.warn('WHATSAPP_APP_SECRET not configured \u2014 skipping HMAC verification');
-    return true;
+    return false;
   }
   if (!signatureHeader) return false;
   const expectedSig =
@@ -40,7 +39,7 @@ export async function GET(request: NextRequest) {
   const challenge = searchParams.get('hub.challenge');
 
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('WhatsApp webhook verified');
+    // Webhook verified
     return new NextResponse(challenge, { status: 200 });
   }
 
@@ -109,14 +108,14 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
     text = ((message.text as Record<string, unknown>)?.body as string) ?? '';
   }
 
-  console.log(`WhatsApp message from ${from}: [${msgType}] ${text}`);
+
 
   // Normalize the phone number \u2014 strip non-digits and remove Mexico country code
   // to match the format stored in the clients table.
   const cleanPhone = from?.replace(/\D/g, '').replace(/^52/, '') ?? '';
 
   if (!cleanPhone) {
-    console.warn('WhatsApp webhook: no valid phone number extracted');
+
     return;
   }
 
@@ -160,9 +159,9 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
             matchedVia: 'quote_phone_fallback',
           },
         });
-        console.log(`WhatsApp reply logged (fallback) for quote ${recentQuote.id}`);
+
       } else {
-        console.log(`WhatsApp message from unknown number: ${cleanPhone}`);
+
       }
       return;
     }
@@ -181,7 +180,7 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
       .limit(1);
 
     if (!recentQuote) {
-      console.log(`Client found (${matchedClient.id}) but no quotes found`);
+
       return;
     }
 
@@ -200,7 +199,7 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
       },
     });
 
-    console.log(`WhatsApp client_replied event logged for quote ${recentQuote.id} (client ${matchedClient.id})`);
+
   } catch (err) {
     console.error('WhatsApp event logging error:', err);
   }

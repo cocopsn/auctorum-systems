@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { db, funnelStages, clientFunnel, clients } from '@quote-engine/db'
 import { eq, asc, sql, and } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic'
 

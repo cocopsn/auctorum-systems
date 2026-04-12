@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, conversations, messages } from '@quote-engine/db'
 import { eq, and, lt, desc } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic'
 

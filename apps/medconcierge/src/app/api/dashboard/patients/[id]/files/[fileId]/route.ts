@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm';
 import { getAuthTenant } from '@/lib/auth';
 import { validateOrigin } from '@/lib/csrf';
 import { getPatientFileSignedUrl, deletePatientFile } from '@/lib/storage';
+import { z } from 'zod';
 
 // ============================================================
 // GET    /api/dashboard/patients/[id]/files/[fileId]

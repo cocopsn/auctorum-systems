@@ -5,6 +5,7 @@ import { requireRole } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { rateLimit } from '@/lib/rate-limit';
+import { z } from 'zod';
 
 // POST /api/dashboard/campaigns/[id]/send
 // "Send" a campaign — MVP: count matching clients, mark as completed immediately
@@ -53,7 +54,12 @@ export async function POST(
       );
     }
 
-    const { id } = params;
+    const idSchema = z.string().uuid();
+    const idParsed = idSchema.safeParse(params.id);
+    if (!idParsed.success) {
+      return NextResponse.json({ error: 'ID invalido' }, { status: 400 });
+    }
+    const id = idParsed.data;
 
     // Fetch the campaign
     const campaignResult = await db.execute(

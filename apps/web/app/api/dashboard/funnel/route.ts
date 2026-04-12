@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, funnelStages, clientFunnel, clients } from '@quote-engine/db'
 import { eq, asc, sql, and } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod';
 
 export const dynamic = 'force-dynamic'
 
@@ -13,8 +14,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
 
     // Pagination for clients within the funnel (FIX 7.2)
-    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
-    const limit = Math.min(100, parseInt(searchParams.get('limit') || '50'))
+    const querySchema = z.object({
+      page: z.coerce.number().int().min(1).default(1),
+      limit: z.coerce.number().int().min(1).max(100).default(50),
+    });
+    const query = querySchema.parse({ page: searchParams.get('page') ?? '1', limit: searchParams.get('limit') ?? '50' });
+    const page = query.page
+    const limit = query.limit
     const offset = (page - 1) * limit
 
     const stages = await db

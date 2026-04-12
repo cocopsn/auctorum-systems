@@ -11,8 +11,7 @@ import crypto from 'crypto'
 function verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
   const appSecret = process.env.WHATSAPP_APP_SECRET
   if (!appSecret || appSecret === 'PLACEHOLDER_CONFIGURE_IN_META') {
-    console.warn('WHATSAPP_APP_SECRET not configured \u2014 skipping HMAC verification')
-    return true
+    return false
   }
   if (!signatureHeader) return false
   const expectedSig =
@@ -110,9 +109,6 @@ async function processInBackground(body: WebhookPayload) {
     .limit(1)
 
   if (!matchedPatient) {
-    console.log(
-      `[whatsapp webhook] no patient found for normalized=${normalized}`,
-    )
     return
   }
 
@@ -134,9 +130,6 @@ async function processInBackground(body: WebhookPayload) {
     .limit(1)
 
   if (!row) {
-    console.log(
-      `[whatsapp webhook] no scheduled appointment for patient=${matchedPatient.id} tenant=${matchedPatient.tenantId}`,
-    )
     return
   }
 
@@ -184,7 +177,5 @@ async function processInBackground(body: WebhookPayload) {
 
   // Other text: log only. Meta template restrictions outside the 24h
   // session window prevent us from sending free-form replies safely.
-  console.log(
-    `[whatsapp webhook] unhandled text from ${normalized}: "${text}"`,
-  )
+
 }

@@ -6,6 +6,7 @@ import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import crypto from 'crypto';
 import { encrypt } from '@/lib/crypto';
+import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
 // Base32 encoder (RFC 4648) — no external library

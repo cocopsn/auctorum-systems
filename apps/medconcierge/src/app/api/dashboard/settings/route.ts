@@ -6,6 +6,7 @@ import { db } from '@quote-engine/db'
 import { tenants, doctors } from '@quote-engine/db'
 import type { TenantConfig } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod';
 
 export async function GET() {
   const auth = await getAuthTenant()

@@ -5,6 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { getAuthTenant } from '@/lib/auth';
 import { validateOrigin } from '@/lib/csrf';
 import { uploadPatientFile } from '@/lib/storage';
+import { z } from 'zod';
 
 // ============================================================
 // POST /api/dashboard/patients/[id]/files
