@@ -27,6 +27,7 @@ export default function PaymentsSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // ------------------------------------------------------------------
   // Load config
@@ -63,16 +64,24 @@ export default function PaymentsSettingsPage() {
   async function handleSave() {
     setSaving(true);
     setSaved(false);
+    setError(null);
 
-    const res = await fetch('/api/dashboard/payments/config', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config),
-    });
+    try {
+      const res = await fetch('/api/dashboard/payments/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      });
 
-    if (res.ok) {
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || 'Error al guardar configuración');
+      }
+    } catch {
+      setError('Error de conexión');
     }
     setSaving(false);
   }
@@ -204,6 +213,12 @@ export default function PaymentsSettingsPage() {
           <CheckCircle2 className="h-3 w-3" /> Siempre disponible
         </span>
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 mb-4">
+          {error}
+        </div>
+      )}
 
       {/* Save button */}
       <div className="flex items-center gap-3">

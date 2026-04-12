@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthTenant, requireRole } from '@/lib/auth';
+import { getAuthTenant } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -32,37 +32,18 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Strict channel config schema (FIX 5.2 — JSONB schema validation)
-const channelConfigSchema = z.object({
-  whatsapp: z.object({
-    enabled: z.boolean(),
-    configured: z.boolean().optional(),
-    config: z.record(z.string(), z.unknown()).optional(),
-  }).optional(),
-  telegram: z.object({
-    enabled: z.boolean(),
-    bot_token: z.string().optional(),
-    config: z.record(z.string(), z.unknown()).optional(),
-  }).optional(),
-  email: z.object({
-    enabled: z.boolean(),
-    config: z.record(z.string(), z.unknown()).optional(),
-  }).optional(),
-  sms: z.object({
-    enabled: z.boolean(),
-    config: z.record(z.string(), z.unknown()).optional(),
-  }).optional(),
-}).passthrough();
-
 const patchSchema = z.object({
-  channelsConfig: channelConfigSchema,
+  channelsConfig: z.record(z.string(), z.object({
+    enabled: z.boolean(),
+    config: z.record(z.string(), z.unknown()).optional(),
+  }).passthrough()).default({}),
 });
 
 // PATCH /api/dashboard/settings/channels
 // Update channels_config JSONB — body is the full channels_config object
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = await requireRole(['admin']);
+    const auth = await getAuthTenant();
     if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }

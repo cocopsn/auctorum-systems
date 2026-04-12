@@ -10,6 +10,24 @@ type Props = {
   config: TenantConfig;
 };
 
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-6 mb-5">
+      <h2 className="text-base font-semibold text-[var(--text-primary)] mb-4">{title}</h2>
+      <div className="space-y-4">{children}</div>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{label}</label>
+      {children}
+    </div>
+  );
+}
+
 export default function SettingsClient({ tenantSlug, tenantName, logoUrl, config }: Props) {
   const [name, setName] = useState(tenantName);
   const [logo, setLogo] = useState(logoUrl);
@@ -99,24 +117,6 @@ export default function SettingsClient({ tenantSlug, tenantName, logoUrl, config
     } finally {
       setLoading(false);
     }
-  }
-
-  function Section({ title, children }: { title: string; children: React.ReactNode }) {
-    return (
-      <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-6 mb-5">
-        <h2 className="text-base font-semibold text-[var(--text-primary)] mb-4">{title}</h2>
-        <div className="space-y-4">{children}</div>
-      </div>
-    );
-  }
-
-  function Field({ label, children }: { label: string; children: React.ReactNode }) {
-    return (
-      <div>
-        <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{label}</label>
-        {children}
-      </div>
-    );
   }
 
   const inputCls =

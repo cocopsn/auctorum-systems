@@ -20,6 +20,7 @@ export default function BotMessagesPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch('/api/dashboard/settings/messages')
@@ -32,6 +33,7 @@ export default function BotMessagesPage() {
   async function handleSave() {
     setSaving(true)
     setSaved(false)
+    setError(null)
     try {
       const res = await fetch('/api/dashboard/settings/messages', {
         method: 'PATCH',
@@ -41,8 +43,13 @@ export default function BotMessagesPage() {
       if (res.ok) {
         setSaved(true)
         setTimeout(() => setSaved(false), 3000)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error || 'Error al guardar mensajes')
       }
-    } catch {}
+    } catch {
+      setError('Error de conexión')
+    }
     setSaving(false)
   }
 
@@ -109,6 +116,12 @@ export default function BotMessagesPage() {
         </button>
         {saved && <span className="text-sm text-green-600">Cambios guardados correctamente</span>}
       </div>
+
+      {error && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          {error}
+        </div>
+      )}
     </div>
   )
 }

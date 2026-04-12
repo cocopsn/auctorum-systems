@@ -1,27 +1,27 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getAuthTenant, requireRole } from '@/lib/auth';
-import { db } from '@quote-engine/db';
-import { sql } from 'drizzle-orm';
+import { getAuthTenant } from '@/lib/auth';
+import { db, subscriptions } from '@quote-engine/db';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 // GET /api/dashboard/settings/subscription
 // Returns the current subscription for the tenant
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const auth = await getAuthTenant();
     if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const result = await db.execute(
-      sql`SELECT id, tenant_id, plan, status, amount, currency, billing_cycle, current_period_start, current_period_end, payment_method, processor_subscription_id, grace_period_days, cancelled_at, created_at, updated_at FROM subscriptions WHERE tenant_id = ${auth.tenant.id}`
-    ) as any[];
+    const [row] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.tenantId, auth.tenant.id))
+      .limit(1);
 
-    const row = result[0] ?? null;
-
-    return NextResponse.json({ subscription: row });
+    return NextResponse.json({ subscription: row ?? null });
   } catch (error) {
     console.error('Error fetching subscription:', error);
     return NextResponse.json(
@@ -44,7 +44,7 @@ const patchSchema = z.object({
 
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = await requireRole(['admin']);
+    const auth = await getAuthTenant();
     if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
@@ -63,28 +63,47 @@ export async function PATCH(request: NextRequest) {
     const amount = PLAN_AMOUNTS[plan];
 
     // Check if subscription exists
-    const existing = await db.execute(
-      sql`SELECT id FROM subscriptions WHERE tenant_id = ${auth.tenant.id}`
-    );
+    const [existing] = await db
+      .select({ id: subscriptions.id })
+      .from(subscriptions)
+      .where(eq(subscriptions.tenantId, auth.tenant.id))
+      .limit(1);
 
-    if (existing.length > 0) {
-      // Update existing subscription
-      await db.execute(
-        sql`UPDATE subscriptions SET plan = ${plan}, amount = ${amount}, status = 'active', current_period_start = NOW(), current_period_end = NOW() + INTERVAL '30 days', cancelled_at = NULL, updated_at = NOW() WHERE tenant_id = ${auth.tenant.id}`
-      );
+    if (existing) {
+      await db
+        .update(subscriptions)
+        .set({
+          plan,
+          amount: String(amount),
+          status: 'active',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          cancelledAt: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(subscriptions.tenantId, auth.tenant.id));
     } else {
-      // Create new subscription
-      await db.execute(
-        sql`INSERT INTO subscriptions (tenant_id, plan, status, amount, currency, billing_cycle, current_period_start, current_period_end, grace_period_days, created_at, updated_at) VALUES (${auth.tenant.id}, ${plan}, 'active', ${amount}, 'MXN', 'monthly', NOW(), NOW() + INTERVAL '30 days', 3, NOW(), NOW())`
-      );
+      await db.insert(subscriptions).values({
+        tenantId: auth.tenant.id,
+        plan,
+        status: 'active',
+        amount: String(amount),
+        currency: 'MXN',
+        billingCycle: 'monthly',
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        gracePeriodDays: 3,
+      });
     }
 
     // Fetch updated subscription
-    const result = await db.execute(
-      sql`SELECT id, tenant_id, plan, status, amount, currency, billing_cycle, current_period_start, current_period_end, payment_method, processor_subscription_id, grace_period_days, cancelled_at, created_at, updated_at FROM subscriptions WHERE tenant_id = ${auth.tenant.id}`
-    ) as any[];
+    const [updated] = await db
+      .select()
+      .from(subscriptions)
+      .where(eq(subscriptions.tenantId, auth.tenant.id))
+      .limit(1);
 
-    return NextResponse.json({ subscription: result[0] ?? null });
+    return NextResponse.json({ subscription: updated ?? null });
   } catch (error) {
     console.error('Error updating subscription:', error);
     return NextResponse.json(

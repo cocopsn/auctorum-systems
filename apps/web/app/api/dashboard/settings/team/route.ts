@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   // them by email and update the users table record to use their real Supabase UID.
   // Ref: pentest finding M8 — Team invite UUID mismatch
   try {
-    const auth = await requireRole(['admin'])
+    const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const body = await request.json()

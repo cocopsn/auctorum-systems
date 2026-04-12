@@ -30,14 +30,18 @@ export default function FunnelPage() {
   const [loading, setLoading] = useState(true)
   const [movingClient, setMovingClient] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchData = useCallback(async () => {
     try {
       const res = await fetch('/api/dashboard/funnel')
+      if (!res.ok) throw new Error('Error al cargar embudo')
       const data = await res.json()
       if (data.stages) setStages(data.stages)
       if (data.clients) setClients(data.clients)
-    } catch {}
+    } catch (err: any) {
+      setError(err?.message || 'Error al cargar embudo')
+    }
     setLoading(false)
   }, [])
 
@@ -65,6 +69,14 @@ export default function FunnelPage() {
     return (
       <div className="flex items-center justify-center min-h-[40vh]">
         <div className="h-6 w-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <p className="text-sm text-red-600">{error}</p>
       </div>
     )
   }
@@ -143,7 +155,7 @@ export default function FunnelPage() {
                       )}
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-[10px] text-gray-400">
-                          {new Date(client.createdAt).toLocaleDateString('es-MX')}
+                          {client.createdAt ? new Date(client.createdAt).toLocaleDateString('es-MX') : '-'}
                         </span>
                         {client.totalQuotes != null && Number(client.totalQuotes) > 0 && (
                           <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">

@@ -10,16 +10,21 @@ import { z } from 'zod';
 // GET /api/dashboard/payments/config
 // ---------------------------------------------------------------------------
 export async function GET() {
-  const auth = await getAuthTenant();
-  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  try {
+    const auth = await getAuthTenant();
+    if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const [row] = await db.execute(
-    sql`SELECT paymentConfig FROM tenants WHERE id = ${auth.tenant.id}`,
-  );
+    const [row] = await db.execute(
+      sql`SELECT payment_config FROM tenants WHERE id = ${auth.tenant.id}`,
+    ) as any[];
 
-  return NextResponse.json({
-    paymentConfig: row?.paymentConfig ?? null,
-  });
+    return NextResponse.json({
+      paymentConfig: (row as any)?.payment_config ?? null,
+    });
+  } catch (err: any) {
+    console.error('Payments config GET error:', err);
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 });
+  }
 }
 
 // ---------------------------------------------------------------------------

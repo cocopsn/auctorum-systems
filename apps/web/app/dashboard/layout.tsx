@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import {
   BarChart3,
   Bot,
@@ -39,8 +40,26 @@ const navItems: DashboardNavItem[] = [
   { href: '/dashboard/settings', label: 'Configuración', icon: Settings },
 ];
 
+const PLAN_LABELS: Record<string, string> = {
+  free: 'Plan Free',
+  pro: 'Plan Pro',
+  enterprise: 'Plan Enterprise',
+};
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [planLabel, setPlanLabel] = useState('Cargando...');
+
+  useEffect(() => {
+    fetch('/api/dashboard/settings/subscription')
+      .then(r => r.json())
+      .then(data => {
+        const plan = data.subscription?.plan || 'free';
+        setPlanLabel(PLAN_LABELS[plan] || `Plan ${plan}`);
+      })
+      .catch(() => setPlanLabel('Plan Free'));
+  }, []);
+
   return (
     <>
       <AppShell
@@ -49,6 +68,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         logoUrl="/logo-transparent.png"
         appName="Quote Engine"
         userName="Admin"
+        planLabel={planLabel}
         greeting="Welcome back, Admin!"
         subtitle="Gestión de cotizaciones, clientes y concierge AI."
         ctaHref="/dashboard/ai-settings"

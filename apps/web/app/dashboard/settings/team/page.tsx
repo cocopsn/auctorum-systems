@@ -26,6 +26,7 @@ export default function TeamPage() {
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('operator')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const fetchTeam = useCallback(async () => {
     try {
@@ -41,6 +42,7 @@ export default function TeamPage() {
   async function inviteMember() {
     if (!inviteEmail.trim()) return
     setSaving(true)
+    setError(null)
     try {
       const res = await fetch('/api/dashboard/settings/team', {
         method: 'POST',
@@ -52,8 +54,13 @@ export default function TeamPage() {
         setInviteEmail('')
         setInviteRole('operator')
         fetchTeam()
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setError(data.error || 'Error al invitar miembro')
       }
-    } catch {}
+    } catch {
+      setError('Error de conexión')
+    }
     setSaving(false)
   }
 
@@ -135,6 +142,12 @@ export default function TeamPage() {
               {saving ? 'Enviando...' : 'Enviar'}
             </button>
           </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700">
+          {error}
         </div>
       )}
 

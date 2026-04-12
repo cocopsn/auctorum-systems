@@ -47,7 +47,7 @@ const messagesSchema = z.object({
 
 export async function PATCH(request: NextRequest) {
   try {
-    const auth = await requireRole(['admin'])
+    const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
     const body = await request.json()
