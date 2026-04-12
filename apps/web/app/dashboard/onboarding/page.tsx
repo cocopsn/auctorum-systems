@@ -1,41 +1,55 @@
-export const dynamic = 'force-dynamic';
+'use client'
 
-import { redirect } from 'next/navigation';
-import { eq } from 'drizzle-orm';
-import { db, onboardingProgress, type OnboardingSteps } from '@quote-engine/db';
-import { getAuthTenant } from '@/lib/auth';
-import { OnboardingChecklist } from '@/components/dashboard/OnboardingChecklist';
-import { WelcomeBanner } from '@/components/dashboard/WelcomeBanner';
+import { useState, useEffect, useCallback } from 'react'
+import { Loader2 } from 'lucide-react'
+import { OnboardingChecklist } from '@/components/dashboard/OnboardingChecklist'
+import { WelcomeBanner } from '@/components/dashboard/WelcomeBanner'
 
-export default async function OnboardingPage() {
-  const auth = await getAuthTenant();
-  if (!auth) redirect('/login');
+export default function OnboardingPage() {
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const [row] = await db
-    .select()
-    .from(onboardingProgress)
-    .where(eq(onboardingProgress.tenantId, auth.tenant.id))
-    .limit(1);
+  const fetchData = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard/onboarding')
+      if (!res.ok) throw new Error('Error al cargar onboarding')
+      const json = await res.json()
+      setData(json)
+    } catch (err: any) {
+      setError(err?.message || 'Error al cargar onboarding')
+    }
+    setLoading(false)
+  }, [])
 
-  const initialSteps: OnboardingSteps = row?.stepsJson ?? {};
-  const completedAt = row?.completedAt ? row.completedAt.toISOString() : null;
+  useEffect(() => { fetchData() }, [fetchData])
 
-  // Show welcome banner for tenants created in the last 24h (first-time users)
-  const tenantCreatedAt = auth.tenant.createdAt;
-  const showWelcome =
-    tenantCreatedAt !== null &&
-    tenantCreatedAt.getTime() > Date.now() - 24 * 60 * 60 * 1000;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+      </div>
+    )
+  }
+
+  if (error || !data) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <p className="text-sm text-red-600">{error || 'Error al cargar'}</p>
+      </div>
+    )
+  }
 
   return (
     <>
-      {showWelcome && (
-        <WelcomeBanner tenantName={auth.tenant.name} userName={auth.user.name} />
+      {data.showWelcome && (
+        <WelcomeBanner tenantName={data.tenantName} userName={data.userName} />
       )}
       <OnboardingChecklist
-        initialSteps={initialSteps}
-        completedAt={completedAt}
-        tenantName={auth.tenant.name}
+        initialSteps={data.initialSteps}
+        completedAt={data.completedAt}
+        tenantName={data.tenantName}
       />
     </>
-  );
+  )
 }

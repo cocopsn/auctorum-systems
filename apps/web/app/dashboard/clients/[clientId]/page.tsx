@@ -1,68 +1,56 @@
-import { db, clients, quotes } from '@quote-engine/db';
-import { eq, and, isNull, desc, sql } from 'drizzle-orm';
-import { requireAuth } from '@/lib/auth';
-import { notFound } from 'next/navigation';
-import ClientDetailClient from '@/components/dashboard/ClientDetailClient';
-import type { TenantConfig } from '@quote-engine/db';
+'use client'
 
-export const dynamic = 'force-dynamic';
+import { useState, useEffect, useCallback } from 'react'
+import { useParams } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
+import ClientDetailClient from '@/components/dashboard/ClientDetailClient'
 
-// ============================================================
-// Client detail page — server component.
-// Resolves the client via requireAuth() tenant scoping and joins
-// related quotes by normalized phone (there is no quotes.clientId
-// FK; clients.phone is stored digits-only, quotes.clientPhone is
-// raw portal input, so we regexp_replace at query time).
-// ============================================================
+export default function ClientDetailPage() {
+  const params = useParams()
+  const clientId = params.clientId as string
 
-export default async function ClientDetailPage({
-  params,
-}: {
-  params: { clientId: string };
-}) {
-  const { tenant } = await requireAuth();
+  const [data, setData] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const [client] = await db
-    .select()
-    .from(clients)
-    .where(and(
-      eq(clients.id, params.clientId),
-      eq(clients.tenantId, tenant.id),
-      isNull(clients.deletedAt),
-    ))
-    .limit(1);
+  const fetchClient = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/dashboard/clients/${clientId}`)
+      if (res.status === 404) throw new Error('Cliente no encontrado')
+      if (!res.ok) throw new Error('Error al cargar cliente')
+      const json = await res.json()
+      setData(json)
+    } catch (err: any) {
+      setError(err?.message || 'Error al cargar cliente')
+    }
+    setLoading(false)
+  }, [clientId])
 
-  if (!client) notFound();
+  useEffect(() => { fetchClient() }, [fetchClient])
 
-  const relatedQuotes = client.phone
-    ? await db
-        .select({
-          id: quotes.id,
-          quoteNumber: quotes.quoteNumber,
-          tenantSeq: quotes.tenantSeq,
-          status: quotes.status,
-          total: quotes.total,
-          createdAt: quotes.createdAt,
-        })
-        .from(quotes)
-        .where(and(
-          eq(quotes.tenantId, tenant.id),
-          sql`regexp_replace(${quotes.clientPhone}, '\D', '', 'g') = ${client.phone}`,
-        ))
-        .orderBy(desc(quotes.createdAt))
-        .limit(50)
-    : [];
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+      </div>
+    )
+  }
 
-  const config = tenant.config as TenantConfig;
-  const folioPrefix = config?.quote_settings?.auto_number_prefix?.trim() || 'COT';
+  if (error || !data) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <p className="text-sm text-red-600">{error || 'Cliente no encontrado'}</p>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <ClientDetailClient
-        client={client}
-        quotes={relatedQuotes}
-        folioPrefix={folioPrefix}
+        client={data.client}
+        quotes={data.quotes}
+        folioPrefix={data.folioPrefix}
       />
     </div>
-  );
+  )
 }
