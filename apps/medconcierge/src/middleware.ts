@@ -13,6 +13,8 @@ export async function middleware(request: NextRequest) {
   const host = request.headers.get('host') ?? ''
   const { pathname } = request.nextUrl
   const url = request.nextUrl.clone()
+  // Public-facing origin for redirects (always https in prod, http in dev)
+  const realOrigin = host.includes('localhost') ? `http://${host}` : `https://${host || 'auctorum.com.mx'}`
 
   // Skip static/public routes
   if (
@@ -71,7 +73,7 @@ export async function middleware(request: NextRequest) {
 
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url))
+      return NextResponse.redirect(new URL('/login', realOrigin))
     }
 
     if (slug) response.headers.set('x-tenant-slug', slug)
@@ -80,7 +82,7 @@ export async function middleware(request: NextRequest) {
 
   // Redirect /dashboard to /agenda (med app uses route group, not /dashboard prefix)
   if (pathname === '/dashboard' || pathname === '/dashboard/') {
-    return NextResponse.redirect(new URL('/agenda', request.url))
+    return NextResponse.redirect(new URL('/agenda', realOrigin))
   }
 
   // API routes — pass tenant header through

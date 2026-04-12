@@ -8,6 +8,9 @@ const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'auctorum.com.mx';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = request.headers.get('host') || '';
+  // Public-facing origin for redirects (always https in prod)
+  const realOrigin = hostname.includes('localhost') ? `http://${hostname}` : `https://${hostname || 'auctorum.com.mx'}`;
 
   // Skip static routes
   if (STATIC_ROUTES.some(route => pathname.startsWith(route))) {
@@ -21,13 +24,12 @@ export async function middleware(request: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession()
 
     if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url))
+      return NextResponse.redirect(new URL('/login', realOrigin))
     }
 
     return response
   }
 
-  const hostname = request.headers.get('host') || '';
   const url = request.nextUrl.clone();
 
   // Extract subdomain: toolroom.auctorum.com.mx → toolroom

@@ -54,7 +54,9 @@ export async function POST(request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://auctorum.com.mx'}/api/auth/callback`;
+    const reqHost = request.headers.get('host') || 'auctorum.com.mx';
+    const origin = reqHost.includes('localhost') ? `http://${reqHost}` : `https://${reqHost}`;
+    const redirectTo = `${origin}/api/auth/callback`;
 
     const { error } = await supabase.auth.signInWithOtp({
       email,
