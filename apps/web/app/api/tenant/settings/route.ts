@@ -45,13 +45,17 @@ const updateSettingsSchema = z.object({
 export async function GET(request: NextRequest) {
   try {
     const auth = await getAuthTenant();
+    if (!auth) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     const slug = searchParams.get('slug');
 
     if (!slug) {
       return NextResponse.json({ error: 'Parametro slug requerido' }, { status: 400 });
     }
-    if (auth && slug !== auth.tenant.slug) {
+    if (slug !== auth.tenant.slug) {
       return NextResponse.json({ error: 'No autorizado para este tenant' }, { status: 403 });
     }
 

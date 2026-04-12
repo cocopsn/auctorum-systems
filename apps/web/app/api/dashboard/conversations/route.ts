@@ -36,10 +36,11 @@ export async function GET() {
     const convIds = rows.map(r => r.id)
     let lastMessages: Record<string, string> = {}
     if (convIds.length > 0) {
+      const inList = sql.join(convIds.map(id => sql`${id}`), sql`,`)
       const msgRows: any[] = await db.execute(sql`
         SELECT DISTINCT ON (conversation_id) conversation_id, content
         FROM messages
-        WHERE conversation_id = ANY(${convIds})
+        WHERE conversation_id IN (${inList})
         ORDER BY conversation_id, created_at DESC
       `)
       for (const row of msgRows) {

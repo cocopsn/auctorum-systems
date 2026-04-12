@@ -37,22 +37,27 @@ export async function POST(request: NextRequest) {
     const { token, eventType, quoteId: bodyQuoteId, metadata = {} } = parsed.data;
 
     // Resolve quote — use provided quoteId if available, else look up by token
-    let quoteRecord: { id: string; tenantId: string; status: string | null } | null = null;
+    let quoteRecord: { id: string; tenantId: string; status: string | null; trackingToken: string | null } | null = null;
 
     if (bodyQuoteId) {
       const [q] = await db
-        .select({ id: quotes.id, tenantId: quotes.tenantId, status: quotes.status })
+        .select({ id: quotes.id, tenantId: quotes.tenantId, status: quotes.status, trackingToken: quotes.trackingToken })
         .from(quotes)
         .where(eq(quotes.id, bodyQuoteId))
         .limit(1);
       quoteRecord = q ?? null;
     } else {
       const [q] = await db
-        .select({ id: quotes.id, tenantId: quotes.tenantId, status: quotes.status })
+        .select({ id: quotes.id, tenantId: quotes.tenantId, status: quotes.status, trackingToken: quotes.trackingToken })
         .from(quotes)
         .where(eq(quotes.trackingToken, token))
         .limit(1);
       quoteRecord = q ?? null;
+    }
+
+    // Security: verify the provided token matches the quote's tracking token
+    if (quoteRecord && quoteRecord.trackingToken !== token) {
+      return NextResponse.json({ error: 'Token invalido' }, { status: 403 });
     }
 
     if (!quoteRecord) {

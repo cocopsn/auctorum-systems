@@ -9,7 +9,8 @@ type RouteContext = { params: { quoteId: string } };
 
 function verifyPdfSignature(quoteId: string, sig: string | null): boolean {
   if (!sig) return false;
-  const secret = process.env.PDF_SIGNING_SECRET || 'auctorum-pdf-secret';
+  const secret = process.env.PDF_SIGNING_SECRET;
+  if (!secret) return false;
   const dayKey = Math.floor(Date.now() / 86400000).toString();
   const expected = crypto.createHmac('sha256', secret).update(quoteId + ':' + dayKey).digest('hex').substring(0, 16);
   // Also check yesterday's key for timezone edge cases
@@ -19,7 +20,8 @@ function verifyPdfSignature(quoteId: string, sig: string | null): boolean {
 }
 
 function generatePdfSignature(quoteId: string): string {
-  const secret = process.env.PDF_SIGNING_SECRET || 'auctorum-pdf-secret';
+  const secret = process.env.PDF_SIGNING_SECRET;
+  if (!secret) throw new Error('PDF_SIGNING_SECRET not configured');
   const dayKey = Math.floor(Date.now() / 86400000).toString();
   return crypto.createHmac('sha256', secret).update(quoteId + ':' + dayKey).digest('hex').substring(0, 16);
 }

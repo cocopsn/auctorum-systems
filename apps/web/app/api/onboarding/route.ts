@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, onboardingProgress, tenants } from '@quote-engine/db'
 import { eq } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
@@ -51,7 +52,16 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { stepKey, completed, skipAll } = body
+    const patchSchema = z.object({
+      stepKey: z.string().min(1).max(100).optional(),
+      completed: z.boolean().optional(),
+      skipAll: z.boolean().optional(),
+    }).strict()
+    const parsed = patchSchema.safeParse(body)
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
+    }
+    const { stepKey, completed, skipAll } = parsed.data
 
     const [existing] = await db
       .select()
