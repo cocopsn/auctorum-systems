@@ -18,12 +18,13 @@ export async function GET(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
       {
         cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: any) {
-            response.cookies.set({ name, value, ...withAuthCookieDomain(options ?? {}, host) })
+          getAll() {
+            return request.cookies.getAll()
           },
-          remove(name: string, options: any) {
-            response.cookies.set({ name, value: '', ...withAuthCookieDomain(options ?? {}, host) })
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set({ name, value, ...withAuthCookieDomain(options ?? {}, host) })
+            })
           },
         },
       }
@@ -160,12 +161,13 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
       {
         cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set(name: string, value: string, options: any) {
-            response.cookies.set({ name, value, ...withAuthCookieDomain(options ?? {}, host) })
+          getAll() {
+            return request.cookies.getAll()
           },
-          remove(name: string, options: any) {
-            response.cookies.set({ name, value: '', ...withAuthCookieDomain(options ?? {}, host) })
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set({ name, value, ...withAuthCookieDomain(options ?? {}, host) })
+            })
           },
         },
       }
