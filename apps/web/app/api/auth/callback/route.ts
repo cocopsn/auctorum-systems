@@ -40,10 +40,8 @@ export async function GET(request: NextRequest) {
 
   // -- Implicit path: tokens in hash fragment (#access_token=...) --
   // Hash is invisible to the server, so we serve a client-side page
-  // that reads the fragment, calls supabase.auth.setSession(), then redirects.
-  const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL  || ''
-  const supabaseAnon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-
+  // that reads the fragment, POSTs the tokens back to this route (POST handler),
+  // which sets proper cookies via @supabase/ssr, then redirects to /dashboard.
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -67,7 +65,6 @@ export async function GET(request: NextRequest) {
     <p id="msg">Verificando sesion...</p>
     <p class="error" id="err" style="display:none"></p>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script>
     (async function(){
       var msgEl = document.getElementById('msg');
@@ -110,14 +107,16 @@ export async function GET(request: NextRequest) {
 
         msgEl.textContent='Estableciendo sesion...';
 
-        var sb = window.supabase.createClient(
-          '${supabaseUrl}',
-          '${supabaseAnon}'
-        );
+        // POST tokens to the server so @supabase/ssr sets proper cookies
+        var resp = await fetch('/api/auth/callback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ access_token: access_token, refresh_token: refresh_token })
+        });
 
-        var res = await sb.auth.setSession({access_token:access_token, refresh_token:refresh_token});
-        if(res.error){
-          fail(res.error.message);
+        if(!resp.ok){
+          var data = await resp.json().catch(function(){ return {}; });
+          fail(data.error || 'Error al establecer la sesion (HTTP ' + resp.status + ')');
           return;
         }
 
@@ -135,4 +134,56 @@ export async function GET(request: NextRequest) {
     status: 200,
     headers: { 'Content-Type': 'text/html; charset=utf-8' },
   })
+}
+
+/**
+ * POST handler: receives access_token + refresh_token from the implicit flow
+ * client-side page, calls supabase.auth.setSession() through @supabase/ssr
+ * which sets the session cookies in the response. The browser stores these
+ * cookies, so subsequent requests (e.g. to /dashboard) carry them and the
+ * middleware can verify the session server-side.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { access_token, refresh_token } = body
+
+    if (!access_token || !refresh_token) {
+      return NextResponse.json({ error: 'Missing tokens' }, { status: 400 })
+    }
+
+    const host = request.headers.get('host') || 'auctorum.com.mx'
+    const response = NextResponse.json({ ok: true })
+
+    const supabase = createSSRClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || '',
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
+      {
+        cookies: {
+          get(name: string) { return request.cookies.get(name)?.value },
+          set(name: string, value: string, options: any) {
+            response.cookies.set({ name, value, ...withAuthCookieDomain(options ?? {}, host) })
+          },
+          remove(name: string, options: any) {
+            response.cookies.set({ name, value: '', ...withAuthCookieDomain(options ?? {}, host) })
+          },
+        },
+      }
+    )
+
+    const { error } = await supabase.auth.setSession({
+      access_token,
+      refresh_token,
+    })
+
+    if (error) {
+      console.error('Auth callback error (implicit):', error.message)
+      return NextResponse.json({ error: error.message }, { status: 401 })
+    }
+
+    return response
+  } catch (e) {
+    console.error('Auth callback POST error:', e)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }
