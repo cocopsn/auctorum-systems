@@ -17,6 +17,7 @@ export const appointments = pgTable('appointments', {
   consultationFee: decimal('consultation_fee', { precision: 10, scale: 2 }),
   paymentStatus: varchar('payment_status', { length: 20 }).default('pending'),
   paymentMethod: varchar('payment_method', { length: 30 }),
+  googleEventId: varchar('google_event_id', { length: 255 }),
   reminder24hSent: boolean('reminder_24h_sent').default(false),
   reminder24hSentAt: timestamp('reminder_24h_sent_at', { withTimezone: true }),
   reminder2hSent: boolean('reminder_2h_sent').default(false),

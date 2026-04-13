@@ -9,7 +9,8 @@ import {
 } from '@quote-engine/db';
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
-const DEFAULT_MODEL = 'gpt-5-mini';
+const DEFAULT_MODEL = 'gpt-4o-mini';
+const WHATSAPP_TIMEOUT_MS = 15_000;
 const ALLOWED_KNOWLEDGE_TYPES = new Set([
   'application/pdf',
   'text/plain',
@@ -29,6 +30,9 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   model: DEFAULT_MODEL,
   vectorStoreId: null,
 };
+
+const FALLBACK_ERROR_MESSAGE =
+  'Disculpe, estoy teniendo dificultades tecnicas. Por favor intente de nuevo en unos minutos, o llame directamente al +52 844 664 4307.';
 
 function getOpenAIKey() {
   const key = process.env.OPENAI_API_KEY;
@@ -58,6 +62,20 @@ async function openaiFetch<T>(path: string, init: RequestInit = {}): Promise<T> 
   }
 
   return response.json() as Promise<T>;
+}
+
+async function openaiFetchWithTimeout<T>(
+  path: string,
+  init: RequestInit = {},
+  timeoutMs: number = WHATSAPP_TIMEOUT_MS,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await openaiFetch<T>(path, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export function getAiSettings(tenant: Tenant): AiSettings {
@@ -237,6 +255,7 @@ type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 /**
  * Run an AI reply for an incoming WhatsApp message.
  * Uses Chat Completions API with conversation history for multi-turn context.
+ * Includes a 15-second timeout and graceful error handling.
  */
 export async function runWhatsAppReply({
   tenant,
@@ -270,36 +289,62 @@ export async function runWhatsAppReply({
 
   chatMessages.push({ role: 'user', content: incomingMessage });
 
-  const response = await openaiFetch<{
-    choices?: Array<{ message?: { content?: string } }>;
-    usage?: { prompt_tokens?: number; completion_tokens?: number };
-  }>('/chat/completions', {
-    method: 'POST',
-    body: JSON.stringify({
+  try {
+    const response = await openaiFetchWithTimeout<{
+      choices?: Array<{ message?: { content?: string } }>;
+      usage?: { prompt_tokens?: number; completion_tokens?: number };
+    }>('/chat/completions', {
+      method: 'POST',
+      body: JSON.stringify({
+        model,
+        messages: chatMessages,
+        max_tokens: 300,
+        temperature: 0.7,
+      }),
+    }, WHATSAPP_TIMEOUT_MS);
+
+    const answer = response.choices?.[0]?.message?.content?.trim()
+      || 'No pude generar una respuesta en este momento.';
+    const latencyMs = Date.now() - startedAt;
+    const inputTokens = response.usage?.prompt_tokens ?? null;
+    const outputTokens = response.usage?.completion_tokens ?? null;
+
+    await db.insert(aiUsageEvents).values({
+      tenantId: tenant.id,
+      channel: 'whatsapp',
+      prompt: incomingMessage,
+      responseSummary: answer.slice(0, 1000),
       model,
-      messages: chatMessages,
-      max_tokens: 300,
-      temperature: 0.7,
-    }),
-  });
+      inputTokens,
+      outputTokens,
+      latencyMs,
+      resolved: true,
+    }).catch((e) => console.error('[ai] failed to log usage event:', e));
 
-  const answer = response.choices?.[0]?.message?.content?.trim()
-    || 'No pude generar una respuesta en este momento.';
-  const latencyMs = Date.now() - startedAt;
-  const inputTokens = response.usage?.prompt_tokens ?? null;
-  const outputTokens = response.usage?.completion_tokens ?? null;
+    return { answer, model, latencyMs, inputTokens, outputTokens };
+  } catch (error: any) {
+    const latencyMs = Date.now() - startedAt;
+    const isTimeout = error?.name === 'AbortError';
 
-  await db.insert(aiUsageEvents).values({
-    tenantId: tenant.id,
-    channel: 'whatsapp',
-    prompt: incomingMessage,
-    responseSummary: answer.slice(0, 1000),
-    model,
-    inputTokens,
-    outputTokens,
-    latencyMs,
-    resolved: true,
-  });
+    console.error(`[ai whatsapp] ${isTimeout ? 'TIMEOUT' : 'ERROR'} after ${latencyMs}ms:`, error?.message || error);
 
-  return { answer, model, latencyMs, inputTokens, outputTokens };
+    // Log the failed attempt
+    await db.insert(aiUsageEvents).values({
+      tenantId: tenant.id,
+      channel: 'whatsapp',
+      prompt: incomingMessage,
+      responseSummary: `ERROR: ${isTimeout ? 'timeout' : error?.message?.slice(0, 200) || 'unknown'}`,
+      model,
+      latencyMs,
+      resolved: false,
+    }).catch((e) => console.error('[ai] failed to log error event:', e));
+
+    return {
+      answer: FALLBACK_ERROR_MESSAGE,
+      model,
+      latencyMs,
+      inputTokens: null,
+      outputTokens: null,
+    };
+  }
 }

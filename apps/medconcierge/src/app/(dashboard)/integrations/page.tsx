@@ -15,6 +15,8 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  AlertTriangle,
+  Shield,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -38,7 +40,14 @@ interface IntegrationCardDef {
   description: string;
   icon: React.ReactNode;
   hasConfig?: boolean;
+  hasCustomConfig?: boolean;
   alwaysConnected?: boolean;
+}
+
+interface GCalStatus {
+  configured: boolean;
+  calendarId: string | null;
+  autoSync: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -49,8 +58,9 @@ const INTEGRATION_CARDS: IntegrationCardDef[] = [
   {
     type: 'google_calendar',
     label: 'Google Calendar',
-    description: 'Sincroniza citas con Google Calendar',
+    description: 'Sincroniza citas con Google Calendar automaticamente',
     icon: <Calendar className="h-6 w-6 text-indigo-600" />,
+    hasCustomConfig: true,
   },
   {
     type: 'external_db',
@@ -79,6 +89,219 @@ const INTEGRATION_CARDS: IntegrationCardDef[] = [
     icon: <FileText className="h-6 w-6 text-indigo-600" />,
   },
 ];
+
+// ---------------------------------------------------------------------------
+// Google Calendar Config Form
+// ---------------------------------------------------------------------------
+
+function GoogleCalendarConfig({
+  gcalStatus,
+  onRefresh,
+}: {
+  gcalStatus: GCalStatus;
+  onRefresh: () => void;
+}) {
+  const [calendarId, setCalendarId] = useState('');
+  const [serviceAccountEmail, setServiceAccountEmail] = useState('');
+  const [serviceAccountPrivateKey, setServiceAccountPrivateKey] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showInstructions, setShowInstructions] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/dashboard/integrations/google-calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          calendarId,
+          serviceAccountEmail,
+          serviceAccountPrivateKey,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage({ type: 'success', text: data.message || 'Conexion exitosa' });
+        setCalendarId('');
+        setServiceAccountEmail('');
+        setServiceAccountPrivateKey('');
+        onRefresh();
+      } else {
+        setMessage({ type: 'error', text: data.error || 'Error al conectar' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Error de red' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    if (!confirm('Desconectar Google Calendar? Las citas existentes no se eliminaran.')) return;
+    setDisconnecting(true);
+    try {
+      await fetch('/api/dashboard/integrations/google-calendar', { method: 'DELETE' });
+      setMessage({ type: 'success', text: 'Google Calendar desconectado' });
+      onRefresh();
+    } catch {
+      setMessage({ type: 'error', text: 'Error al desconectar' });
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
+  const handleTest = async () => {
+    setTesting(true);
+    setMessage(null);
+    try {
+      const res = await fetch('/api/dashboard/integrations/google-calendar');
+      const data = await res.json();
+      if (data.configured) {
+        setMessage({ type: 'success', text: `Conexion activa. Calendar: ${data.calendarId}` });
+      } else {
+        setMessage({ type: 'error', text: 'No configurado' });
+      }
+    } catch {
+      setMessage({ type: 'error', text: 'Error de red' });
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  if (gcalStatus.configured) {
+    return (
+      <div className="mt-4 space-y-3">
+        <div className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">
+          <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+          <span>Conectado a: <strong>{gcalStatus.calendarId}</strong></span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleTest}
+            disabled={testing}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors disabled:opacity-50"
+          >
+            {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+            Probar conexion
+          </button>
+          <button
+            onClick={handleDisconnect}
+            disabled={disconnecting}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+          >
+            {disconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Desconectar'}
+          </button>
+        </div>
+        {gcalStatus.autoSync && (
+          <p className="text-xs text-gray-500 flex items-center gap-1">
+            <CheckCircle2 className="h-3 w-3 text-green-500" />
+            Sincronizacion automatica activada
+          </p>
+        )}
+        {message && (
+          <div className={`rounded-lg px-4 py-2 text-sm ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+            {message.text}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 space-y-4">
+      <button
+        onClick={() => setShowInstructions(!showInstructions)}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+      >
+        <Shield className="h-4 w-4" />
+        {showInstructions ? 'Ocultar instrucciones' : 'Ver instrucciones de configuracion'}
+        {showInstructions ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+
+      {showInstructions && (
+        <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800 space-y-2">
+          <p className="font-semibold">Pasos para configurar Google Calendar:</p>
+          <ol className="list-decimal list-inside space-y-1 text-xs">
+            <li>Ve a <strong>Google Cloud Console</strong> (console.cloud.google.com)</li>
+            <li>Crea un proyecto o selecciona uno existente</li>
+            <li>Habilita la <strong>Google Calendar API</strong></li>
+            <li>Ve a IAM &amp; Admin &rarr; Service Accounts &rarr; Crear Service Account</li>
+            <li>Genera una key JSON para el Service Account</li>
+            <li>Ve a <strong>Google Calendar</strong> &rarr; Settings &rarr; Share with people</li>
+            <li>Agrega el email del Service Account con permisos de &quot;Make changes to events&quot;</li>
+            <li>Pega las credenciales abajo</li>
+          </ol>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Calendar ID (email del calendario)
+          </label>
+          <input
+            type="email"
+            value={calendarId}
+            onChange={(e) => setCalendarId(e.target.value)}
+            placeholder="tucorreo@gmail.com"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Service Account Email
+          </label>
+          <input
+            type="email"
+            value={serviceAccountEmail}
+            onChange={(e) => setServiceAccountEmail(e.target.value)}
+            placeholder="mi-servicio@proyecto.iam.gserviceaccount.com"
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Service Account Private Key
+          </label>
+          <textarea
+            value={serviceAccountPrivateKey}
+            onChange={(e) => setServiceAccountPrivateKey(e.target.value)}
+            placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
+            rows={4}
+            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none resize-none"
+          />
+          <p className="mt-1 text-xs text-gray-400">
+            Pega el contenido del campo &quot;private_key&quot; del archivo JSON descargado
+          </p>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={saving || !calendarId || !serviceAccountEmail || !serviceAccountPrivateKey}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
+        >
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+          Guardar y probar conexion
+        </button>
+      </div>
+
+      {message && (
+        <div className={`rounded-lg px-4 py-2 text-sm flex items-center gap-2 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          {message.type === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+          {message.text}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // DB Config form (for external_db card)
@@ -113,7 +336,6 @@ function DbConfigForm({
   const [testSuccess, setTestSuccess] = useState(false);
 
   const handleTest = () => {
-    // MVP: just show a success toast
     setTestSuccess(true);
     setTimeout(() => setTestSuccess(false), 3000);
   };
@@ -268,21 +490,27 @@ function StatusBadge({ connected }: { connected: boolean }) {
 function IntegrationCard({
   def,
   integration,
+  gcalStatus,
   onConnect,
   onDisconnect,
   onSync,
+  onRefreshGcal,
   loading,
 }: {
   def: IntegrationCardDef;
   integration: Integration | null;
+  gcalStatus: GCalStatus;
   onConnect: (type: string, config?: Record<string, unknown>) => void;
   onDisconnect: (type: string) => void;
   onSync: (type: string) => void;
+  onRefreshGcal: () => void;
   loading: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const isGcal = def.type === 'google_calendar';
   const connected =
-    def.alwaysConnected || integration?.status === 'connected';
+    def.alwaysConnected ||
+    (isGcal ? gcalStatus.configured : integration?.status === 'connected');
 
   const handleDbConnect = (dbConfig: DbConfig) => {
     onConnect(def.type, dbConfig as unknown as Record<string, unknown>);
@@ -306,8 +534,13 @@ function IntegrationCard({
         <StatusBadge connected={connected} />
       </div>
 
-      {/* Connected state */}
-      {connected && !def.alwaysConnected && (
+      {/* Google Calendar custom config */}
+      {isGcal && (
+        <GoogleCalendarConfig gcalStatus={gcalStatus} onRefresh={onRefreshGcal} />
+      )}
+
+      {/* Connected state (non-gcal) */}
+      {connected && !def.alwaysConnected && !isGcal && (
         <div className="mt-4 space-y-3">
           {integration?.last_sync_at && (
             <p className="text-xs text-gray-500">
@@ -348,41 +581,20 @@ function IntegrationCard({
         </div>
       )}
 
-      {/* Disconnected state — simple cards */}
-      {!connected && !def.hasConfig && (
+      {/* Disconnected state — simple cards (non-gcal, non-db) */}
+      {!connected && !def.hasConfig && !isGcal && (
         <div className="mt-4">
-          {def.type === 'google_calendar' ? (
-            <div className="space-y-3">
-              <p className="text-xs text-gray-500">
-                Para conectar Google Calendar, configura las credenciales OAuth
-                en la consola de Google Cloud y agrega el redirect URI de tu
-                cuenta.
-              </p>
-              <button
-                onClick={() => onConnect(def.type)}
-                disabled={loading}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
-              >
-                {loading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  'Conectar'
-                )}
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => onConnect(def.type)}
-              disabled={loading}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                'Conectar'
-              )}
-            </button>
-          )}
+          <button
+            onClick={() => onConnect(def.type)}
+            disabled={loading}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
+          >
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              'Conectar'
+            )}
+          </button>
         </div>
       )}
 
@@ -417,6 +629,11 @@ export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [gcalStatus, setGcalStatus] = useState<GCalStatus>({
+    configured: false,
+    calendarId: null,
+    autoSync: false,
+  });
 
   const fetchIntegrations = useCallback(async () => {
     try {
@@ -432,9 +649,22 @@ export default function IntegrationsPage() {
     }
   }, []);
 
+  const fetchGcalStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard/integrations/google-calendar');
+      if (res.ok) {
+        const data = await res.json();
+        setGcalStatus(data);
+      }
+    } catch (err) {
+      console.error('Error fetching gcal status:', err);
+    }
+  }, []);
+
   useEffect(() => {
     fetchIntegrations();
-  }, [fetchIntegrations]);
+    fetchGcalStatus();
+  }, [fetchIntegrations, fetchGcalStatus]);
 
   const getIntegration = (type: string): Integration | null =>
     integrations.find((i) => i.type === type) ?? null;
@@ -517,9 +747,11 @@ export default function IntegrationsPage() {
               key={def.type}
               def={def}
               integration={getIntegration(def.type)}
+              gcalStatus={gcalStatus}
               onConnect={handleConnect}
               onDisconnect={handleDisconnect}
               onSync={handleSync}
+              onRefreshGcal={fetchGcalStatus}
               loading={actionLoading === def.type}
             />
           ))}

@@ -16,6 +16,11 @@ import {
 import { getAiSettings, runWhatsAppReply } from '@quote-engine/ai'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { notifyAppointmentCancelled } from '@/lib/notifications'
+import {
+  isGoogleCalendarConfigured,
+  createCalendarEvent,
+  cancelCalendarEvent,
+} from '@/lib/google-calendar'
 import crypto from 'crypto'
 
 // --------------- HMAC Signature Verification ---------------
@@ -215,6 +220,66 @@ async function loadHistory(conversationId: string, limit = 10) {
   return rows.reverse()
 }
 
+// --------------- Google Calendar sync helper ---------------
+async function syncAppointmentToCalendar(
+  appt: { id: string; date: string; startTime: string; endTime: string; reason: string | null },
+  patientName: string,
+  tenantConfig: Record<string, any>,
+) {
+  if (!isGoogleCalendarConfigured(tenantConfig)) return
+
+  const autoSync = tenantConfig?.googleCalendar?.autoSync !== false
+  if (!autoSync) return
+
+  try {
+    const startDateTime = `${appt.date}T${appt.startTime}`
+    const endDateTime = `${appt.date}T${appt.endTime}`
+
+    const eventId = await createCalendarEvent(
+      {
+        summary: `Cita Dermatologia - ${patientName}`,
+        description: appt.reason || 'Consulta general',
+        startDateTime,
+        endDateTime,
+        location: 'Saltillo, Coahuila',
+        reminderMinutes: 60,
+      },
+      tenantConfig,
+    )
+
+    if (eventId) {
+      // Save google_event_id to the appointment
+      await db.execute(
+        sql`UPDATE appointments SET google_event_id = ${eventId} WHERE id = ${appt.id}`,
+      )
+      console.log('[webhook] appointment synced to Google Calendar:', eventId)
+    }
+  } catch (e) {
+    console.error('[webhook] Google Calendar sync failed (non-blocking):', e)
+  }
+}
+
+async function removeAppointmentFromCalendar(
+  appointmentId: string,
+  tenantConfig: Record<string, any>,
+) {
+  if (!isGoogleCalendarConfigured(tenantConfig)) return
+
+  try {
+    const [row] = await db.execute(
+      sql`SELECT google_event_id FROM appointments WHERE id = ${appointmentId}`,
+    ) as any[]
+
+    const googleEventId = row?.google_event_id
+    if (!googleEventId) return
+
+    await cancelCalendarEvent(googleEventId, tenantConfig)
+    console.log('[webhook] appointment removed from Google Calendar:', googleEventId)
+  } catch (e) {
+    console.error('[webhook] Google Calendar removal failed (non-blocking):', e)
+  }
+}
+
 // --------------- Main processing ---------------
 async function processInBackground(body: WebhookPayload) {
   const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
@@ -259,6 +324,14 @@ async function handleAppointmentKeyword(from: string, normalized: string, text: 
 
   if (!matchedPatient) return false
 
+  // Load tenant config for Google Calendar
+  const [tenant] = await db
+    .select()
+    .from(tenants)
+    .where(eq(tenants.id, matchedPatient.tenantId))
+    .limit(1)
+  const tenantConfig = (tenant?.config as Record<string, any>) || {}
+
   const [row] = await db
     .select({ appt: appointments, patient: patients })
     .from(appointments)
@@ -289,6 +362,11 @@ async function handleAppointmentKeyword(from: string, normalized: string, text: 
       metadata: { source: 'whatsapp_inbound', text },
     })
 
+    // Sync to Google Calendar
+    syncAppointmentToCalendar(row.appt, row.patient.name, tenantConfig).catch((e) =>
+      console.error('[webhook] gcal sync error:', e),
+    )
+
     await sendWhatsAppMessage(from, 'Gracias, su cita queda confirmada.')
     return true
   }
@@ -306,11 +384,16 @@ async function handleAppointmentKeyword(from: string, normalized: string, text: 
       metadata: { source: 'whatsapp_inbound', text },
     })
 
+    // Remove from Google Calendar
+    removeAppointmentFromCalendar(row.appt.id, tenantConfig).catch((e) =>
+      console.error('[webhook] gcal removal error:', e),
+    )
+
     notifyAppointmentCancelled(
       row.appt,
       row.patient,
       row.appt.tenantId,
-      'Cancelada por el paciente vía WhatsApp',
+      'Cancelada por el paciente via WhatsApp',
     ).catch((e) => console.error('[webhook cancel] notify failed', e))
     return true
   }

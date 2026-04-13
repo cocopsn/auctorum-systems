@@ -10,13 +10,14 @@
     "db:seed": "npx tsx src/lib/db/seed.ts"
   },
   "dependencies": {
-    "@quote-engine/db": "workspace:*",
     "@quote-engine/ai": "workspace:*",
+    "@quote-engine/db": "workspace:*",
     "@quote-engine/ui": "workspace:*",
     "@react-email/components": "^0.0.19",
     "@supabase/ssr": "^0.3.0",
     "@supabase/supabase-js": "^2.43.0",
     "drizzle-orm": "^0.45.2",
+    "googleapis": "^171.4.0",
     "lucide-react": "^0.383.0",
     "next": "^14.2.0",
     "node-cron": "^3.0.0",
