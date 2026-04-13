@@ -1,8 +1,19 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, and, gte, asc, sql } from 'drizzle-orm'
-import { db, appointments, patients, appointmentEvents } from '@quote-engine/db'
+import { eq, and, gte, asc, desc, sql, isNull } from 'drizzle-orm'
+import {
+  db,
+  appointments,
+  patients,
+  appointmentEvents,
+  conversations,
+  messages,
+  clients,
+  tenants,
+  type Tenant,
+} from '@quote-engine/db'
+import { getAiSettings, runWhatsAppReply } from '@quote-engine/ai'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { notifyAppointmentCancelled } from '@/lib/notifications'
 import crypto from 'crypto'
@@ -42,7 +53,6 @@ export async function GET(req: NextRequest) {
 // POST: incoming messages
 export async function POST(req: NextRequest) {
   try {
-    // Read raw body first for HMAC verification, then parse JSON
     const rawBody = await req.text()
     const signature = req.headers.get('x-hub-signature-256')
 
@@ -74,6 +84,7 @@ type WebhookPayload = {
       value?: {
         messages?: Array<{
           from?: string
+          id?: string
           type?: string
           text?: { body?: string }
         }>
@@ -82,24 +93,14 @@ type WebhookPayload = {
   }>
 }
 
-async function processInBackground(body: WebhookPayload) {
-  const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
-  if (!message || message.type !== 'text') return
+// --------------- Normalize phone helper ---------------
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, '').replace(/^52/, '')
+}
 
-  const from = message.from ?? ''
-  const text = (message.text?.body ?? '').trim().toUpperCase()
-  if (!from || !text) return
-
-  // Normalize: strip non-digits, drop leading 52 (MX country code).
-  // Same technique as apps/web webhook.
-  const normalized = from.replace(/\D/g, '').replace(/^52/, '')
-  if (!normalized) return
-
-  // FIX 2.3: Resolve tenant_id from the patient first, then filter
-  // appointments by tenant_id to prevent cross-tenant data leakage.
-  const today = new Date().toISOString().split('T')[0]
-
-  // First find the patient by phone
+// --------------- Resolve tenant from patient or fallback ---------------
+async function resolveTenant(normalized: string): Promise<{ tenant: Tenant; patientId: string | null; tenantId: string } | null> {
+  // Try to find a patient by phone number
   const [matchedPatient] = await db
     .select({ id: patients.id, tenantId: patients.tenantId })
     .from(patients)
@@ -108,12 +109,156 @@ async function processInBackground(body: WebhookPayload) {
     )
     .limit(1)
 
-  if (!matchedPatient) {
-    return
+  let tenantId: string
+  let patientId: string | null = null
+
+  if (matchedPatient) {
+    tenantId = matchedPatient.tenantId
+    patientId = matchedPatient.id
+  } else {
+    // No patient found — find the first active tenant with medical config
+    const [medTenant] = await db
+      .select({ id: tenants.id })
+      .from(tenants)
+      .where(
+        and(
+          eq(tenants.isActive, true),
+          isNull(tenants.deletedAt),
+          sql`(${tenants.config}::jsonb)->'medical' IS NOT NULL`,
+        ),
+      )
+      .limit(1)
+
+    if (!medTenant) return null
+    tenantId = medTenant.id
   }
 
-  // Now find the soonest upcoming scheduled appointment for this patient,
-  // scoped to their tenant_id (FIX 2.3 \u2014 tenant isolation).
+  const [tenant] = await db
+    .select()
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
+    .limit(1)
+
+  if (!tenant) return null
+  return { tenant, patientId, tenantId }
+}
+
+// --------------- Find or create client + conversation ---------------
+async function getOrCreateConversation(tenantId: string, phone: string, normalized: string) {
+  // Find or create a client record for this phone number
+  let [client] = await db
+    .select()
+    .from(clients)
+    .where(
+      and(
+        eq(clients.tenantId, tenantId),
+        sql`REGEXP_REPLACE(${clients.phone}, '[^0-9]', '', 'g') LIKE ${'%' + normalized}`,
+      ),
+    )
+    .limit(1)
+
+  if (!client) {
+    const [created] = await db
+      .insert(clients)
+      .values({
+        tenantId,
+        name: `WhatsApp ${phone}`,
+        phone,
+        status: 'lead',
+      })
+      .returning()
+    client = created
+  }
+
+  // Find or create an open conversation
+  let [conv] = await db
+    .select()
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.tenantId, tenantId),
+        eq(conversations.clientId, client.id),
+        eq(conversations.channel, 'whatsapp'),
+        eq(conversations.status, 'open'),
+      ),
+    )
+    .orderBy(desc(conversations.createdAt))
+    .limit(1)
+
+  if (!conv) {
+    const [created] = await db
+      .insert(conversations)
+      .values({
+        tenantId,
+        clientId: client.id,
+        channel: 'whatsapp',
+        status: 'open',
+        lastMessageAt: new Date(),
+      })
+      .returning()
+    conv = created
+  }
+
+  return { client, conversation: conv }
+}
+
+// --------------- Load message history ---------------
+async function loadHistory(conversationId: string, limit = 10) {
+  const rows = await db
+    .select({ direction: messages.direction, content: messages.content })
+    .from(messages)
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(desc(messages.createdAt))
+    .limit(limit)
+
+  // Reverse so oldest is first
+  return rows.reverse()
+}
+
+// --------------- Main processing ---------------
+async function processInBackground(body: WebhookPayload) {
+  const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
+  if (!message || message.type !== 'text') return
+
+  const from = message.from ?? ''
+  const originalText = (message.text?.body ?? '').trim()
+  const text = originalText.toUpperCase()
+  if (!from || !text) return
+
+  const normalized = normalizePhone(from)
+  if (!normalized) return
+
+  const externalId = message.id ?? null
+
+  // --- Try appointment keyword handling first ---
+  const appointmentHandled = await handleAppointmentKeyword(from, normalized, text)
+  if (appointmentHandled) return
+
+  // --- AI concierge for all other messages ---
+  await handleAiReply(from, normalized, originalText, externalId)
+}
+
+// --------------- Appointment keyword handler (existing logic) ---------------
+async function handleAppointmentKeyword(from: string, normalized: string, text: string): Promise<boolean> {
+  const CONFIRM_KEYWORDS = ['CONFIRMO', 'CONFIRMAR', 'SI']
+  const CANCEL_KEYWORDS = ['CANCELO', 'CANCELAR', 'NO']
+
+  if (![...CONFIRM_KEYWORDS, ...CANCEL_KEYWORDS].includes(text)) {
+    return false
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const [matchedPatient] = await db
+    .select({ id: patients.id, tenantId: patients.tenantId })
+    .from(patients)
+    .where(
+      sql`REGEXP_REPLACE(${patients.phone}, '[^0-9]', '', 'g') LIKE ${'%' + normalized}`,
+    )
+    .limit(1)
+
+  if (!matchedPatient) return false
+
   const [row] = await db
     .select({ appt: appointments, patient: patients })
     .from(appointments)
@@ -129,17 +274,12 @@ async function processInBackground(body: WebhookPayload) {
     .orderBy(asc(appointments.date), asc(appointments.startTime))
     .limit(1)
 
-  if (!row) {
-    return
-  }
+  if (!row) return false
 
-  if (text === 'CONFIRMO' || text === 'CONFIRMAR' || text === 'SI') {
+  if (CONFIRM_KEYWORDS.includes(text)) {
     await db
       .update(appointments)
-      .set({
-        confirmedByPatient: true,
-        confirmedAt: new Date(),
-      })
+      .set({ confirmedByPatient: true, confirmedAt: new Date() })
       .where(eq(appointments.id, row.appt.id))
 
     await db.insert(appointmentEvents).values({
@@ -150,10 +290,10 @@ async function processInBackground(body: WebhookPayload) {
     })
 
     await sendWhatsAppMessage(from, 'Gracias, su cita queda confirmada.')
-    return
+    return true
   }
 
-  if (text === 'CANCELO' || text === 'CANCELAR' || text === 'NO') {
+  if (CANCEL_KEYWORDS.includes(text)) {
     await db
       .update(appointments)
       .set({ status: 'cancelled', cancelledAt: new Date() })
@@ -170,12 +310,94 @@ async function processInBackground(body: WebhookPayload) {
       row.appt,
       row.patient,
       row.appt.tenantId,
-      'Cancelada por el paciente v\u00eda WhatsApp',
+      'Cancelada por el paciente vía WhatsApp',
     ).catch((e) => console.error('[webhook cancel] notify failed', e))
-    return
+    return true
   }
 
-  // Other text: log only. Meta template restrictions outside the 24h
-  // session window prevent us from sending free-form replies safely.
+  return false
+}
 
+// --------------- AI reply handler ---------------
+async function handleAiReply(from: string, normalized: string, originalText: string, externalId: string | null) {
+  try {
+    // Resolve tenant
+    const resolved = await resolveTenant(normalized)
+    if (!resolved) {
+      console.log('[whatsapp ai] no tenant found for phone', normalized)
+      return
+    }
+
+    const { tenant, tenantId } = resolved
+    const settings = getAiSettings(tenant)
+
+    if (!settings.enabled) {
+      console.log('[whatsapp ai] AI disabled for tenant', tenant.slug)
+      return
+    }
+
+    // Get or create conversation
+    const { conversation } = await getOrCreateConversation(tenantId, from, normalized)
+
+    // Check if bot is paused (human takeover)
+    if (conversation.botPaused) {
+      console.log('[whatsapp ai] bot paused for conversation', conversation.id)
+      // Still save inbound message for the dashboard
+      await db.insert(messages).values({
+        conversationId: conversation.id,
+        direction: 'inbound',
+        senderType: 'client',
+        content: originalText,
+        externalId,
+      })
+      await db
+        .update(conversations)
+        .set({ lastMessageAt: new Date(), unreadCount: sql`${conversations.unreadCount} + 1`, updatedAt: new Date() })
+        .where(eq(conversations.id, conversation.id))
+      return
+    }
+
+    // Save inbound message
+    await db.insert(messages).values({
+      conversationId: conversation.id,
+      direction: 'inbound',
+      senderType: 'client',
+      content: originalText,
+      externalId,
+    })
+
+    // Load conversation history (last 10 messages BEFORE this one)
+    const history = await loadHistory(conversation.id, 10)
+
+    // Call OpenAI
+    console.log('[whatsapp ai] calling OpenAI for', tenant.slug, 'from', normalized)
+    const { answer, model, latencyMs } = await runWhatsAppReply({
+      tenant,
+      messageHistory: history,
+      incomingMessage: originalText,
+    })
+    console.log('[whatsapp ai] OpenAI responded in', latencyMs, 'ms, model:', model)
+
+    // Save outbound message
+    await db.insert(messages).values({
+      conversationId: conversation.id,
+      direction: 'outbound',
+      senderType: 'bot',
+      content: answer,
+    })
+
+    // Update conversation metadata
+    await db
+      .update(conversations)
+      .set({ lastMessageAt: new Date(), updatedAt: new Date() })
+      .where(eq(conversations.id, conversation.id))
+
+    // Send via WhatsApp
+    const sent = await sendWhatsAppMessage(from, answer)
+    if (!sent) {
+      console.error('[whatsapp ai] failed to send WhatsApp message to', from)
+    }
+  } catch (error) {
+    console.error('[whatsapp ai] error:', error)
+  }
 }

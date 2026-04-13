@@ -229,3 +229,77 @@ export async function runPlayground({ tenant, userId, message }: { tenant: Tenan
 
   return { answer, responseId: response.id ?? null, model, latencyMs };
 }
+
+// --------------- WhatsApp AI Concierge ---------------
+
+type ChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
+
+/**
+ * Run an AI reply for an incoming WhatsApp message.
+ * Uses Chat Completions API with conversation history for multi-turn context.
+ */
+export async function runWhatsAppReply({
+  tenant,
+  messageHistory,
+  incomingMessage,
+}: {
+  tenant: Tenant;
+  messageHistory: Array<{ direction: string; content: string }>;
+  incomingMessage: string;
+}): Promise<{ answer: string; model: string; latencyMs: number; inputTokens: number | null; outputTokens: number | null }> {
+  const startedAt = Date.now();
+  const settings = getAiSettings(tenant);
+
+  if (!settings.enabled) {
+    throw new Error('AI is disabled for this tenant');
+  }
+
+  const model = settings.model || DEFAULT_MODEL;
+  const systemPrompt = settings.systemPrompt || DEFAULT_AI_SETTINGS.systemPrompt;
+
+  const chatMessages: ChatMessage[] = [
+    { role: 'system', content: systemPrompt },
+  ];
+
+  for (const msg of messageHistory) {
+    chatMessages.push({
+      role: msg.direction === 'inbound' ? 'user' : 'assistant',
+      content: msg.content,
+    });
+  }
+
+  chatMessages.push({ role: 'user', content: incomingMessage });
+
+  const response = await openaiFetch<{
+    choices?: Array<{ message?: { content?: string } }>;
+    usage?: { prompt_tokens?: number; completion_tokens?: number };
+  }>('/chat/completions', {
+    method: 'POST',
+    body: JSON.stringify({
+      model,
+      messages: chatMessages,
+      max_tokens: 300,
+      temperature: 0.7,
+    }),
+  });
+
+  const answer = response.choices?.[0]?.message?.content?.trim()
+    || 'No pude generar una respuesta en este momento.';
+  const latencyMs = Date.now() - startedAt;
+  const inputTokens = response.usage?.prompt_tokens ?? null;
+  const outputTokens = response.usage?.completion_tokens ?? null;
+
+  await db.insert(aiUsageEvents).values({
+    tenantId: tenant.id,
+    channel: 'whatsapp',
+    prompt: incomingMessage,
+    responseSummary: answer.slice(0, 1000),
+    model,
+    inputTokens,
+    outputTokens,
+    latencyMs,
+    resolved: true,
+  });
+
+  return { answer, model, latencyMs, inputTokens, outputTokens };
+}
