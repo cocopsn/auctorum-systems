@@ -19,7 +19,7 @@ export async function PUT(request: NextRequest) {
   try {
     const auth = await getAuthTenant();
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  
+
     const body = await request.json();
     const updated = await saveAiSettings(auth.tenant, {
       enabled: Boolean(body.enabled),
@@ -28,8 +28,10 @@ export async function PUT(request: NextRequest) {
       answerFaq: Boolean(body.answerFaq),
       humanHandoff: Boolean(body.humanHandoff),
       model: String(body.model || process.env.OPENAI_MODEL || 'gpt-5-mini').slice(0, 100),
+      temperature: body.temperature != null ? Number(body.temperature) : undefined,
+      maxTokens: body.maxTokens != null ? Number(body.maxTokens) : undefined,
     });
-  
+
     return NextResponse.json({ success: true, data: getAiSettings(updated) });
   } catch (error) {
     console.error('PUT /api/ai/settings error:', error)

@@ -11,8 +11,12 @@ import {
   Sparkles,
   UploadCloud,
   X,
+  Calendar,
+  MessageSquare,
+  UserPlus,
+  AlertCircle,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type DashboardNavItem = {
   href: string;
@@ -26,6 +30,165 @@ const NAV_GROUP_LABELS: Record<number, string> = {
   9: 'MARKETING',
   11: 'CONFIGURACIÓN',
 };
+
+// ---- Notification Bell Component ----
+
+type NotificationItem = {
+  id: string;
+  type: string;
+  title: string;
+  message: string;
+  read: boolean;
+  metadata: string | null;
+  createdAt: string | null;
+};
+
+const NOTIFICATION_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  appointment: Calendar,
+  message: MessageSquare,
+  patient: UserPlus,
+  alert: AlertCircle,
+};
+
+function timeAgo(dateStr: string | null): string {
+  if (!dateStr) return '';
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'ahora';
+  if (mins < 60) return `hace ${mins} min`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `hace ${hours}h`;
+  const days = Math.floor(hours / 24);
+  return `hace ${days}d`;
+}
+
+function NotificationBell() {
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard/notifications');
+      if (!res.ok) return;
+      const data = await res.json();
+      setNotifications(data.notifications ?? []);
+      setUnreadCount(data.unreadCount ?? 0);
+    } catch {
+      // silently fail
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  async function markAsRead(id: string) {
+    await fetch(`/api/dashboard/notifications/${id}/read`, { method: 'PUT' }).catch(() => {});
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setUnreadCount((prev) => Math.max(0, prev - 1));
+  }
+
+  async function markAllRead() {
+    await fetch('/api/dashboard/notifications/read-all', { method: 'PUT' }).catch(() => {});
+    setNotifications([]);
+    setUnreadCount(0);
+  }
+
+  function getNotificationHref(n: NotificationItem): string | null {
+    try {
+      const meta = n.metadata ? JSON.parse(n.metadata) : null;
+      if (meta?.href) return meta.href;
+    } catch {}
+    if (n.type === 'appointment') return '/dashboard/appointments';
+    if (n.type === 'message') return '/dashboard/conversations';
+    if (n.type === 'patient') return '/dashboard/patients';
+    return null;
+  }
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="relative flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+        aria-label="Notificaciones"
+      >
+        <Bell className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+            {unreadCount > 99 ? '99+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-80 sm:w-96 rounded-xl border border-slate-200 bg-white shadow-lg z-50 overflow-hidden">
+          <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
+            <h3 className="text-sm font-semibold text-slate-900">Notificaciones</h3>
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                onClick={markAllRead}
+                className="text-xs font-medium text-blue-600 hover:text-blue-700"
+              >
+                Marcar todas como leidas
+              </button>
+            )}
+          </div>
+          <div className="max-h-80 overflow-y-auto">
+            {notifications.length === 0 ? (
+              <div className="px-4 py-8 text-center text-sm text-slate-400">
+                No hay notificaciones nuevas
+              </div>
+            ) : (
+              notifications.map((n) => {
+                const Icon = NOTIFICATION_ICONS[n.type] || AlertCircle;
+                const href = getNotificationHref(n);
+                return (
+                  <button
+                    key={n.id}
+                    type="button"
+                    className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-slate-50 transition border-b border-slate-50 last:border-0"
+                    onClick={() => {
+                      markAsRead(n.id);
+                      if (href) window.location.href = href;
+                      setOpen(false);
+                    }}
+                  >
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+                      <Icon className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-slate-900">{n.title}</p>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{n.message}</p>
+                      <p className="mt-1 text-[11px] text-slate-400">{timeAgo(n.createdAt)}</p>
+                    </div>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- Main AppShell ----
 
 export function AppShell({
   children,
@@ -168,6 +331,7 @@ export function TopHeader({ greeting, subtitle, ctaHref, headerActions }: { gree
             <Search className="h-4 w-4" />
             <input className="w-full bg-transparent outline-none placeholder:text-slate-400" placeholder="Search here..." />
           </label>
+          <NotificationBell />
           {headerActions}
         </div>
       </div>

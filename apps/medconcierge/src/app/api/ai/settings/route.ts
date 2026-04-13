@@ -21,6 +21,8 @@ export async function PUT(request: NextRequest) {
     answerFaq: Boolean(body.answerFaq),
     humanHandoff: Boolean(body.humanHandoff),
     model: String(body.model || process.env.OPENAI_MODEL || 'gpt-5-mini').slice(0, 100),
+    temperature: body.temperature != null ? Number(body.temperature) : undefined,
+    maxTokens: body.maxTokens != null ? Number(body.maxTokens) : undefined,
   });
   return NextResponse.json({ success: true, data: getAiSettings(updated) });
 }

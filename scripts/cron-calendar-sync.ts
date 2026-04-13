@@ -4,9 +4,10 @@
  * - Detects cancellations in GCal and marks appointments cancelled
  * - Detects time changes in GCal and updates appointments
  * - Creates appointments from new GCal events (matched by patient name)
+ * - Detects deleted GCal events and marks corresponding appointments cancelled
  */
 
-import { eq, and, sql, isNull } from "drizzle-orm"
+import { eq, and, sql, isNull, isNotNull } from "drizzle-orm"
 import { db, tenants, appointments, patients, appointmentEvents } from "@quote-engine/db"
 import {
   getCalendarConfig,
@@ -54,8 +55,13 @@ async function syncTenantCalendar(tenant: any) {
 
     console.log(`[calendar-sync] ${tenant.slug}: ${events.length} events from GCal`)
 
+    // Track which google_event_ids we saw in this sync
+    const seenGoogleEventIds = new Set<string>()
+
     for (const event of events) {
       if (!event.start || !event.id) continue
+
+      seenGoogleEventIds.add(event.id)
 
       // Check if we already track this event
       const [existing] = await db.execute(
@@ -153,6 +159,38 @@ async function syncTenantCalendar(tenant: any) {
         }
 
         await createAppointmentFromEvent(tenant, patient, event, startParsed, endParsed)
+      }
+    }
+
+    // --- Reverse check: appointments with google_event_id NOT found in GCal ---
+    // These are events that were completely deleted from Google Calendar
+    const trackedAppointments = await db
+      .select({ id: appointments.id, googleEventId: appointments.googleEventId, status: appointments.status })
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.tenantId, tenant.id),
+          isNotNull(appointments.googleEventId),
+          sql`${appointments.status} NOT IN ('cancelled', 'completed')`,
+          sql`${appointments.date} >= ${now.toISOString().split("T")[0]}`
+        )
+      )
+
+    for (const appt of trackedAppointments) {
+      if (appt.googleEventId && !seenGoogleEventIds.has(appt.googleEventId)) {
+        await db
+          .update(appointments)
+          .set({ status: "cancelled", cancelledAt: new Date() })
+          .where(eq(appointments.id, appt.id))
+
+        await db.insert(appointmentEvents).values({
+          appointmentId: appt.id,
+          tenantId: tenant.id,
+          eventType: "cancelled",
+          metadata: { source: "gcal_sync", reason: "Event deleted from Google Calendar" },
+        })
+
+        console.log(`[calendar-sync] ${tenant.slug}: cancelled appointment ${appt.id} (GCal event ${appt.googleEventId} no longer exists)`)
       }
     }
   } catch (e) {
