@@ -26,9 +26,10 @@ export type DashboardNavItem = {
 
 const NAV_GROUP_LABELS: Record<number, string> = {
   0: 'PRINCIPAL',
-  4: 'GESTIÓN',
-  9: 'MARKETING',
-  11: 'CONFIGURACIÓN',
+  5: 'GESTIÓN',
+  10: 'MARKETING',
+  12: 'MÉDICO',
+  14: 'CONFIGURACIÓN',
 };
 
 // ---- Notification Bell Component ----
@@ -268,7 +269,7 @@ export function AppShell({
             const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(`${item.href}/`));
             const groupLabel = NAV_GROUP_LABELS[index];
             return (
-              <div key={item.href}>
+              <div key={index}>
                 {groupLabel && (
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 px-4 pt-4 pb-1">
                     {groupLabel}

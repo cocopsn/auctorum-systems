@@ -1,15 +1,13 @@
 import { redirect } from 'next/navigation'
 import { AppShell, type DashboardNavItem } from '@quote-engine/ui'
 import {
-  Bell,
   Bot,
   CalendarCheck,
   CalendarDays,
-  Clock,
   CreditCard,
   FileText,
   GitBranch,
-  Heart,
+  LayoutDashboard,
   Megaphone,
   MessageSquare,
   Plug,
@@ -23,23 +21,25 @@ import { ToastContainer } from '@/components/ui/Toast'
 import { OnboardingGate } from '@/components/onboarding/onboarding-gate'
 
 const navItems: DashboardNavItem[] = [
-  { href: '/agenda', label: 'Agenda', icon: CalendarDays },
-  { href: '/recordatorios', label: 'Recordatorios', icon: Bell },
-  { href: '/conversaciones', label: 'Conversaciones', icon: MessageSquare },
-  { href: '/citas', label: 'Citas', icon: CalendarCheck },
-  { href: '/pacientes', label: 'Pacientes', icon: Users },
-  { href: '/notas', label: 'Notas Clinicas', icon: FileText },
-  { href: '/horarios', label: 'Horarios', icon: Clock },
+  // PRINCIPAL
+  { href: '/agenda', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/funnel', label: 'Embudo', icon: GitBranch },
+  { href: '/citas', label: 'Citas', icon: CalendarCheck },
+  { href: '/conversaciones', label: 'Conversaciones', icon: MessageSquare },
+  { href: '/pacientes', label: 'Pacientes', icon: Users },
+  // GESTION
+  { href: '/agenda', label: 'Agenda', icon: CalendarDays },
   { href: '/reports', label: 'Reportes', icon: FileText },
-  { href: '/follow-ups', label: 'Seguimientos', icon: Heart },
   { href: '/budgets', label: 'Presupuestos', icon: Receipt },
   { href: '/payments', label: 'Pagos', icon: CreditCard },
   { href: '/invoices', label: 'Facturas', icon: FileText },
+  // MARKETING
   { href: '/campaigns', label: 'Campanas', icon: Megaphone },
   { href: '/integrations', label: 'Integraciones', icon: Plug },
-  { href: "/portal", label: "Portal Web", icon: Globe },
+  // MEDICO
   { href: '/ai-settings', label: 'AI Concierge', icon: Bot },
+  { href: '/portal', label: 'Portal del Doctor', icon: Globe },
+  // CONFIGURACION
   { href: '/settings', label: 'Configuracion', icon: Settings },
 ]
 
