@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { db, funnelStages, clientFunnel } from '@quote-engine/db';
@@ -48,74 +48,95 @@ async function seedDefaults(tenantId: string) {
 }
 
 export async function GET() {
-  const auth = await getAuthTenant();
-  if (!auth) return apiError(401, 'Unauthorized');
+  try {
+    const auth = await getAuthTenant();
+    if (!auth) return apiError(401, 'Unauthorized');
 
-  await seedDefaults(auth.tenant.id);
+    await seedDefaults(auth.tenant.id);
 
-  const stages = await db
-    .select()
-    .from(funnelStages)
-    .where(and(eq(funnelStages.tenantId, auth.tenant.id), eq(funnelStages.isActive, true)))
-    .orderBy(asc(funnelStages.position));
+    const stages = await db
+      .select()
+      .from(funnelStages)
+      .where(and(eq(funnelStages.tenantId, auth.tenant.id), eq(funnelStages.isActive, true)))
+      .orderBy(asc(funnelStages.position));
 
-  // Count clients per stage (only stages of this tenant).
-  const counts = await db
-    .select({
-      stageId: clientFunnel.stageId,
-      total: sql<number>`count(*)::int`,
-    })
-    .from(clientFunnel)
-    .innerJoin(funnelStages, eq(clientFunnel.stageId, funnelStages.id))
-    .where(eq(funnelStages.tenantId, auth.tenant.id))
-    .groupBy(clientFunnel.stageId);
+    // Count clients per stage (only stages of this tenant).
+    const counts = await db
+      .select({
+        stageId: clientFunnel.stageId,
+        total: sql<number>`count(*)::int`,
+      })
+      .from(clientFunnel)
+      .innerJoin(funnelStages, eq(clientFunnel.stageId, funnelStages.id))
+      .where(eq(funnelStages.tenantId, auth.tenant.id))
+      .groupBy(clientFunnel.stageId);
 
-  const countMap = new Map(counts.map((c) => [c.stageId, c.total]));
-  return apiSuccess(stages.map((s) => ({ ...s, clientCount: countMap.get(s.id) ?? 0 })));
+    const countMap = new Map(counts.map((c) => [c.stageId, c.total]));
+    return apiSuccess(stages.map((s) => ({ ...s, clientCount: countMap.get(s.id) ?? 0 })));
+
+
+  } catch (error) {
+    console.error('/api/funnel GET error:', error);
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+  }
 }
 
 export async function POST(request: NextRequest) {
-  if (!validateOrigin(request)) return apiError(403, 'Invalid origin');
-  const auth = await getAuthTenant();
-  if (!auth) return apiError(401, 'Unauthorized');
+  try {
+    if (!validateOrigin(request)) return apiError(403, 'Invalid origin');
+    const auth = await getAuthTenant();
+    if (!auth) return apiError(401, 'Unauthorized');
 
-  const body = await request.json().catch(() => ({}));
-  const parsed = createSchema.safeParse(body);
-  if (!parsed.success) return apiError(400, 'Invalid body', parsed.error.errors);
+    const body = await request.json().catch(() => ({}));
+    const parsed = createSchema.safeParse(body);
+    if (!parsed.success) return apiError(400, 'Invalid body', parsed.error.errors);
 
-  const [created] = await db
-    .insert(funnelStages)
-    .values({
-      tenantId: auth.tenant.id,
-      name: parsed.data.name,
-      position: parsed.data.position ?? 0,
-      color: parsed.data.color ?? '#6366f1',
-    })
-    .returning();
+    const [created] = await db
+      .insert(funnelStages)
+      .values({
+        tenantId: auth.tenant.id,
+        name: parsed.data.name,
+        position: parsed.data.position ?? 0,
+        color: parsed.data.color ?? '#6366f1',
+      })
+      .returning();
 
-  return apiSuccess(created, 201);
+    return apiSuccess(created, 201);
+
+
+  } catch (error) {
+    console.error('/api/funnel POST error:', error);
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+  }
 }
 
 export async function PUT(request: NextRequest) {
-  if (!validateOrigin(request)) return apiError(403, 'Invalid origin');
-  const auth = await getAuthTenant();
-  if (!auth) return apiError(401, 'Unauthorized');
+  try {
+    if (!validateOrigin(request)) return apiError(403, 'Invalid origin');
+    const auth = await getAuthTenant();
+    if (!auth) return apiError(401, 'Unauthorized');
 
-  const body = await request.json().catch(() => ({}));
-  const parsed = reorderSchema.safeParse(body);
-  if (!parsed.success) return apiError(400, 'Invalid body', parsed.error.errors);
+    const body = await request.json().catch(() => ({}));
+    const parsed = reorderSchema.safeParse(body);
+    if (!parsed.success) return apiError(400, 'Invalid body', parsed.error.errors);
 
-  await db.transaction(async (tx) => {
-    for (const s of parsed.data.stages) {
-      const set: Record<string, unknown> = { position: s.position };
-      if (s.name !== undefined) set.name = s.name;
-      if (s.color !== undefined) set.color = s.color;
-      await tx
-        .update(funnelStages)
-        .set(set)
-        .where(and(eq(funnelStages.id, s.id), eq(funnelStages.tenantId, auth.tenant.id)));
-    }
-  });
+    await db.transaction(async (tx) => {
+      for (const s of parsed.data.stages) {
+        const set: Record<string, unknown> = { position: s.position };
+        if (s.name !== undefined) set.name = s.name;
+        if (s.color !== undefined) set.color = s.color;
+        await tx
+          .update(funnelStages)
+          .set(set)
+          .where(and(eq(funnelStages.id, s.id), eq(funnelStages.tenantId, auth.tenant.id)));
+      }
+    });
 
-  return apiSuccess({ updated: parsed.data.stages.length });
+    return apiSuccess({ updated: parsed.data.stages.length });
+
+
+  } catch (error) {
+    console.error('/api/funnel PUT error:', error);
+    return NextResponse.json({ error: 'Error interno del servidor' }, { status: 500 });
+  }
 }
