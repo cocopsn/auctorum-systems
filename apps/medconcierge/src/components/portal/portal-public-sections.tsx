@@ -6,12 +6,45 @@ interface Props {
   tenantName: string
 }
 
-export function PortalRenderer({ sections, config, tenantName }: Props) {
+/**
+ * Normalise a section that may come from the DB in "flat" format
+ * (all fields at the top level) or the canonical format (type + data sub-object).
+ */
+function normaliseSection(raw: any, index: number): PortalSection {
+  if (raw.data && typeof raw.data === "object") {
+    // Already canonical
+    return {
+      id: raw.id ?? `s-${index}`,
+      type: raw.type,
+      visible: raw.visible ?? true,
+      order: raw.order ?? index,
+      data: raw.data,
+    }
+  }
+  // Flat format: everything except type/id/visible/order is "data"
+  const { type, id, visible, order, ...data } = raw
+  return {
+    id: id ?? `s-${index}`,
+    type,
+    visible: visible ?? true,
+    order: order ?? index,
+    data,
+  }
+}
+
+export function PortalRenderer({ sections: rawSections, config, tenantName }: Props) {
   const primary = config.colors?.primary || "#2563eb"
   const font = config.font || "Inter"
 
+  // Parse if the driver returned a JSON string instead of an object
+  const parsed: any[] = typeof rawSections === "string"
+    ? JSON.parse(rawSections)
+    : rawSections
+
+  const sections = (parsed || []).map(normaliseSection)
+
   const visibleSections = sections
-    .filter(s => s.visible)
+    .filter(s => s.visible !== false)
     .sort((a, b) => a.order - b.order)
 
   return (
@@ -46,10 +79,13 @@ function HeroSection({ data, primary }: { data: any; primary: string }) {
       <div className="absolute inset-0 opacity-10" style={{ background: `radial-gradient(ellipse at center, ${primary}, transparent 70%)` }} />
       <div className="relative z-10 max-w-3xl mx-auto">
         <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white tracking-tight leading-tight">
-          {data.headline || "Bienvenido"}
+          {data.headline || data.title || "Bienvenido"}
         </h1>
-        {data.subheadline && (
-          <p className="mt-4 text-lg md:text-xl text-slate-300 max-w-xl mx-auto">{data.subheadline}</p>
+        {(data.subheadline || data.subtitle) && (
+          <p className="mt-4 text-lg md:text-xl text-slate-300 max-w-xl mx-auto">{data.subheadline || data.subtitle}</p>
+        )}
+        {data.description && (
+          <p className="mt-4 text-base text-slate-400 max-w-lg mx-auto">{data.description}</p>
         )}
         {data.ctaText && (
           <a href={data.ctaLink || "#"} className="inline-block mt-8 px-8 py-3.5 text-sm font-semibold text-white rounded-full shadow-lg hover:shadow-xl transition-all"
@@ -67,7 +103,7 @@ function AboutSection({ data }: { data: any }) {
     <section className="py-20 px-6 bg-white">
       <div className="max-w-4xl mx-auto">
         <h2 className="text-3xl font-bold text-slate-900 text-center">{data.title || "Sobre Nosotros"}</h2>
-        <p className="mt-6 text-lg text-slate-600 leading-relaxed text-center max-w-2xl mx-auto">{data.description}</p>
+        <p className="mt-6 text-lg text-slate-600 leading-relaxed text-center max-w-2xl mx-auto">{data.description || data.content}</p>
         {data.specialties?.length > 0 && (
           <div className="mt-8 flex flex-wrap justify-center gap-2">
             {data.specialties.map((s: string, i: number) => (
