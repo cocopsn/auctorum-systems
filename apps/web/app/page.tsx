@@ -28,7 +28,7 @@ export default function HomePage() {
           <div className="hidden items-center gap-8 md:flex">
             <a href="#productos" className="text-sm text-slate-400 hover:text-white transition-colors">Productos</a>
             <a href="#tecnologia" className="text-sm text-slate-400 hover:text-white transition-colors">Tecnología</a>
-            <a href="#nosotros" className="text-sm text-slate-400 hover:text-white transition-colors">Sobre Nosotros</a>
+            <Link href="/about" className="text-sm text-slate-400 hover:text-white transition-colors">Sobre Nosotros</Link>
             <Link href="/login" className="text-sm text-slate-300 hover:text-white transition-colors">Iniciar Sesión</Link>
           </div>
           <Link href="/signup" className="hidden rounded-full bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors md:inline-flex">
@@ -186,7 +186,7 @@ export default function HomePage() {
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Empresa</h4>
               <div className="space-y-3">
-                <a href="#nosotros" className="block text-sm text-slate-400 hover:text-white transition-colors">Sobre Nosotros</a>
+                <Link href="/about" className="block text-sm text-slate-400 hover:text-white transition-colors">Sobre Nosotros</Link>
                 <a href="mailto:sistema@auctorum.com.mx" className="block text-sm text-slate-400 hover:text-white transition-colors">Contacto</a>
               </div>
             </div>
