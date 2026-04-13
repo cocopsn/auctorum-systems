@@ -89,19 +89,21 @@ export async function GET(request: NextRequest) {
       const dateStr = current.toISOString().split('T')[0]
       const dayOfWeek = current.getDay()
 
-      // Find schedule for this day
-      const daySchedule = tenantSchedules.find((s) => s.dayOfWeek === dayOfWeek)
+      // Find all schedule blocks for this day (e.g. morning + afternoon)
+      const daySchedules = tenantSchedules.filter((s) => s.dayOfWeek === dayOfWeek)
 
-      if (daySchedule && !blockedDates.has(dateStr)) {
-        const slots = generateSlots(
-          daySchedule.startTime,
-          daySchedule.endTime,
-          daySchedule.slotDurationMin ?? 30
+      if (daySchedules.length > 0 && !blockedDates.has(dateStr)) {
+        const allSlots = daySchedules.flatMap((sched) =>
+          generateSlots(
+            sched.startTime,
+            sched.endTime,
+            sched.slotDurationMin ?? 30
+          )
         )
 
         dates.push({
           date: dateStr,
-          slots: slots.map((slot) => ({
+          slots: allSlots.map((slot) => ({
             ...slot,
             available: !bookedSet.has(`${dateStr}_${slot.startTime}`),
           })),
