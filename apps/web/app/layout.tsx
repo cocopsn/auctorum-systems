@@ -3,9 +3,9 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://auctorum.com.mx"),
-  title: "Auctorum Systems — Concierge Médico AI",
+  title: "Auctorum — Software de Gestión Inteligente",
   description:
-    "La plataforma de gestión inteligente para consultorios médicos. Automatiza citas, WhatsApp, facturación y más.",
+    "Plataformas inteligentes con IA para automatizar operaciones, conectar con clientes, y escalar tu empresa.",
   keywords: [
     "concierge médico",
     "gestión consultorio",
@@ -23,10 +23,11 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-touch-icon.png",
   },
+  themeColor: "#020617",
   openGraph: {
-    title: "Auctorum Systems — Concierge Médico AI",
+    title: "Auctorum — Software de Gestión Inteligente",
     description:
-      "La plataforma de gestión inteligente para consultorios médicos.",
+      "Plataformas inteligentes con IA para automatizar tu negocio.",
     url: "https://auctorum.com.mx",
     siteName: "Auctorum Systems",
     locale: "es_MX",
@@ -56,7 +57,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="antialiased font-sora">{children}</body>
+      <body className="antialiased font-sans">{children}</body>
     </html>
   );
 }

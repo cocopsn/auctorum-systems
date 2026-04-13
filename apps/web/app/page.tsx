@@ -1,82 +1,219 @@
 export const dynamic = 'force-static';
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { Navbar } from '../components/layout/Navbar';
-import { Footer } from '../components/layout/Footer';
-import { Heart, FileText, ArrowRight } from 'lucide-react';
+import Image from 'next/image';
+import {
+  Stethoscope,
+  FileText,
+  ArrowRight,
+  Brain,
+  MessageSquare,
+  Shield,
+  Building2,
+  Sparkles,
+  ChevronRight,
+  Zap,
+} from 'lucide-react';
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-white">
-      <Navbar activePage="home" />
+    <div className="min-h-screen bg-slate-950 text-white">
+      {/* NAV BAR */}
+      <nav className="sticky top-0 z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+          <Link href="/" className="flex items-center gap-3">
+            <Image src="/logo.png" alt="Auctorum" width={36} height={36} className="h-9 w-auto" />
+            <span className="text-sm font-bold tracking-widest text-white uppercase">Auctorum</span>
+          </Link>
+          <div className="hidden items-center gap-8 md:flex">
+            <a href="#productos" className="text-sm text-slate-400 hover:text-white transition-colors">Productos</a>
+            <a href="#tecnologia" className="text-sm text-slate-400 hover:text-white transition-colors">Tecnología</a>
+            <a href="#nosotros" className="text-sm text-slate-400 hover:text-white transition-colors">Sobre Nosotros</a>
+            <Link href="/login" className="text-sm text-slate-300 hover:text-white transition-colors">Iniciar Sesión</Link>
+          </div>
+          <Link href="/signup" className="hidden rounded-full bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors md:inline-flex">
+            Comenzar
+          </Link>
+        </div>
+      </nav>
 
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 py-20 md:py-28 px-6">
-        <div className="mx-auto max-w-5xl text-center">
-          <h1 className="text-4xl md:text-6xl font-bold text-white tracking-tight">
-            Software de gestión inteligente para profesionales
+      {/* HERO SECTION */}
+      <section className="relative overflow-hidden bg-slate-950 px-6 py-24 md:py-36">
+        {/* Glow effect */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(37,99,235,0.15)_0%,transparent_70%)] blur-3xl pointer-events-none" />
+        <div className="relative mx-auto max-w-5xl text-center">
+          <p className="text-sm font-medium uppercase tracking-widest text-blue-400 mb-6">Software · IA · Automatización</p>
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
+            <span className="text-slate-50">Construimos el</span><br />
+            <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">futuro digital</span><br />
+            <span className="text-slate-50">de tu negocio.</span>
           </h1>
-          <p className="mt-6 text-xl text-blue-100 max-w-2xl mx-auto">
-            Plataformas verticales con inteligencia artificial para industrias específicas
+          <p className="mt-8 text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
+            Plataformas inteligentes que automatizan operaciones, conectan con clientes, y escalan tu empresa.
           </p>
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <a href="#productos" className="rounded-full bg-blue-600 px-8 py-4 text-lg font-medium text-white hover:bg-blue-500 transition-colors">
+              Explorar Productos
+            </a>
+            <a href="#tecnologia" className="rounded-full border border-slate-600 px-8 py-4 text-lg font-medium text-slate-300 hover:border-blue-500 hover:text-white transition-colors">
+              Conocer más
+            </a>
+          </div>
+          {/* Stats */}
+          <div className="mt-16 grid grid-cols-3 gap-8 max-w-lg mx-auto">
+            {[{n:'2', l:'Productos'}, {n:'17+', l:'Features'}, {n:'24/7', l:'AI Disponible'}].map(s => (
+              <div key={s.l}>
+                <p className="text-2xl font-bold text-white">{s.n}</p>
+                <p className="text-sm text-slate-500">{s.l}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Two Product Cards */}
-      <section className="py-20 px-6 bg-slate-50">
+      {/* PRODUCTS SECTION */}
+      <section id="productos" className="bg-slate-950 px-6 py-24 border-t border-slate-900">
         <div className="mx-auto max-w-5xl">
-          <h2 className="text-2xl font-bold text-slate-900 text-center mb-12">
-            Nuestras soluciones
-          </h2>
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-white">Nuestros Productos</h2>
+            <p className="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">Soluciones verticales diseñadas para industrias específicas</p>
+          </div>
           <div className="grid md:grid-cols-2 gap-8">
-            {/* Concierge Médico - HIGHLIGHTED */}
-            <Link href="/systems" className="group relative bg-white rounded-2xl border-2 border-blue-600 p-8 shadow-lg hover:shadow-xl transition-all duration-300">
-              <div className="absolute -top-3 left-6 bg-blue-600 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                Producto principal
+            {/* Card 1 - Concierge (highlighted with blue border) */}
+            <Link href="/systems" className="group relative bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 border border-blue-500/30 hover:border-blue-500/60 transition-all duration-300">
+              <span className="inline-block bg-blue-600/20 text-blue-400 text-xs font-semibold px-3 py-1 rounded-full mb-6">PRODUCTO PRINCIPAL</span>
+              <div className="w-14 h-14 rounded-xl bg-blue-600/10 flex items-center justify-center mb-6">
+                <Stethoscope className="w-7 h-7 text-blue-400" />
               </div>
-              <div className="w-14 h-14 rounded-xl bg-blue-50 flex items-center justify-center mb-6">
-                <Heart className="w-7 h-7 text-blue-600" />
-              </div>
-              <h3 className="text-2xl font-bold text-slate-900">Concierge Médico AI</h3>
-              <p className="mt-2 text-sm text-blue-600 font-medium">Para doctores y consultorios</p>
-              <p className="mt-4 text-slate-600 leading-relaxed">
-                Automatiza citas, WhatsApp, facturación y expedientes. Tu asistente AI atiende pacientes 24/7.
-              </p>
+              <h3 className="text-2xl font-bold text-white">Concierge Médico AI</h3>
+              <p className="mt-2 text-sm text-blue-400 font-medium">Para doctores y consultorios</p>
+              <p className="mt-4 text-slate-400 leading-relaxed">Plataforma completa para consultorios médicos. WhatsApp AI, gestión de citas, facturación electrónica, y más.</p>
               <div className="mt-6 flex flex-wrap gap-2">
-                {['WhatsApp AI', 'Agenda', 'Facturación', 'Portal pacientes'].map(tag => (
-                  <span key={tag} className="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-medium">{tag}</span>
+                {['WhatsApp AI', 'Citas', 'Facturación', 'Expedientes'].map(t => (
+                  <span key={t} className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full">{t}</span>
                 ))}
               </div>
-              <div className="mt-6 inline-flex items-center gap-2 text-blue-600 font-semibold text-sm group-hover:gap-3 transition-all">
+              <div className="mt-6 inline-flex items-center gap-2 text-blue-400 font-semibold text-sm group-hover:gap-3 transition-all">
                 Conocer más <ArrowRight className="w-4 h-4" />
               </div>
             </Link>
-
-            {/* Motor de Cotizaciones B2B - Secondary */}
-            <Link href="/platform" className="group bg-white rounded-2xl border border-slate-200 p-8 shadow-sm hover:shadow-lg transition-all duration-300">
-              <div className="w-14 h-14 rounded-xl bg-slate-100 flex items-center justify-center mb-6">
-                <FileText className="w-7 h-7 text-slate-600" />
+            {/* Card 2 - Cotizador */}
+            <Link href="/platform" className="group bg-slate-900/50 rounded-2xl p-8 border border-slate-800 hover:border-slate-700 transition-all duration-300">
+              <div className="w-14 h-14 rounded-xl bg-slate-800 flex items-center justify-center mb-6">
+                <FileText className="w-7 h-7 text-slate-400" />
               </div>
-              <h3 className="text-2xl font-bold text-slate-900">Motor de Cotizaciones B2B</h3>
+              <h3 className="text-2xl font-bold text-white">Motor de Cotizaciones B2B</h3>
               <p className="mt-2 text-sm text-slate-500 font-medium">Para negocios e industria</p>
-              <p className="mt-4 text-slate-600 leading-relaxed">
-                Portales white-label para proveedores industriales. Catálogo, cotizaciones PDF, tracking y WhatsApp.
-              </p>
+              <p className="mt-4 text-slate-400 leading-relaxed">Genera cotizaciones profesionales, gestiona catálogos de productos, y automatiza tu proceso de ventas.</p>
               <div className="mt-6 flex flex-wrap gap-2">
-                {['Multi-tenant', 'WhatsApp', 'PDF', 'Catálogo'].map(tag => (
-                  <span key={tag} className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">{tag}</span>
+                {['PDF Profesional', 'Catálogo', 'CRM', 'Analytics'].map(t => (
+                  <span key={t} className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full">{t}</span>
                 ))}
               </div>
-              <div className="mt-6 inline-flex items-center gap-2 text-slate-600 font-semibold text-sm group-hover:gap-3 transition-all">
-                Ver más <ArrowRight className="w-4 h-4" />
+              <div className="mt-6 inline-flex items-center gap-2 text-slate-400 font-semibold text-sm group-hover:gap-3 transition-all">
+                Conocer más <ArrowRight className="w-4 h-4" />
               </div>
             </Link>
           </div>
         </div>
       </section>
 
-      <Footer />
+      {/* TECHNOLOGY SECTION */}
+      <section id="tecnologia" className="bg-gradient-to-b from-slate-950 to-slate-900 px-6 py-24">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-white">Construido con tecnología de vanguardia</h2>
+            <p className="mt-4 text-lg text-slate-400">Infraestructura enterprise para empresas de cualquier tamaño</p>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {icon: Brain, title: 'Inteligencia Artificial', desc: 'Modelos de lenguaje que entienden el contexto de tu negocio'},
+              {icon: MessageSquare, title: 'WhatsApp Business API', desc: 'Comunicación directa con tus clientes en su canal preferido'},
+              {icon: Shield, title: 'Seguridad Enterprise', desc: 'Cifrado AES-256, 2FA, HMAC webhooks, hardening completo'},
+              {icon: Building2, title: 'Multi-tenant SaaS', desc: 'Cada cliente con su propio espacio aislado y personalizable'},
+            ].map(card => (
+              <div key={card.title} className="bg-slate-900/30 rounded-xl p-6 border border-slate-800 hover:border-blue-500/50 transition-all duration-300 group">
+                <div className="w-12 h-12 rounded-lg bg-blue-600/10 flex items-center justify-center mb-4 group-hover:bg-blue-600/20 transition-colors">
+                  <card.icon className="w-6 h-6 text-blue-400" />
+                </div>
+                <h3 className="text-base font-semibold text-white mb-2">{card.title}</h3>
+                <p className="text-sm text-slate-400 leading-relaxed">{card.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ABOUT SECTION */}
+      <section id="nosotros" className="bg-slate-900 px-6 py-24">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="text-sm font-medium uppercase tracking-widest text-blue-400 mb-4">Sobre Nosotros</p>
+          <h2 className="text-3xl md:text-4xl font-bold text-white">Una empresa construida desde Saltillo para todo México</h2>
+          <p className="mt-6 text-lg text-slate-400 leading-relaxed">
+            Somos un equipo de ingenieros del Tecnológico de Monterrey construyendo software que transforma cómo operan los negocios. Nuestra misión: que cada profesional tenga acceso a herramientas de IA enterprise.
+          </p>
+        </div>
+      </section>
+
+      {/* CTA SECTION */}
+      <section className="bg-gradient-to-b from-slate-900 via-blue-950/30 to-slate-950 px-6 py-24">
+        <div className="mx-auto max-w-3xl text-center">
+          <Sparkles className="w-10 h-10 text-blue-400 mx-auto mb-6" />
+          <h2 className="text-3xl md:text-4xl font-bold text-white">¿Listo para automatizar tu negocio?</h2>
+          <p className="mt-4 text-lg text-slate-400">Comienza gratis. Sin tarjeta de crédito. Sin compromiso.</p>
+          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
+            <Link href="/signup" className="rounded-full bg-blue-600 px-8 py-4 text-lg font-medium text-white hover:bg-blue-500 transition-colors">
+              Crear mi cuenta
+            </Link>
+            <a href="mailto:sistema@auctorum.com.mx" className="rounded-full border border-slate-600 px-8 py-4 text-lg font-medium text-slate-300 hover:border-blue-500 hover:text-white transition-colors">
+              Contactar ventas
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="bg-slate-950 border-t border-slate-800 px-6 py-12">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 pb-8 border-b border-slate-800">
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-4">Productos</h4>
+              <div className="space-y-3">
+                <Link href="/systems" className="block text-sm text-slate-400 hover:text-white transition-colors">Concierge Médico</Link>
+                <Link href="/platform" className="block text-sm text-slate-400 hover:text-white transition-colors">Cotizador B2B</Link>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-4">Empresa</h4>
+              <div className="space-y-3">
+                <a href="#nosotros" className="block text-sm text-slate-400 hover:text-white transition-colors">Sobre Nosotros</a>
+                <a href="mailto:sistema@auctorum.com.mx" className="block text-sm text-slate-400 hover:text-white transition-colors">Contacto</a>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-4">Legal</h4>
+              <div className="space-y-3">
+                <span className="block text-sm text-slate-500">Aviso de Privacidad</span>
+                <span className="block text-sm text-slate-500">Términos de Servicio</span>
+              </div>
+            </div>
+            <div>
+              <h4 className="text-sm font-semibold text-white mb-4">Contacto</h4>
+              <div className="space-y-3">
+                <a href="mailto:sistema@auctorum.com.mx" className="block text-sm text-slate-400 hover:text-white transition-colors">sistema@auctorum.com.mx</a>
+                <span className="block text-sm text-slate-500">Saltillo, Coahuila, México</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8">
+            <div className="flex items-center gap-3">
+              <Image src="/logo.png" alt="Auctorum" width={24} height={24} className="h-6 w-auto opacity-70" />
+              <span className="text-sm font-bold tracking-widest text-slate-300 uppercase">Auctorum</span>
+            </div>
+            <p className="text-xs text-slate-500">&copy; 2026 Auctorum. Todos los derechos reservados.</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
