@@ -258,8 +258,8 @@ async function callOpenAI(model: string, messages: ChatMessage[], settings: any)
         model,
         messages,
         tools: TOOLS,
-        max_tokens: 500,
-        temperature: 0.7,
+        max_tokens: settings?.maxTokens || 500,
+        temperature: settings?.temperature ?? 0.7,
       }),
       signal: controller.signal,
     })

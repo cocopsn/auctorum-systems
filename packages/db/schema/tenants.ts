@@ -117,6 +117,8 @@ export interface TenantConfig {
     humanHandoff: boolean;
     model: string;
     vectorStoreId?: string | null;
+    temperature?: number;
+    maxTokens?: number;
   };
 }
 

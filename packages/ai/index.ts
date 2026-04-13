@@ -29,6 +29,8 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
   humanHandoff: true,
   model: DEFAULT_MODEL,
   vectorStoreId: null,
+  temperature: 0.7,
+  maxTokens: 300,
 };
 
 const FALLBACK_ERROR_MESSAGE =
@@ -298,8 +300,8 @@ export async function runWhatsAppReply({
       body: JSON.stringify({
         model,
         messages: chatMessages,
-        max_tokens: 300,
-        temperature: 0.7,
+        max_tokens: settings.maxTokens || 300,
+        temperature: settings.temperature ?? 0.7,
       }),
     }, WHATSAPP_TIMEOUT_MS);
 

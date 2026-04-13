@@ -39,6 +39,7 @@ export function AppShell({
   ctaHref = '/dashboard/ai-settings',
   logoutAction = '/api/auth/logout',
   logoUrl,
+  headerActions,
 }: {
   children: ReactNode;
   navItems: DashboardNavItem[];
@@ -51,6 +52,7 @@ export function AppShell({
   ctaHref?: string;
   logoutAction?: string;
   logoUrl?: string;
+  headerActions?: ReactNode;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -147,14 +149,14 @@ export function AppShell({
       </aside>
 
       <div className="min-h-screen lg:pl-64">
-        <TopHeader greeting={greeting} subtitle={subtitle} ctaHref={ctaHref} />
+        <TopHeader greeting={greeting} subtitle={subtitle} ctaHref={ctaHref} headerActions={headerActions} />
         <main className="min-h-screen bg-slate-50 p-6 sm:p-8">{children}</main>
       </div>
     </div>
   );
 }
 
-export function TopHeader({ greeting, subtitle, ctaHref }: { greeting: string; subtitle: string; ctaHref: string }) {
+export function TopHeader({ greeting, subtitle, ctaHref, headerActions }: { greeting: string; subtitle: string; ctaHref: string; headerActions?: ReactNode }) {
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
       <div className="flex min-h-16 flex-col gap-4 px-5 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
@@ -166,9 +168,7 @@ export function TopHeader({ greeting, subtitle, ctaHref }: { greeting: string; s
             <Search className="h-4 w-4" />
             <input className="w-full bg-transparent outline-none placeholder:text-slate-400" placeholder="Search here..." />
           </label>
-          <button type="button" className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 shadow-sm">
-            <Bell className="h-4 w-4" />
-          </button>
+          {headerActions}
         </div>
       </div>
     </header>
