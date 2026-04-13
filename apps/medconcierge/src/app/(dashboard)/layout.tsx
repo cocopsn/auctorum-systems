@@ -20,7 +20,6 @@ import {
 } from 'lucide-react'
 import { getAuthTenant } from '@/lib/auth'
 import { ToastContainer } from '@/components/ui/Toast'
-import { NotificationBell } from '@/components/dashboard/notification-bell'
 import { OnboardingGate } from '@/components/onboarding/onboarding-gate'
 
 const navItems: DashboardNavItem[] = [
@@ -65,7 +64,6 @@ export default async function DashboardLayout({
         subtitle="Agenda, pacientes y concierge medico en un solo panel."
         ctaHref="/ai-settings"
         logoutAction="/api/auth/logout"
-        headerActions={<NotificationBell />}
       >
         <OnboardingGate>{children}</OnboardingGate>
       </AppShell>
