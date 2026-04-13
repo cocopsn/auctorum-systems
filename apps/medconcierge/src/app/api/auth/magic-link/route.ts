@@ -28,11 +28,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const email = parsed.data.email
+
     // Check if user exists in our DB — don't leak email existence
     const [existingUser] = await db
       .select({ id: users.id })
       .from(users)
-      .where(eq(users.email, parsed.data.email))
+      .where(eq(users.email, email))
       .limit(1)
 
     if (!existingUser) {
@@ -43,36 +45,31 @@ export async function POST(request: NextRequest) {
     const protocol = host.includes("localhost") ? "http" : "https"
     const redirectTo = `${protocol}://${host}/api/auth/callback`
 
-    // Use service-role admin client — avoids PKCE cookie issues and session
-    // corruption that can cause signInWithOtp to hang indefinitely.
+    // Stateless client with anon key — signInWithOtp actually sends the email.
+    // Using createClient (not createServerClient) avoids PKCE/cookie issues
+    // that can cause hangs with corrupted session cookies.
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { auth: { autoRefreshToken: false, persistSession: false } },
     )
 
-    const { error } = await supabase.auth.admin.generateLink({
-      type: "magiclink",
-      email: parsed.data.email,
-      options: { redirectTo },
+    console.log("[magic-link] Sending OTP to:", email, "redirectTo:", redirectTo)
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: redirectTo },
     })
 
     if (error) {
-      console.error("[magic-link] admin.generateLink failed:", error.message)
-      // Fallback to signInWithOtp via admin client (not session-based)
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email: parsed.data.email,
-        options: { emailRedirectTo: redirectTo },
-      })
-      if (otpError) {
-        console.error("[magic-link] signInWithOtp error:", otpError.message)
-        return NextResponse.json(
-          { error: "Error al enviar enlace" },
-          { status: 500 },
-        )
-      }
+      console.error("[magic-link] signInWithOtp error:", error.message)
+      return NextResponse.json(
+        { error: "Error al enviar enlace" },
+        { status: 500 },
+      )
     }
 
+    console.log("[magic-link] OTP sent successfully to:", email)
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error("[magic-link] unexpected error:", err)

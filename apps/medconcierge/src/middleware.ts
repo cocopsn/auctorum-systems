@@ -61,6 +61,10 @@ export async function middleware(request: NextRequest) {
   if (slug && !isDashboardRoute(pathname)) {
     const portalPath = pathname === '/' ? `/${slug}` : `/${slug}${pathname}`
     const rewriteUrl = request.nextUrl.clone()
+    // Force http:// for internal rewrites — Next.js serves on plain HTTP
+    // behind Caddy. Without this, cloned URLs inherit the https:// protocol
+    // from Caddy's forwarded request, causing EPROTO SSL errors.
+    rewriteUrl.protocol = 'http:'
     rewriteUrl.pathname = portalPath
     rewriteUrl.searchParams.set('_portal', '1')
     const response = NextResponse.rewrite(rewriteUrl)
