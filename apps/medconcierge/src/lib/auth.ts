@@ -21,9 +21,15 @@ function createSupabaseServerClient() {
 }
 
 export async function getSession() {
-  const supabase = createSupabaseServerClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  return session
+  try {
+    const supabase = createSupabaseServerClient()
+    const { data: { session } } = await supabase.auth.getSession()
+    return session
+  } catch (err) {
+    // Corrupted session cookie — treat as unauthenticated
+    console.error('getSession error:', err instanceof Error ? err.message : err)
+    return null
+  }
 }
 
 export async function requireAuth(): Promise<{ user: User; tenant: Tenant }> {
@@ -49,10 +55,6 @@ export async function requireAuth(): Promise<{ user: User; tenant: Tenant }> {
   return { user, tenant }
 }
 
-/**
- * Auth helper for API routes — returns null instead of redirecting.
- * Use this in route handlers where redirect() is not appropriate.
- */
 export async function getAuthTenant(): Promise<{ user: User; tenant: Tenant } | null> {
   const session = await getSession()
   if (!session) return null
