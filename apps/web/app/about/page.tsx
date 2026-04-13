@@ -2,7 +2,7 @@ export const dynamic = 'force-static';
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { GraduationCap, Rocket, Award, Trophy, Shield, Code } from 'lucide-react';
+import { GraduationCap, Rocket, Award, Trophy, Shield, Code, Stethoscope, Mic, Handshake, TrendingUp } from 'lucide-react';
 
 const credentials = [
   {
@@ -34,6 +34,29 @@ const credentials = [
     icon: Code,
     title: 'Software Developer',
     subtitle: 'Next.js, React, Node.js, Python, PostgreSQL, Supabase, OpenAI',
+  },
+];
+
+const marcoCredentials = [
+  {
+    icon: Stethoscope,
+    title: 'Medicina UAdeC',
+    subtitle: 'Facultad de Medicina — Universidad Autónoma de Coahuila',
+  },
+  {
+    icon: Mic,
+    title: 'MVP Internacional Oratoria',
+    subtitle: 'Reconocido a nivel internacional y colegial en comunicación estratégica',
+  },
+  {
+    icon: Handshake,
+    title: 'Dirección Comercial Médica',
+    subtitle: 'Adquisición de clientes y validación en entornos clínicos reales',
+  },
+  {
+    icon: TrendingUp,
+    title: 'Expansión por Red Profesional',
+    subtitle: 'Crecimiento sostenible a través de confianza e implementación precisa',
   },
 ];
 
@@ -190,7 +213,130 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 4: NUESTRA HISTORIA */}
+      {/* SEPARADOR VISUAL */}
+      <div className="relative py-20">
+        <div className="mx-auto max-w-5xl px-6">
+          <div className="relative flex items-center justify-center">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
+            <div className="mx-6 flex items-center gap-2">
+              <div className="h-1.5 w-1.5 rotate-45 bg-blue-500" />
+              <Image src="/logo.png" alt="" width={20} height={20} className="h-5 w-auto opacity-40" />
+              <div className="h-1.5 w-1.5 rotate-45 bg-blue-500" />
+            </div>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 4: HERO MARCO ESPINOSA */}
+      <section className="relative overflow-hidden bg-slate-950 px-6 py-20 md:py-32">
+        <div className="relative mx-auto max-w-7xl">
+          <div className="grid items-center gap-12 md:grid-cols-2">
+            {/* Image — left column (invertido respecto a Armando) */}
+            <div className="animate-fade-in-up relative order-1 flex justify-center">
+              <div className="relative">
+                {/* Subtle radial glow behind image */}
+                <div
+                  className="absolute -inset-12"
+                  style={{
+                    background: 'radial-gradient(ellipse at center, rgba(37,99,235,0.08) 0%, transparent 70%)',
+                  }}
+                />
+                <img
+                  src="/cofounder.png"
+                  alt="Marco Espinosa — Dirección Comercial Médica de Auctorum"
+                  className="relative z-10 mx-auto h-auto w-full max-w-sm md:max-w-md"
+                />
+              </div>
+            </div>
+
+            {/* Text — right column */}
+            <div className="animate-fade-in-up anim-d2 order-2">
+              <p className="mb-6 font-mono text-sm uppercase tracking-widest text-blue-400">
+                {'// Dirección Comercial Médica'}
+              </p>
+              <h2 className="leading-none">
+                <span className="block text-6xl font-bold text-white md:text-7xl">Marco</span>
+                <span className="block bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-6xl font-bold text-transparent md:text-7xl">
+                  Espinosa
+                </span>
+              </h2>
+              <p className="mt-4 text-xl text-slate-400">Facultad de Medicina</p>
+              <p className="text-lg text-blue-400/80">Universidad Autónoma de Coahuila</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 5: SOBRE MARCO */}
+      <section className="relative bg-slate-950 px-6 py-24">
+        <div className="mx-auto max-w-5xl">
+          <div className="animate-fade-in-up">
+            <p className="mb-4 font-mono text-sm uppercase tracking-widest text-blue-400">
+              {'// Sobre Marco'}
+            </p>
+            <h2 className="mb-10 text-4xl font-bold text-white">
+              Liderando la expansión médica
+            </h2>
+          </div>
+          <div className="animate-fade-in-up anim-d1 max-w-3xl space-y-6 text-lg leading-relaxed text-slate-300">
+            <p>
+              Marco Espinosa lidera la dirección comercial de la rama médica de AUCTORUM,
+              enfocándose en la implementación, validación y expansión del sistema dentro del
+              sector salud.
+            </p>
+            <p>
+              Es estudiante de la Facultad de Medicina de la Universidad Autónoma de Coahuila,
+              una de las instituciones públicas con mayor exigencia académica en la región, con
+              un proceso de admisión altamente competitivo y posicionamiento constante entre las
+              10 instituciones públicas con mejor desempeño en el ENARM a nivel nacional.
+            </p>
+            <p>
+              Su formación se complementa con experiencia en comunicación estratégica, siendo
+              reconocido con un MVP internacional en oratoria y a nivel colegial, lo que
+              fortalece su capacidad para estructurar, transmitir y posicionar soluciones en
+              entornos profesionales.
+            </p>
+            <p>
+              Dentro de AUCTORUM, es responsable de la adquisición de clientes, desarrollo de
+              relaciones con profesionales de la salud y validación del producto en entornos
+              clínicos reales, asegurando que la tecnología no solo funcione, sino que se adapte
+              a la práctica médica cotidiana.
+            </p>
+            <p>
+              Su enfoque se centra en construir crecimiento sostenible a través de confianza,
+              implementación precisa y expansión por red profesional, posicionando la solución
+              como una herramienta operativa real dentro del ecosistema médico.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 6: CREDENCIALES DE MARCO */}
+      <section className="relative bg-slate-950 px-6 py-24">
+        <div className="mx-auto max-w-5xl">
+          <div className="animate-fade-in-up">
+            <p className="mb-4 font-mono text-sm uppercase tracking-widest text-blue-400">
+              {'// Credenciales'}
+            </p>
+            <h2 className="mb-12 text-4xl font-bold text-white">Perfil Profesional</h2>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2">
+            {marcoCredentials.map((cred, i) => (
+              <div
+                key={cred.title}
+                className={`animate-fade-in-up anim-d${i + 1} group rounded-xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur transition-all duration-300 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10`}
+              >
+                <cred.icon className="mb-3 h-8 w-8 text-blue-400" />
+                <h3 className="text-lg font-semibold text-white">{cred.title}</h3>
+                <p className="mt-1 text-sm text-slate-400">{cred.subtitle}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 7: NUESTRA HISTORIA */}
       <section className="relative bg-slate-950 px-6 py-24">
         <div className="mx-auto max-w-5xl">
           <div className="animate-fade-in-up">
@@ -225,7 +371,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 5: VISIÓN */}
+      {/* SECTION 8: VISIÓN */}
       <section className="relative bg-slate-950 px-6 py-24">
         <div className="mx-auto max-w-4xl text-center">
           <div className="mx-auto mb-10 w-20 border-t-2 border-blue-500" />
@@ -237,7 +383,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 6: CTA */}
+      {/* SECTION 9: CTA */}
       <section className="bg-gradient-to-b from-slate-950 via-blue-950/30 to-slate-950 px-6 py-24">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="animate-fade-in-up text-3xl font-bold text-white md:text-4xl">
