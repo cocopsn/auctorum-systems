@@ -11,9 +11,10 @@ import {
   messages,
   clients,
   tenants,
+  notifications,
   type Tenant,
 } from '@quote-engine/db'
-import { getAiSettings, runWhatsAppReply } from '@quote-engine/ai'
+import { getAiSettings } from '@quote-engine/ai'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { notifyAppointmentCancelled } from '@/lib/notifications'
 import {
@@ -21,6 +22,8 @@ import {
   createCalendarEvent,
   cancelCalendarEvent,
 } from '@/lib/google-calendar'
+import { runWhatsAppReplyWithFunctions } from '@/lib/ai-with-functions'
+import { dispatchFunctionCall } from '@/lib/whatsapp-functions'
 import crypto from 'crypto'
 
 // --------------- HMAC Signature Verification ---------------
@@ -105,7 +108,6 @@ function normalizePhone(phone: string): string {
 
 // --------------- Resolve tenant from patient or fallback ---------------
 async function resolveTenant(normalized: string): Promise<{ tenant: Tenant; patientId: string | null; tenantId: string } | null> {
-  // Try to find a patient by phone number
   const [matchedPatient] = await db
     .select({ id: patients.id, tenantId: patients.tenantId })
     .from(patients)
@@ -121,7 +123,6 @@ async function resolveTenant(normalized: string): Promise<{ tenant: Tenant; pati
     tenantId = matchedPatient.tenantId
     patientId = matchedPatient.id
   } else {
-    // No patient found — find the first active tenant with medical config
     const [medTenant] = await db
       .select({ id: tenants.id })
       .from(tenants)
@@ -150,7 +151,6 @@ async function resolveTenant(normalized: string): Promise<{ tenant: Tenant; pati
 
 // --------------- Find or create client + conversation ---------------
 async function getOrCreateConversation(tenantId: string, phone: string, normalized: string) {
-  // Find or create a client record for this phone number
   let [client] = await db
     .select()
     .from(clients)
@@ -175,7 +175,6 @@ async function getOrCreateConversation(tenantId: string, phone: string, normaliz
     client = created
   }
 
-  // Find or create an open conversation
   let [conv] = await db
     .select()
     .from(conversations)
@@ -216,7 +215,6 @@ async function loadHistory(conversationId: string, limit = 10) {
     .orderBy(desc(messages.createdAt))
     .limit(limit)
 
-  // Reverse so oldest is first
   return rows.reverse()
 }
 
@@ -227,7 +225,6 @@ async function syncAppointmentToCalendar(
   tenantConfig: Record<string, any>,
 ) {
   if (!isGoogleCalendarConfigured(tenantConfig)) return
-
   const autoSync = tenantConfig?.googleCalendar?.autoSync !== false
   if (!autoSync) return
 
@@ -248,7 +245,6 @@ async function syncAppointmentToCalendar(
     )
 
     if (eventId) {
-      // Save google_event_id to the appointment
       await db.execute(
         sql`UPDATE appointments SET google_event_id = ${eventId} WHERE id = ${appt.id}`,
       )
@@ -299,8 +295,8 @@ async function processInBackground(body: WebhookPayload) {
   const appointmentHandled = await handleAppointmentKeyword(from, normalized, text)
   if (appointmentHandled) return
 
-  // --- AI concierge for all other messages ---
-  await handleAiReply(from, normalized, originalText, externalId)
+  // --- AI concierge with function calling ---
+  await handleAiReplyWithFunctions(from, normalized, originalText, externalId)
 }
 
 // --------------- Appointment keyword handler (existing logic) ---------------
@@ -324,7 +320,6 @@ async function handleAppointmentKeyword(from: string, normalized: string, text: 
 
   if (!matchedPatient) return false
 
-  // Load tenant config for Google Calendar
   const [tenant] = await db
     .select()
     .from(tenants)
@@ -362,10 +357,17 @@ async function handleAppointmentKeyword(from: string, normalized: string, text: 
       metadata: { source: 'whatsapp_inbound', text },
     })
 
-    // Sync to Google Calendar
     syncAppointmentToCalendar(row.appt, row.patient.name, tenantConfig).catch((e) =>
       console.error('[webhook] gcal sync error:', e),
     )
+
+    // Create notification for doctor
+    await db.insert(notifications).values({
+      tenantId: row.appt.tenantId,
+      type: 'confirmed_appointment',
+      title: 'Cita confirmada',
+      message: `${row.patient.name} confirmo su cita del ${row.appt.date} a las ${row.appt.startTime.slice(0, 5)}`,
+    }).catch(() => {})
 
     await sendWhatsAppMessage(from, 'Gracias, su cita queda confirmada.')
     return true
@@ -384,10 +386,17 @@ async function handleAppointmentKeyword(from: string, normalized: string, text: 
       metadata: { source: 'whatsapp_inbound', text },
     })
 
-    // Remove from Google Calendar
     removeAppointmentFromCalendar(row.appt.id, tenantConfig).catch((e) =>
       console.error('[webhook] gcal removal error:', e),
     )
+
+    // Create notification for doctor
+    await db.insert(notifications).values({
+      tenantId: row.appt.tenantId,
+      type: 'cancelled_appointment',
+      title: 'Cita cancelada',
+      message: `${row.patient.name} cancelo su cita del ${row.appt.date} a las ${row.appt.startTime.slice(0, 5)}`,
+    }).catch(() => {})
 
     notifyAppointmentCancelled(
       row.appt,
@@ -401,10 +410,9 @@ async function handleAppointmentKeyword(from: string, normalized: string, text: 
   return false
 }
 
-// --------------- AI reply handler ---------------
-async function handleAiReply(from: string, normalized: string, originalText: string, externalId: string | null) {
+// --------------- AI reply with function calling ---------------
+async function handleAiReplyWithFunctions(from: string, normalized: string, originalText: string, externalId: string | null) {
   try {
-    // Resolve tenant
     const resolved = await resolveTenant(normalized)
     if (!resolved) {
       console.log('[whatsapp ai] no tenant found for phone', normalized)
@@ -419,13 +427,10 @@ async function handleAiReply(from: string, normalized: string, originalText: str
       return
     }
 
-    // Get or create conversation
     const { conversation } = await getOrCreateConversation(tenantId, from, normalized)
 
-    // Check if bot is paused (human takeover)
     if (conversation.botPaused) {
       console.log('[whatsapp ai] bot paused for conversation', conversation.id)
-      // Still save inbound message for the dashboard
       await db.insert(messages).values({
         conversationId: conversation.id,
         direction: 'inbound',
@@ -449,17 +454,19 @@ async function handleAiReply(from: string, normalized: string, originalText: str
       externalId,
     })
 
-    // Load conversation history (last 10 messages BEFORE this one)
+    // Load history
     const history = await loadHistory(conversation.id, 10)
 
-    // Call OpenAI
-    console.log('[whatsapp ai] calling OpenAI for', tenant.slug, 'from', normalized)
-    const { answer, model, latencyMs } = await runWhatsAppReply({
+    // Call OpenAI WITH function calling support
+    console.log('[whatsapp ai] calling OpenAI with functions for', tenant.slug, 'from', normalized)
+    const { answer, model, latencyMs, functionsCalled } = await runWhatsAppReplyWithFunctions({
       tenant,
       messageHistory: history,
       incomingMessage: originalText,
+      phone: from,
+      dispatchFunction: dispatchFunctionCall,
     })
-    console.log('[whatsapp ai] OpenAI responded in', latencyMs, 'ms, model:', model)
+    console.log('[whatsapp ai] OpenAI responded in', latencyMs, 'ms, model:', model, 'functions:', functionsCalled)
 
     // Save outbound message
     await db.insert(messages).values({
@@ -469,16 +476,24 @@ async function handleAiReply(from: string, normalized: string, originalText: str
       content: answer,
     })
 
-    // Update conversation metadata
+    // Update conversation
     await db
       .update(conversations)
       .set({ lastMessageAt: new Date(), updatedAt: new Date() })
       .where(eq(conversations.id, conversation.id))
 
+    // Create notification for doctor on new messages
+    await db.insert(notifications).values({
+      tenantId,
+      type: 'new_message',
+      title: 'Nuevo mensaje WhatsApp',
+      message: `${from}: ${originalText.slice(0, 100)}${originalText.length > 100 ? '...' : ''}`,
+    }).catch(() => {})
+
     // Send via WhatsApp
     const sent = await sendWhatsAppMessage(from, answer)
     if (!sent) {
-      console.error('[whatsapp ai] failed to send WhatsApp message to', from)
+      console.error('[whatsapp ai] failed to send message to', from)
     }
   } catch (error) {
     console.error('[whatsapp ai] error:', error)

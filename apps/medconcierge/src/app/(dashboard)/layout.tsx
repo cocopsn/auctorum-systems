@@ -14,6 +14,7 @@ import {
   MessageSquare,
   Plug,
   Receipt,
+  Globe,
   Settings,
   Users,
 } from 'lucide-react'
@@ -37,6 +38,7 @@ const navItems: DashboardNavItem[] = [
   { href: '/invoices', label: 'Facturas', icon: FileText },
   { href: '/campaigns', label: 'Campanas', icon: Megaphone },
   { href: '/integrations', label: 'Integraciones', icon: Plug },
+  { href: "/portal", label: "Portal Web", icon: Globe },
   { href: '/ai-settings', label: 'AI Concierge', icon: Bot },
   { href: '/settings', label: 'Configuracion', icon: Settings },
 ]

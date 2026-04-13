@@ -38,3 +38,9 @@ export { budgets, type Budget, type NewBudget } from './budgets';
 // Tier 3
 export { integrations, type Integration, type NewIntegration } from './integrations';
 export { subscriptions, type Subscription, type NewSubscription } from './subscriptions';
+
+// Portal
+export { portalPages, type PortalPage, type NewPortalPage, type PortalSection, type PortalConfig } from "./portal-pages";
+
+// Notifications  
+export { notifications, type Notification, type NewNotification } from "./notifications";
