@@ -10,11 +10,6 @@ export const dynamic = 'force-dynamic';
 // Returns all quotes for the current tenant (resolved from x-tenant-slug header
 // or from the ?tenant=slug query param for client-side calls).
 //
-// SEC-06 AUTH AUDIT: This route does NOT verify the user is authenticated.
-// Anyone who knows a tenant slug can list all quotes for that tenant.
-// TODO: Enforce authentication (e.g., verify magic-link session or Supabase JWT)
-// before returning quote data. Only authenticated users belonging to the
-// tenant should be able to access this dashboard endpoint.
 export async function GET(request: NextRequest) {
   try {
     const auth = await getAuthTenant();
