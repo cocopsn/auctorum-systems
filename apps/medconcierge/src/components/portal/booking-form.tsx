@@ -23,7 +23,7 @@ export function BookingForm({
   slot: Slot
   insuranceProviders: string[]
   onBack: () => void
-  onSuccess: (data: { appointmentId: string; portalToken: string }) => void
+  onSuccess: (data: { appointmentId: string; portalToken: string; reason?: string }) => void
 }) {
   const [form, setForm] = useState<BookingFormInput>({
     patientName: '',
@@ -86,9 +86,13 @@ export function BookingForm({
       }
 
       const data = await res.json()
-      onSuccess({ appointmentId: data.appointment.id, portalToken: data.patient.portalToken })
+      onSuccess({
+        appointmentId: data.appointment.id,
+        portalToken: data.patient.portalToken,
+        reason: result.data.reason,
+      })
     } catch {
-      setServerError('Error de conexión. Intente de nuevo.')
+      setServerError('Error de conexion. Intente de nuevo.')
       setSubmitting(false)
     }
   }
@@ -134,7 +138,7 @@ export function BookingForm({
             type="text"
             value={form.patientName}
             onChange={(e) => handleChange('patientName', e.target.value)}
-            placeholder="María González"
+            placeholder="Maria Gonzalez"
             className={inputClass(!!errors.patientName)}
           />
           {errors.patientName && (
@@ -147,7 +151,7 @@ export function BookingForm({
 
         <div>
           <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-            Teléfono (WhatsApp) *
+            Telefono (WhatsApp) *
           </label>
           <input
             type="tel"
@@ -199,7 +203,7 @@ export function BookingForm({
         {insuranceProviders.length > 0 && (
           <div>
             <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-              Seguro médico
+              Seguro medico
             </label>
             <select
               value={form.insurance}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle2, MapPin, CalendarCheck, Check } from 'lucide-react'
+import { CheckCircle2, MapPin, CalendarCheck, Check, Download, ArrowLeft } from 'lucide-react'
 import { AvailabilityCalendar } from './availability-calendar'
 import { BookingForm } from './booking-form'
 import { formatCurrency } from '@/lib/utils'
@@ -18,6 +18,61 @@ const STEPS = [
   { key: 'calendar', label: 'Horario' },
   { key: 'form', label: 'Datos' },
 ] as const
+
+function generateIcsContent(opts: {
+  date: string
+  startTime: string
+  endTime: string
+  doctorName: string
+  address: string
+  reason?: string
+}): string {
+  const formatIcsDate = (date: string, time: string) => {
+    const d = date.replace(/-/g, '')
+    const t = time.replace(/:/g, '').slice(0, 6)
+    return `${d}T${t}`
+  }
+
+  const dtStart = formatIcsDate(opts.date, opts.startTime)
+  const dtEnd = formatIcsDate(opts.date, opts.endTime)
+  const now = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')
+
+  return [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Auctorum Systems//MedConcierge//ES',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    'BEGIN:VEVENT',
+    `DTSTART;TZID=America/Monterrey:${dtStart}`,
+    `DTEND;TZID=America/Monterrey:${dtEnd}`,
+    `DTSTAMP:${now}`,
+    `UID:${crypto.randomUUID()}@auctorum.com.mx`,
+    `SUMMARY:Cita con ${opts.doctorName}`,
+    `LOCATION:${opts.address}`,
+    `DESCRIPTION:${opts.reason || 'Consulta medica'}`,
+    'STATUS:CONFIRMED',
+    'BEGIN:VALARM',
+    'TRIGGER:-PT60M',
+    'ACTION:DISPLAY',
+    'DESCRIPTION:Recordatorio de cita',
+    'END:VALARM',
+    'END:VEVENT',
+    'END:VCALENDAR',
+  ].join('\r\n')
+}
+
+function downloadIcs(content: string, filename: string) {
+  const blob = new Blob([content], { type: 'text/calendar;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
 
 export function BookingWizard({
   tenantId,
@@ -40,6 +95,7 @@ export function BookingWizard({
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null)
   const [portalToken, setPortalToken] = useState<string | null>(null)
+  const [bookedReason, setBookedReason] = useState<string>('')
 
   const handleSlotSelect = (date: string, slot: Slot) => {
     setSelectedDate(date)
@@ -57,6 +113,18 @@ export function BookingWizard({
       year: 'numeric',
     })
 
+    const handleDownloadIcs = () => {
+      const ics = generateIcsContent({
+        date: selectedDate,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+        doctorName: tenantName,
+        address,
+        reason: bookedReason,
+      })
+      downloadIcs(ics, `cita-${tenantName.replace(/\s+/g, '-').toLowerCase()}.ics`)
+    }
+
     return (
       <div className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-8 text-center">
         <div className="w-16 h-16 mx-auto mb-5 rounded-full bg-[var(--success)]/10 flex items-center justify-center">
@@ -64,12 +132,12 @@ export function BookingWizard({
         </div>
         <h3 className="text-xl font-semibold text-[var(--text-primary)] mb-2">Cita Agendada</h3>
         <p className="text-sm text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
-          Su cita ha sido registrada exitosamente. Recibirá confirmación por WhatsApp y email.
+          Su cita ha sido registrada exitosamente. Recibira confirmacion por WhatsApp y email.
         </p>
         <div className="bg-[var(--bg-tertiary)] rounded-lg p-5 text-left space-y-3 max-w-md mx-auto">
           <div className="flex items-center gap-3 text-sm">
             <CalendarCheck className="w-4 h-4 text-[var(--accent)] shrink-0" />
-            <span className="font-medium text-[var(--text-primary)]">{displayDate} — {selectedSlot.startTime.slice(0, 5)}</span>
+            <span className="font-medium text-[var(--text-primary)] capitalize">{displayDate} &mdash; {selectedSlot.startTime.slice(0, 5)}</span>
           </div>
           <div className="flex items-center gap-3 text-sm">
             <MapPin className="w-4 h-4 text-[var(--accent)] shrink-0" />
@@ -81,21 +149,35 @@ export function BookingWizard({
             </p>
           )}
         </div>
+
+        <p className="text-xs text-[var(--text-tertiary)] mt-4">
+          Le enviaremos un recordatorio por WhatsApp 24 horas antes de su cita.
+        </p>
+
         <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
-          <a
-            href="/"
-            className="px-5 py-2 text-sm font-medium text-[var(--accent)] border border-[var(--border)] rounded-lg hover:border-[var(--border-hover)] transition-colors"
+          <button
+            onClick={handleDownloadIcs}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-[var(--accent)] border border-[var(--accent)]/30 rounded-lg hover:bg-[var(--accent-muted)] transition-colors"
           >
-            Volver al perfil
-          </a>
+            <Download className="w-4 h-4" />
+            Agregar a mi calendario
+          </button>
           {portalToken && (
             <a
-              href={`/portal/${portalToken}`}
+              href={`/${slug}/portal/${portalToken}`}
               className="px-5 py-2.5 text-sm font-medium text-white bg-[var(--accent)] rounded-lg hover:bg-[var(--accent-hover)] transition-colors"
             >
               Ver mi portal
             </a>
           )}
+        </div>
+        <div className="mt-4">
+          <a
+            href={`/${slug}`}
+            className="text-sm text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
+          >
+            Volver al perfil
+          </a>
         </div>
       </div>
     )
@@ -146,7 +228,11 @@ export function BookingWizard({
           slot={selectedSlot}
           insuranceProviders={insuranceProviders}
           onBack={() => setStep('calendar')}
-          onSuccess={(data) => { setPortalToken(data.portalToken); setStep('success') }}
+          onSuccess={(data) => {
+            setPortalToken(data.portalToken)
+            setBookedReason(data.reason || '')
+            setStep('success')
+          }}
         />
       )}
     </div>
