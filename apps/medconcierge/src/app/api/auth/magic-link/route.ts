@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { db, users } from '@quote-engine/db'
 import { eq } from 'drizzle-orm'
-import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
 import { rateLimit } from '@/lib/rate-limit'
+import { withAuthCookieDomain } from '@/lib/auth-cookie'
 
 const schema = z.object({
   email: z.string().email().max(255),
@@ -35,17 +36,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true })
     }
 
-    // signInWithOtp is a public auth method — use anon key to minimize blast radius
-    // (service_role key is not needed and would give this endpoint elevated permissions)
-    const supabase = createClient(
+    const host = request.headers.get('host') || 'auctorum.com.mx'
+    const origin = host.includes('localhost') ? `http://${host}` : `https://${host}`
+    const redirectTo = `${origin}/api/auth/callback`
+
+    // Use createServerClient so PKCE code_verifier is stored in a cookie
+    const response = NextResponse.json({ success: true })
+    const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } }
+      {
+        cookies: {
+          get(name: string) {
+            return request.cookies.get(name)?.value
+          },
+          set(name: string, value: string, options: Record<string, unknown>) {
+            response.cookies.set({ name, value, ...withAuthCookieDomain(options ?? {}, host) })
+          },
+          remove(name: string, options: Record<string, unknown>) {
+            response.cookies.set({ name, value: '', ...withAuthCookieDomain(options ?? {}, host) })
+          },
+        },
+      }
     )
 
-    const reqHost = request.headers.get('host') || 'auctorum.com.mx'
-    const origin = reqHost.includes('localhost') ? `http://${reqHost}` : `https://${reqHost}`
-    const redirectTo = `${origin}/api/auth/callback`
     const { error } = await supabase.auth.signInWithOtp({
       email: parsed.data.email,
       options: { emailRedirectTo: redirectTo },
@@ -56,7 +70,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Error al enviar enlace' }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true })
+    return response
   } catch (error) {
     console.error('Magic link route error:', error)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
