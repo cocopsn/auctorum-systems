@@ -215,7 +215,7 @@ function GallerySection({ data }: { data: any }) {
           {(data.images || []).map((img: any, i: number) => (
             <div key={i} className="aspect-square rounded-xl overflow-hidden bg-slate-100">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={img.url} alt={img.caption || ""} className="w-full h-full object-cover" loading="lazy" />
+              <img src={typeof img === "string" ? img : img.url} alt={typeof img === "string" ? "" : (img.caption || "")} className="w-full h-full object-cover" loading="lazy" />
             </div>
           ))}
         </div>
