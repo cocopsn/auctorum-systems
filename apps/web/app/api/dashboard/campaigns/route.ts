@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch all campaigns
     const campaignsResult = await db.execute(
-      sql`SELECT * FROM campaigns WHERE tenant_id = ${auth.tenant.id} ORDER BY created_at DESC`
+      sql`SELECT * FROM campaigns WHERE tenant_id = ${auth.tenant.id} AND deleted_at IS NULL ORDER BY created_at DESC`
     );
 
     // Aggregate KPIs in a single query
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
             COUNT(*) FILTER (WHERE status = 'in_progress')::int AS in_progress,
             COALESCE(SUM(messages_sent), 0)::int AS total_messages_sent
           FROM campaigns
-          WHERE tenant_id = ${auth.tenant.id}`
+          WHERE tenant_id = ${auth.tenant.id} AND deleted_at IS NULL`
     );
 
     const [kpiRow] = kpiResult as any[];

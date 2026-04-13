@@ -107,7 +107,7 @@ export async function PATCH(
 }
 
 // DELETE /api/dashboard/campaigns/[id]
-// Hard delete a draft campaign
+// Soft delete (archive) a draft campaign
 export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -134,20 +134,20 @@ export async function DELETE(
 
     if ((existing[0] as any).status !== 'draft') {
       return NextResponse.json(
-        { error: 'Solo se pueden eliminar campanas en borrador' },
+        { error: 'Solo se pueden archivar campanas en borrador' },
         { status: 400 }
       );
     }
 
-    await db.execute(
-      sql`DELETE FROM campaigns WHERE id = ${id} AND tenant_id = ${auth.tenant.id}`
+    const result = await db.execute(
+      sql`UPDATE campaigns SET deleted_at = NOW() WHERE id = ${id} AND tenant_id = ${auth.tenant.id} AND status = 'draft' RETURNING *`
     );
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, archived: (result as any[])[0] ?? null });
   } catch (error) {
-    console.error('Error deleting campaign:', error);
+    console.error('Error archiving campaign:', error);
     return NextResponse.json(
-      { error: 'Error al eliminar campana' },
+      { error: 'Error al archivar campana' },
       { status: 500 }
     );
   }
