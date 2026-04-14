@@ -12,6 +12,7 @@ const bodySchema = z.object({
 })
 
 export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  try {
   const auth = await getAuthTenant()
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -75,4 +76,9 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   await db.update(appointments).set(updateData).where(eq(appointments.id, params.id))
 
   return NextResponse.json({ ok: true, type: parsed.data.type })
+
+  } catch (err) {
+    console.error('[POST]', err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

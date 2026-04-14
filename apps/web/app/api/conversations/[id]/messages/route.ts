@@ -25,6 +25,7 @@ async function ensureOwned(conversationId: string, tenantId: string) {
 }
 
 export async function GET(_request: NextRequest, { params }: { params: { id: string } }) {
+  try {
   const auth = await getAuthTenant();
   if (!auth) return apiError(401, 'Unauthorized');
 
@@ -38,9 +39,10 @@ export async function GET(_request: NextRequest, { params }: { params: { id: str
     .orderBy(asc(messages.createdAt));
 
   return apiSuccess(rows);
-}
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  } catch (err) {
+    console.error('[GET]', err instanceof Error ? err.message : er
+  try {
   if (!validateOrigin(request)) return apiError(403, 'Invalid origin');
   const auth = await getAuthTenant();
   if (!auth) return apiError(401, 'Unauthorized');
@@ -73,6 +75,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   });
 
   logger.info('message.queued', { tenantId: auth.tenant.id, action: 'send_message' });
+  // NOTE: actual WhatsApp send pipeline lives in Checkpoint 5. Here we only persist.
+  return apiSuccess(created, 201);
+
+  } catch (err) {
+    console.error('[POST]', err instanceof Error ? err.message : err);
+    return apiError(500, 'Internal server error');
+  }
+id, action: 'send_message' });
   // NOTE: actual WhatsApp send pipeline lives in Checkpoint 5. Here we only persist.
   return apiSuccess(created, 201);
 }

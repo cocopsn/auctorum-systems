@@ -11,6 +11,7 @@ import { validateOrigin } from '@/lib/csrf';
 const schema = z.object({ paused: z.boolean() });
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
   if (!validateOrigin(request)) return apiError(403, 'Invalid origin');
   const auth = await getAuthTenant();
   if (!auth) return apiError(401, 'Unauthorized');
@@ -27,4 +28,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   if (!updated) return apiError(404, 'Not found');
   return apiSuccess({ id: updated.id, botPaused: updated.botPaused });
+
+  } catch (err) {
+    console.error('[POST]', err instanceof Error ? err.message : err);
+    return apiError(500, 'Internal server error');
+  }
 }

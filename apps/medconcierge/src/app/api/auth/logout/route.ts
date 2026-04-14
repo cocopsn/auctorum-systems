@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { withAuthCookieDomain } from '@/lib/auth-cookie'
 
 export async function POST(request: NextRequest) {
+  try {
   const host = request.headers.get('host') || 'auctorum.com.mx'
   const protocol = request.headers.get('x-forwarded-proto') || 'https'
   const realOrigin = protocol + '://' + host
@@ -29,4 +30,9 @@ export async function POST(request: NextRequest) {
   )
   await supabase.auth.signOut()
   return response
+
+  } catch (err) {
+    console.error('[POST]', err instanceof Error ? err.message : err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
