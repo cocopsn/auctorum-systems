@@ -13,7 +13,11 @@ function createSupabaseServerClient() {
     {
       cookies: {
         get(name: string) {
-          return cookieStore.get(name)?.value
+          try {
+            return cookieStore.get(name)?.value
+          } catch {
+            return undefined
+          }
         },
       },
     }
@@ -23,8 +27,12 @@ function createSupabaseServerClient() {
 export async function getSession() {
   try {
     const supabase = createSupabaseServerClient()
-    const { data: { session } } = await supabase.auth.getSession()
-    return session
+    // Use getUser() instead of getSession() — getUser() authenticates
+    // against the Supabase Auth server rather than trusting cookie data.
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    // Return a session-like object for backwards compatibility
+    return { user }
   } catch (err) {
     // Corrupted session cookie — treat as unauthenticated
     console.error('getSession error:', err instanceof Error ? err.message : err)

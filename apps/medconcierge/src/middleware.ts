@@ -153,11 +153,11 @@ async function handleRequest(request: NextRequest) {
         },
       }
     )
-    const { data } = await supabase.auth.getSession()
-    session = data?.session
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    session = authUser ? true : null
   } catch (err) {
     console.error(
-      'Middleware getSession error (clearing cookies):',
+      'Middleware getUser error (clearing cookies):',
       err instanceof Error ? err.message : err,
     )
     const clearResponse = NextResponse.redirect(new URL('/login', realOrigin))
