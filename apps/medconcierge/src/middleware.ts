@@ -88,7 +88,7 @@ async function handleRequest(request: NextRequest) {
     const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'auctorum.com.mx'
     if (host.endsWith(appDomain)) {
       const sub = host.replace(`.${appDomain}`, '')
-      if (sub && sub !== 'www') slug = sub
+      if (/^(dr|dra|doc)-/.test(sub)) slug = sub
     }
   }
 

@@ -4,6 +4,7 @@ import { db, users } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
 import { createClient } from '@supabase/supabase-js';
 import { rateLimit } from '@/lib/rate-limit';
+import { buildPortalUrl } from '@/lib/hosts';
 
 const magicLinkSchema = z.object({
   email: z.string().email('Correo electronico invalido').max(255),
@@ -54,9 +55,7 @@ export async function POST(request: NextRequest) {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const reqHost = request.headers.get('host') || 'auctorum.com.mx';
-    const origin = reqHost.includes('localhost') ? `http://${reqHost}` : `https://${reqHost}`;
-    const redirectTo = `${origin}/api/auth/callback`;
+    const redirectTo = buildPortalUrl('/api/auth/callback');
 
     const { error } = await supabase.auth.signInWithOtp({
       email,

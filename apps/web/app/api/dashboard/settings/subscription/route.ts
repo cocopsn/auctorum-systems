@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthTenant } from '@/lib/auth';
-import { db, subscriptions } from '@quote-engine/db';
+import { db, subscriptions, tenants } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -95,6 +95,16 @@ export async function PATCH(request: NextRequest) {
         gracePeriodDays: 3,
       });
     }
+
+    await db
+      .update(tenants)
+      .set({
+        plan,
+        provisioningStatus: 'active',
+        provisionedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(tenants.id, auth.tenant.id));
 
     // Fetch updated subscription
     const [updated] = await db

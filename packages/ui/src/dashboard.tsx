@@ -19,6 +19,7 @@ import {
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type DashboardNavItem = {
+  key?: string;
   href: string;
   label: string;
   icon: ComponentType<{ className?: string }>;
@@ -269,7 +270,7 @@ export function AppShell({
             const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(`${item.href}/`));
             const groupLabel = NAV_GROUP_LABELS[index];
             return (
-              <div key={index}>
+              <div key={item.key ?? item.href}>
                 {groupLabel && (
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 px-4 pt-4 pb-1">
                     {groupLabel}

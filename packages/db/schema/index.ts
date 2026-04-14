@@ -1,6 +1,24 @@
 // Shared
-export { tenants, type Tenant, type NewTenant, type TenantConfig, DEFAULT_TENANT_CONFIG } from './tenants';
+export {
+  tenants,
+  type Tenant,
+  type NewTenant,
+  type TenantConfig,
+  type TenantType,
+  type PublicSubdomainPrefix,
+  type TenantProvisioningStatus,
+  DEFAULT_TENANT_CONFIG,
+  TENANT_TYPES,
+  PUBLIC_SUBDOMAIN_PREFIXES,
+  TENANT_PROVISIONING_STATUSES,
+} from './tenants';
 export { users, type User, type NewUser } from './users';
+export {
+  userDashboardPreferences,
+  type UserDashboardPreference,
+  type NewUserDashboardPreference,
+} from './user-dashboard-preferences';
+export { botInstances, type BotInstance, type NewBotInstance } from './bot-instances';
 
 // Quote Engine (B2B)
 export { products, type Product, type NewProduct } from './products';
@@ -36,7 +54,14 @@ export { onboardingProgress, type OnboardingProgress, type NewOnboardingProgress
 export { budgets, type Budget, type NewBudget } from './budgets';
 
 // Tier 3
-export { integrations, type Integration, type NewIntegration } from './integrations';
+export {
+  integrations,
+  type Integration,
+  type NewIntegration,
+  type IntegrationConfig,
+  type MetaBusinessConfig,
+  type GoogleCalendarConfig,
+} from './integrations';
 export { subscriptions, type Subscription, type NewSubscription } from './subscriptions';
 
 // Portal

@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseMiddleware } from '@/lib/supabase-ssr';
+import { APP_DOMAIN, isMedicalPublicHost, isPortalHost } from '@/lib/hosts';
 
 // Static routes — NOT tenants, skip middleware rewrite
 const STATIC_ROUTES = ['/systems', '/platform', '/login', '/signup', '/api', '/_next', '/favicon.ico', '/logo.png', '/logo1.png', '/robots.txt'];
-
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'auctorum.com.mx';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -15,6 +14,10 @@ export async function middleware(request: NextRequest) {
   // Skip static routes
   if (STATIC_ROUTES.some(route => pathname.startsWith(route))) {
     return NextResponse.next();
+  }
+
+  if (isPortalHost(hostname) && pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', realOrigin))
   }
 
   // Protect dashboard routes — require valid Supabase session
@@ -31,6 +34,16 @@ export async function middleware(request: NextRequest) {
   }
 
   const url = request.nextUrl.clone();
+  const hostWithoutPort = hostname.split(':')[0];
+
+  if (
+    isMedicalPublicHost(hostname) ||
+    isPortalHost(hostname) ||
+    hostWithoutPort === APP_DOMAIN ||
+    hostWithoutPort === `www.${APP_DOMAIN}`
+  ) {
+    return NextResponse.next();
+  }
 
   // Extract subdomain: toolroom.auctorum.com.mx → toolroom
   // Handle localhost for dev: toolroom.localhost:3000 → toolroom

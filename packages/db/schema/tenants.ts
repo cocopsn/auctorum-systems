@@ -1,9 +1,22 @@
 import { pgTable, uuid, varchar, text, boolean, jsonb, timestamp, integer } from 'drizzle-orm/pg-core';
 
+export const TENANT_TYPES = ['medical', 'industrial'] as const;
+export const PUBLIC_SUBDOMAIN_PREFIXES = ['dr', 'dra', 'doc'] as const;
+export const TENANT_PROVISIONING_STATUSES = ['draft', 'pending_plan', 'active', 'suspended'] as const;
+
+export type TenantType = (typeof TENANT_TYPES)[number];
+export type PublicSubdomainPrefix = (typeof PUBLIC_SUBDOMAIN_PREFIXES)[number];
+export type TenantProvisioningStatus = (typeof TENANT_PROVISIONING_STATUSES)[number];
+
 export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
   slug: varchar('slug', { length: 63 }).unique().notNull(),
   name: varchar('name', { length: 255 }).notNull(),
+  tenantType: varchar('tenant_type', { length: 20 }).notNull().default('industrial'),
+  publicSubdomain: varchar('public_subdomain', { length: 120 }),
+  publicSubdomainPrefix: varchar('public_subdomain_prefix', { length: 20 }),
+  provisioningStatus: varchar('provisioning_status', { length: 20 }).notNull().default('draft'),
+  provisionedAt: timestamp('provisioned_at', { withTimezone: true }),
   logoUrl: text('logo_url'),
   config: jsonb('config').notNull().default({}),
   isActive: boolean('is_active').default(true),
@@ -45,6 +58,12 @@ export interface TenantConfig {
     razon_social: string;
     rfc: string;
     giro: string;
+  };
+  account?: {
+    type?: TenantType;
+    plan?: string;
+    portalHost?: string;
+    publicHost?: string;
   };
   // Quote Engine (B2B)
   quote_settings?: {
@@ -139,6 +158,11 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     razon_social: '',
     rfc: '',
     giro: '',
+  },
+  account: {
+    type: 'industrial',
+    plan: 'free',
+    portalHost: 'portal.auctorum.com.mx',
   },
   quote_settings: {
     currency: 'MXN',

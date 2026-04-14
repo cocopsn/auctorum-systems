@@ -1,6 +1,7 @@
-import { db, quotes, clients, tenants } from "@quote-engine/db";
+import { db, quotes, clients } from "@quote-engine/db";
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import DashboardClient from "./DashboardClient";
+import { getAuthTenant } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,8 @@ export default async function DashboardPage() {
   let recentQuotes: any[] = [];
 
   try {
-    const [tenant] = await db.select().from(tenants).limit(1);
+    const auth = await getAuthTenant();
+    const tenant = auth?.tenant ?? null;
     if (tenant) {
       tenantName = tenant.name;
       const now = new Date();

@@ -1,5 +1,5 @@
 import { cache } from 'react'
-import { eq } from 'drizzle-orm'
+import { eq, or } from 'drizzle-orm'
 import { db, tenants, doctors } from '@quote-engine/db'
 import type { Tenant, Doctor } from '@quote-engine/db'
 
@@ -10,7 +10,7 @@ export const getTenant = cache(async (slug: string): Promise<Tenant | null> => {
   const [tenant] = await db
     .select()
     .from(tenants)
-    .where(eq(tenants.slug, slug))
+    .where(or(eq(tenants.slug, slug), eq(tenants.publicSubdomain, slug)))
     .limit(1)
 
   if (!tenant || !tenant.isActive) return null

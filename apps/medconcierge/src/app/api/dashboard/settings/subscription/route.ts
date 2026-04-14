@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthTenant } from '@/lib/auth';
-import { db } from '@quote-engine/db';
+import { db, tenants } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -79,6 +79,10 @@ export async function PATCH(request: NextRequest) {
         sql`INSERT INTO subscriptions (tenant_id, plan, status, amount, currency, billing_cycle, current_period_start, current_period_end, grace_period_days, created_at, updated_at) VALUES (${auth.tenant.id}, ${plan}, 'active', ${amount}, 'MXN', 'monthly', NOW(), NOW() + INTERVAL '30 days', 3, NOW(), NOW())`
       );
     }
+
+    await db.execute(
+      sql`UPDATE tenants SET plan = ${plan}, provisioning_status = 'active', provisioned_at = NOW(), updated_at = NOW() WHERE id = ${auth.tenant.id}`
+    );
 
     // Fetch updated subscription
     const result = await db.execute(

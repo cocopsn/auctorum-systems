@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient as createSSRClient } from '@supabase/ssr'
 import { withAuthCookieDomain } from '@/lib/auth-cookie'
+import { buildPortalUrl } from '@/lib/hosts'
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
 
   // -- PKCE path: ?code= present in query params --
   if (code) {
-    const response = NextResponse.redirect(realOrigin + '/dashboard')
+    const response = NextResponse.redirect(buildPortalUrl('/dashboard'))
     const supabase = createSSRClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL || '',
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
@@ -122,7 +123,7 @@ export async function GET(request: NextRequest) {
         }
 
         msgEl.textContent='Listo, redirigiendo...';
-        window.location.replace('/dashboard');
+        window.location.replace('${buildPortalUrl('/dashboard')}');
       }catch(e){
         fail(e.message || 'Error inesperado');
       }
