@@ -1,11 +1,12 @@
 export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
+import { createServerClient } from "@supabase/ssr"
 import { z } from "zod"
 import { db, users } from "@quote-engine/db"
 import { eq } from "drizzle-orm"
 import { rateLimit } from "@/lib/rate-limit"
+import { withAuthCookieDomain } from "@/lib/auth-cookie"
 
 const schema = z.object({
   email: z.string().email().max(255),
@@ -45,13 +46,43 @@ export async function POST(request: NextRequest) {
     const protocol = host.includes("localhost") ? "http" : "https"
     const redirectTo = `${protocol}://${host}/api/auth/callback`
 
-    // Stateless client with anon key — signInWithOtp actually sends the email.
-    // Using createClient (not createServerClient) avoids PKCE/cookie issues
-    // that can cause hangs with corrupted session cookies.
-    const supabase = createClient(
+    // Build response FIRST so cookie set() can write to it.
+    // Using createServerClient (PKCE flow) so the code_verifier gets
+    // persisted in a cookie — required for exchangeCodeForSession in the
+    // callback. Cookie get() is safe: we only need to write, not recover
+    // existing sessions.
+    const response = NextResponse.json({ success: true })
+
+    const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { auth: { autoRefreshToken: false, persistSession: false } },
+      {
+        cookies: {
+          get(name: string) {
+            try {
+              return request.cookies.get(name)?.value
+            } catch {
+              return undefined
+            }
+          },
+          set(name: string, value: string, options: Record<string, unknown>) {
+            try {
+              const opts = withAuthCookieDomain(options ?? {}, host)
+              response.cookies.set({ name, value, ...opts })
+            } catch (e) {
+              console.error("[magic-link] cookie set error:", e)
+            }
+          },
+          remove(name: string, options: Record<string, unknown>) {
+            try {
+              const opts = withAuthCookieDomain(options ?? {}, host)
+              response.cookies.set({ name, value: "", ...opts, maxAge: 0 })
+            } catch (e) {
+              console.error("[magic-link] cookie remove error:", e)
+            }
+          },
+        },
+      },
     )
 
     console.log("[magic-link] Sending OTP to:", email, "redirectTo:", redirectTo)
@@ -70,7 +101,7 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("[magic-link] OTP sent successfully to:", email)
-    return NextResponse.json({ success: true })
+    return response
   } catch (err) {
     console.error("[magic-link] unexpected error:", err)
     return NextResponse.json({ error: "Error interno" }, { status: 500 })

@@ -21,7 +21,45 @@ function isStaticOrApi(pathname: string): boolean {
   return false
 }
 
+/** Clear all Supabase cookies from a response to recover from corruption. */
+function clearSupabaseCookies(request: NextRequest, response: NextResponse, host: string) {
+  const cookieDomain = host.includes('localhost')
+    ? undefined
+    : `.${process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'auctorum.com.mx'}`
+
+  for (const cookie of request.cookies.getAll()) {
+    if (cookie.name.startsWith('sb-') || cookie.name.includes('auth-token')) {
+      response.cookies.set({
+        name: cookie.name,
+        value: '',
+        maxAge: 0,
+        path: '/',
+        ...(cookieDomain ? { domain: cookieDomain } : {}),
+      })
+    }
+  }
+}
+
 export async function middleware(request: NextRequest) {
+  // Global try/catch — the middleware must NEVER throw. A crash here
+  // takes down the entire process and triggers PM2 restart loops.
+  try {
+    return await handleRequest(request)
+  } catch (err) {
+    console.error(
+      'Middleware uncaught error (recovering):',
+      err instanceof Error ? err.message : err,
+    )
+    // On any unexpected error, let the request through rather than crashing.
+    // Clear any Supabase cookies that might be corrupted to prevent loops.
+    const response = NextResponse.next()
+    const host = request.headers.get('host') ?? ''
+    clearSupabaseCookies(request, response, host)
+    return response
+  }
+}
+
+async function handleRequest(request: NextRequest) {
   const host = request.headers.get('host') ?? ''
   const { pathname } = request.nextUrl
   const realOrigin = host.includes('localhost')
@@ -88,17 +126,29 @@ export async function middleware(request: NextRequest) {
       {
         cookies: {
           get(name: string) {
-            return request.cookies.get(name)?.value
+            try {
+              return request.cookies.get(name)?.value
+            } catch {
+              return undefined
+            }
           },
           set(name: string, value: string, options: Record<string, unknown>) {
-            const opts = withAuthCookieDomain(options ?? {}, host)
-            request.cookies.set({ name, value, ...opts })
-            response.cookies.set({ name, value, ...opts })
+            try {
+              const opts = withAuthCookieDomain(options ?? {}, host)
+              request.cookies.set({ name, value, ...opts })
+              response.cookies.set({ name, value, ...opts })
+            } catch {
+              // Cookie set failures are not fatal
+            }
           },
           remove(name: string, options: Record<string, unknown>) {
-            const opts = withAuthCookieDomain(options ?? {}, host)
-            request.cookies.set({ name, value: '', ...opts })
-            response.cookies.set({ name, value: '', ...opts })
+            try {
+              const opts = withAuthCookieDomain(options ?? {}, host)
+              request.cookies.set({ name, value: '', ...opts })
+              response.cookies.set({ name, value: '', ...opts })
+            } catch {
+              // Cookie remove failures are not fatal
+            }
           },
         },
       }
@@ -106,20 +156,12 @@ export async function middleware(request: NextRequest) {
     const { data } = await supabase.auth.getSession()
     session = data?.session
   } catch (err) {
-    console.error('Middleware getSession error (clearing cookies):', err instanceof Error ? err.message : err)
+    console.error(
+      'Middleware getSession error (clearing cookies):',
+      err instanceof Error ? err.message : err,
+    )
     const clearResponse = NextResponse.redirect(new URL('/login', realOrigin))
-    const cookieDomain = host.includes('localhost') ? undefined : `.${process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'auctorum.com.mx'}`
-    for (const cookie of request.cookies.getAll()) {
-      if (cookie.name.includes('auth-token')) {
-        clearResponse.cookies.set({
-          name: cookie.name,
-          value: '',
-          maxAge: 0,
-          path: '/',
-          ...(cookieDomain ? { domain: cookieDomain } : {}),
-        })
-      }
-    }
+    clearSupabaseCookies(request, clearResponse, host)
     return clearResponse
   }
 
