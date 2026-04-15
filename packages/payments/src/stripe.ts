@@ -8,7 +8,7 @@ export class StripeProvider implements PaymentProvider {
   private webhookSecret?: string;
 
   constructor(secretKey: string, webhookSecret?: string) {
-    this.client = new Stripe(secretKey, { apiVersion: '2024-12-18.acacia' });
+    this.client = new Stripe(secretKey, { apiVersion: '2025-02-24.acacia' });
     this.webhookSecret = webhookSecret;
   }
 
