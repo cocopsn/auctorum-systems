@@ -1,0 +1,70 @@
+
+export const dynamic = 'force-dynamic';
+
+import { NextRequest } from 'next/server';
+import { z } from 'zod';
+import { db, payments } from '@quote-engine/db';
+import { getAuthTenant } from '@/lib/auth';
+import { apiSuccess, apiError } from '@/lib/api-helpers';
+import { getPaymentProvider } from '@quote-engine/payments';
+
+const schema = z.object({
+  amount: z.number().positive().max(999999),
+  currency: z.string().length(3).default('MXN'),
+  description: z.string().min(1).max(500),
+  patientName: z.string().max(200).optional(),
+  patientEmail: z.string().email().optional(),
+  appointmentId: z.string().uuid().optional(),
+});
+
+export async function POST(request: NextRequest) {
+  try {
+    const auth = await getAuthTenant();
+    if (!auth) return apiError(401, 'Unauthorized');
+
+    const body = await request.json().catch(() => ({}));
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) return apiError(400, 'Invalid body', parsed.error.errors);
+
+    const provider = getPaymentProvider(auth.tenant);
+    if (!provider) {
+      return apiError(422, 'No payment provider configured. Go to Settings → Payments.');
+    }
+
+    const amountCents = Math.round(parsed.data.amount * 100);
+
+    const link = await provider.createPaymentLink({
+      tenantId: auth.tenant.id,
+      amount: amountCents,
+      currency: parsed.data.currency,
+      description: parsed.data.description,
+      patientName: parsed.data.patientName,
+      patientEmail: parsed.data.patientEmail,
+      appointmentId: parsed.data.appointmentId,
+    });
+
+    const [payment] = await db
+      .insert(payments)
+      .values({
+        tenantId: auth.tenant.id,
+        amount: String(parsed.data.amount),
+        method: provider.name,
+        processor: provider.name,
+        status: 'pending',
+        externalId: link.externalId,
+        description: parsed.data.description,
+        patientName: parsed.data.patientName || null,
+      })
+      .returning();
+
+    return apiSuccess({
+      paymentId: payment.id,
+      url: link.url,
+      provider: link.provider,
+      expiresAt: link.expiresAt?.toISOString(),
+    }, 201);
+  } catch (err) {
+    console.error('[create-payment-link]', err instanceof Error ? err.message : err);
+    return apiError(500, 'Failed to create payment link');
+  }
+}
