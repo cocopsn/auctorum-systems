@@ -1,4 +1,3 @@
-
 import Stripe from 'stripe';
 import type { PaymentProvider, PaymentLinkParams, PaymentLinkResult, WebhookEvent } from './types';
 
@@ -8,25 +7,20 @@ export class StripeProvider implements PaymentProvider {
   private webhookSecret?: string;
 
   constructor(secretKey: string, webhookSecret?: string) {
-    this.client = new Stripe(secretKey, { apiVersion: '2025-02-24.acacia' });
+    this.client = new Stripe(secretKey);
     this.webhookSecret = webhookSecret;
   }
 
   async createPaymentLink(params: PaymentLinkParams): Promise<PaymentLinkResult> {
     const session = await this.client.checkout.sessions.create({
-      payment_method_types: ['card'],
       line_items: [
         {
           price_data: {
             currency: (params.currency || 'MXN').toLowerCase(),
             product_data: {
               name: params.description,
-              metadata: {
-                tenantId: params.tenantId,
-                appointmentId: params.appointmentId || '',
-              },
             },
-            unit_amount: params.amount, // Already in cents
+            unit_amount: params.amount,
           },
           quantity: 1,
         },
@@ -37,11 +31,10 @@ export class StripeProvider implements PaymentProvider {
         tenantId: params.tenantId,
         appointmentId: params.appointmentId || '',
         patientName: params.patientName || '',
-        ...params.metadata,
+        ...(params.metadata || {}),
       },
       success_url: `https://auctorum.com.mx/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `https://auctorum.com.mx/payment/cancel`,
-      expires_after: 3600, // 1 hour
     });
 
     return {
@@ -61,7 +54,7 @@ export class StripeProvider implements PaymentProvider {
       this.webhookSecret
     );
 
-    const session = event.data.object as Stripe.Checkout.Session;
+    const obj = event.data.object as Record<string, unknown>;
 
     let status: WebhookEvent['status'] = 'pending';
     if (event.type === 'checkout.session.completed') status = 'completed';
@@ -71,11 +64,11 @@ export class StripeProvider implements PaymentProvider {
     return {
       provider: 'stripe',
       type: event.type,
-      externalId: session.id || (event.data.object as any).id,
+      externalId: String(obj.id || ''),
       status,
-      amount: (session.amount_total || 0),
-      currency: (session.currency || 'mxn').toUpperCase(),
-      metadata: (session.metadata || {}) as Record<string, string>,
+      amount: Number(obj.amount_total || 0),
+      currency: String(obj.currency || 'mxn').toUpperCase(),
+      metadata: (obj.metadata || {}) as Record<string, string>,
       raw: event,
     };
   }

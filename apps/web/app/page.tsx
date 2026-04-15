@@ -1,6 +1,7 @@
 export const dynamic = 'force-static';
 
 import Link from 'next/link';
+import AuctorumHero from '@/components/landing/AuctorumHero';
 import Image from 'next/image';
 import {
   Stethoscope,
@@ -37,39 +38,8 @@ export default function HomePage() {
         </div>
       </nav>
 
-      {/* HERO SECTION */}
-      <section className="relative overflow-hidden bg-slate-950 px-6 py-24 md:py-36">
-        {/* Glow effect */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[radial-gradient(circle,rgba(37,99,235,0.15)_0%,transparent_70%)] blur-3xl pointer-events-none" />
-        <div className="relative mx-auto max-w-5xl text-center">
-          <p className="text-sm font-medium uppercase tracking-widest text-blue-400 mb-6">Software · IA · Automatización</p>
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight">
-            <span className="text-slate-50">Construimos el</span><br />
-            <span className="bg-gradient-to-r from-blue-400 to-violet-400 bg-clip-text text-transparent">futuro digital</span><br />
-            <span className="text-slate-50">de tu negocio.</span>
-          </h1>
-          <p className="mt-8 text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            Plataformas inteligentes que automatizan operaciones, conectan con clientes, y escalan tu empresa.
-          </p>
-          <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a href="#productos" className="rounded-full bg-blue-600 px-8 py-4 text-lg font-medium text-white hover:bg-blue-500 transition-colors">
-              Explorar Productos
-            </a>
-            <a href="#tecnologia" className="rounded-full border border-slate-600 px-8 py-4 text-lg font-medium text-slate-300 hover:border-blue-500 hover:text-white transition-colors">
-              Conocer más
-            </a>
-          </div>
-          {/* Stats */}
-          <div className="mt-16 grid grid-cols-3 gap-8 max-w-lg mx-auto">
-            {[{n:'2', l:'Productos'}, {n:'17+', l:'Features'}, {n:'24/7', l:'AI Disponible'}].map(s => (
-              <div key={s.l}>
-                <p className="text-2xl font-bold text-white">{s.n}</p>
-                <p className="text-sm text-slate-500">{s.l}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* HERO SECTION — Futuristic Particle Globe */}
+      <AuctorumHero />
 
       {/* PRODUCTS SECTION */}
       <section id="productos" className="bg-slate-950 px-6 py-24 border-t border-slate-900">
