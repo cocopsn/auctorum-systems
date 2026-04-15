@@ -118,7 +118,7 @@ function statusBadge(status: string) {
     active: { label: 'Activo', className: 'bg-green-50 text-green-700' },
     past_due: { label: 'Pago pendiente', className: 'bg-red-50 text-red-700' },
     cancelled: { label: 'Cancelado', className: 'bg-gray-100 text-gray-500' },
-    trial: { label: 'Prueba', className: 'bg-blue-50 text-blue-700' },
+    trial: { label: 'Prueba', className: 'bg-indigo-50 text-indigo-700' },
   };
   const entry = map[status] ?? { label: status, className: 'bg-gray-100 text-gray-500' };
   return (

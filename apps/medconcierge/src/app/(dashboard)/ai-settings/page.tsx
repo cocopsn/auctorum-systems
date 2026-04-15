@@ -551,7 +551,7 @@ function StatsTab() {
   }
 
   const kpis = [
-    { label: "Mensajes (30d)", value: stats.totalMessages.toLocaleString(), icon: MessageSquare, color: "bg-blue-50 text-blue-600" },
+    { label: "Mensajes (30d)", value: stats.totalMessages.toLocaleString(), icon: MessageSquare, color: "bg-indigo-50 text-indigo-600" },
     { label: "Tokens Usados", value: stats.totalTokens.toLocaleString(), icon: Zap, color: "bg-amber-50 text-amber-600" },
     { label: "Costo Estimado", value: `$${stats.estimatedCostUSD.toFixed(2)} USD`, icon: DollarSign, color: "bg-green-50 text-green-600" },
     { label: "Latencia Promedio", value: `${stats.avgLatencyMs}ms`, icon: Clock, color: "bg-purple-50 text-purple-600" },

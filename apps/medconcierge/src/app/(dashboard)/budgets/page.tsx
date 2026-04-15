@@ -25,7 +25,7 @@ type SimpleClient = { id: string; name: string }
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
   pending: { label: 'Pendiente', color: 'bg-amber-50 text-amber-700' },
-  approved: { label: 'Aprobado', color: 'bg-blue-50 text-blue-700' },
+  approved: { label: 'Aprobado', color: 'bg-indigo-50 text-indigo-700' },
   paid: { label: 'Pagado', color: 'bg-green-50 text-green-700' },
   cancelled: { label: 'Cancelado', color: 'bg-gray-50 text-gray-500' },
 }
@@ -228,7 +228,7 @@ export default function BudgetsPage() {
                     <td className="px-5 py-3 text-right space-x-1">
                       {b.status === 'pending' && (
                         <>
-                          <button onClick={() => updateStatus(b.id, 'approved')} className="text-blue-500 hover:text-blue-700 p-1 text-xs" title="Aprobar"><Check className="h-4 w-4" /></button>
+                          <button onClick={() => updateStatus(b.id, 'approved')} className="text-indigo-500 hover:text-indigo-700 p-1 text-xs" title="Aprobar"><Check className="h-4 w-4" /></button>
                           <button onClick={() => updateStatus(b.id, 'cancelled')} className="text-gray-400 hover:text-red-500 p-1" title="Cancelar"><Ban className="h-4 w-4" /></button>
                         </>
                       )}

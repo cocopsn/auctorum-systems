@@ -121,8 +121,8 @@ export default function PaymentsSettingsPage() {
       <div className="rounded-xl border border-gray-100 bg-white p-6 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-blue-50 p-2">
-              <CreditCard className="h-5 w-5 text-blue-600" />
+            <div className="rounded-lg bg-indigo-50 p-2">
+              <CreditCard className="h-5 w-5 text-indigo-600" />
             </div>
             <h2 className="text-lg font-semibold text-gray-900">MercadoPago</h2>
           </div>

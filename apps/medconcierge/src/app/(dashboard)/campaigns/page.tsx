@@ -59,7 +59,7 @@ const TABS: { key: TabKey; label: string }[] = [
 
 const STATUS_BADGES: Record<string, { bg: string; text: string; label: string }> = {
   draft: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Borrador' },
-  scheduled: { bg: 'bg-blue-50', text: 'text-blue-700', label: 'Programada' },
+  scheduled: { bg: 'bg-indigo-50', text: 'text-indigo-700', label: 'Programada' },
   in_progress: { bg: 'bg-amber-50', text: 'text-amber-700', label: 'En Progreso' },
   completed: { bg: 'bg-green-50', text: 'text-green-700', label: 'Completada' },
   cancelled: { bg: 'bg-red-50', text: 'text-red-700', label: 'Cancelada' },
@@ -518,7 +518,7 @@ export default function CampaignsPage() {
           value={kpis.in_progress}
         />
         <KpiCard
-          icon={<MessageSquare className="h-5 w-5 text-blue-600" />}
+          icon={<MessageSquare className="h-5 w-5 text-indigo-600" />}
           label="Mensajes Enviados"
           value={kpis.total_messages_sent}
         />
