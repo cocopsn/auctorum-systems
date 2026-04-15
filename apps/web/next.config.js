@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@quote-engine/db', '@quote-engine/ui', '@quote-engine/ai'],
+  transpilePackages: ['@quote-engine/db', '@quote-engine/payments', '@quote-engine/ui', '@quote-engine/ai'],
   poweredByHeader: false,
   images: {
     remotePatterns: [

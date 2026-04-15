@@ -16,7 +16,7 @@ const nextConfig = {
 
   poweredByHeader: false,
 
-  transpilePackages: ['@quote-engine/db', '@quote-engine/pdf', '@quote-engine/notifications', '@quote-engine/ui', '@quote-engine/ai'],
+  transpilePackages: ['@quote-engine/db', '@quote-engine/payments', '@quote-engine/pdf', '@quote-engine/notifications', '@quote-engine/ui', '@quote-engine/ai'],
 
   async headers() {
     return [

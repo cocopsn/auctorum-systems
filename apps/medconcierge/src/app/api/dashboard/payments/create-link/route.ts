@@ -1,9 +1,7 @@
-
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { eq } from 'drizzle-orm';
 import { db, payments } from '@quote-engine/db';
 import { getAuthTenant } from '@/lib/auth';
 import { getPaymentProvider } from '@quote-engine/payments';
@@ -55,12 +53,13 @@ export async function POST(request: NextRequest) {
       .values({
         tenantId: auth.tenant.id,
         amount: String(parsed.data.amount),
+        currency: parsed.data.currency || 'MXN',
         method: provider.name,
         processor: provider.name,
         status: 'pending',
-        externalId: link.externalId,
-        description: parsed.data.description,
-        patientName: parsed.data.patientName || null,
+        processorPaymentId: link.externalId,
+        notes: parsed.data.description,
+        reference: link.url,
       })
       .returning();
 

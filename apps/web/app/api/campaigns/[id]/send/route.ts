@@ -35,13 +35,17 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     // Mark campaign as completed
+    const now = new Date();
     await db
       .update(campaigns)
       .set({
         status: 'completed',
-        sentAt: new Date(),
-        audienceCount: audience.length,
-        updatedAt: new Date(),
+        startedAt: now,
+        completedAt: now,
+        totalRecipients: audience.length,
+        messagesSent: audience.length,
+        messagesFailed: 0,
+        updatedAt: now,
       })
       .where(eq(campaigns.id, params.id));
 

@@ -1,9 +1,8 @@
-
 export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { eq, and } from 'drizzle-orm';
-import { db, payments, tenants } from '@quote-engine/db';
+import { db, payments } from '@quote-engine/db';
 import { StripeProvider } from '@quote-engine/payments';
 
 export async function POST(request: NextRequest) {
@@ -14,10 +13,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing signature' }, { status: 400 });
     }
 
-    // We need to find the tenant's webhook secret. For Stripe Connect,
-    // there's a global endpoint secret. For direct, each tenant has theirs.
-    // Strategy: look for the payment by checking all active Stripe tenants.
-    // In production with many tenants, use a shared endpoint secret.
     const globalSecret = process.env.STRIPE_WEBHOOK_SECRET;
     if (!globalSecret) {
       console.error('[stripe-webhook] STRIPE_WEBHOOK_SECRET not set');
@@ -27,7 +22,6 @@ export async function POST(request: NextRequest) {
     const provider = new StripeProvider('unused', globalSecret);
     const event = await provider.parseWebhook(body, signature);
 
-    // Find the payment by externalId
     const tenantId = event.metadata?.tenantId;
     if (!tenantId) {
       console.warn('[stripe-webhook] No tenantId in metadata', event.type);
@@ -35,18 +29,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (event.status === 'completed') {
-      // Update payment record
       await db
         .update(payments)
         .set({
           status: 'completed',
           paidAt: new Date(),
-          externalId: event.externalId,
-          updatedAt: new Date(),
         })
         .where(
           and(
-            eq(payments.externalId, event.externalId),
+            eq(payments.processorPaymentId, event.externalId),
             eq(payments.tenantId, tenantId)
           )
         );
