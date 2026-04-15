@@ -54,7 +54,7 @@ export class StripeProvider implements PaymentProvider {
       this.webhookSecret
     );
 
-    const obj = event.data.object as Record<string, unknown>;
+    const obj = event.data.object as unknown as Record<string, unknown>;
 
     let status: WebhookEvent['status'] = 'pending';
     if (event.type === 'checkout.session.completed') status = 'completed';
