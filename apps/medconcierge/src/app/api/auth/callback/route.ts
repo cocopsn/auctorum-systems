@@ -20,6 +20,25 @@ function makeSupabaseClient(request: NextRequest, response: NextResponse, host: 
   )
 }
 
+/** Clear all Supabase cookies to recover from corruption. */
+function clearSupabaseCookies(request: NextRequest, response: NextResponse, host: string) {
+  const cookieDomain = host.includes('localhost')
+    ? undefined
+    : `.${process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'auctorum.com.mx'}`
+
+  for (const cookie of request.cookies.getAll()) {
+    if (cookie.name.startsWith('sb-') || cookie.name.includes('auth-token') || cookie.name.includes('code-verifier')) {
+      response.cookies.set({
+        name: cookie.name,
+        value: '',
+        maxAge: 0,
+        path: '/',
+        ...(cookieDomain ? { domain: cookieDomain } : {}),
+      })
+    }
+  }
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const code = searchParams.get('code')
@@ -30,21 +49,56 @@ export async function GET(request: NextRequest) {
 
   // -- PKCE path: ?code= present in query params --
   if (code) {
+    console.log('[auth-callback] PKCE code received, attempting exchangeCodeForSession')
+
     const response = NextResponse.redirect(realOrigin + '/citas')
     const supabase = makeSupabaseClient(request, response, host)
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
-    if (error) {
-      console.error('Auth callback error (PKCE):', error.message)
-      return NextResponse.redirect(realOrigin + '/login?error=invalid_code')
+    // Step 1: Try PKCE exchangeCodeForSession (preferred)
+    try {
+      const { error } = await supabase.auth.exchangeCodeForSession(code)
+      if (!error) {
+        console.log('[auth-callback] PKCE exchange successful, redirecting to /citas')
+        return response
+      }
+      console.error('[auth-callback] PKCE exchange returned error:', error.message)
+    } catch (err) {
+      console.error(
+        '[auth-callback] PKCE exchange threw:',
+        err instanceof Error ? err.message : err,
+      )
     }
 
-    return response
+    // Step 2: Fallback — try verifyOtp with the code as token_hash
+    console.log('[auth-callback] Trying verifyOtp fallback')
+    try {
+      const fallbackResponse = NextResponse.redirect(realOrigin + '/citas')
+      const fallbackSupabase = makeSupabaseClient(request, fallbackResponse, host)
+
+      const { error: otpError } = await fallbackSupabase.auth.verifyOtp({
+        token_hash: code,
+        type: 'magiclink',
+      })
+      if (!otpError) {
+        console.log('[auth-callback] verifyOtp fallback successful')
+        return fallbackResponse
+      }
+      console.error('[auth-callback] verifyOtp fallback error:', otpError.message)
+    } catch (err) {
+      console.error(
+        '[auth-callback] verifyOtp fallback threw:',
+        err instanceof Error ? err.message : err,
+      )
+    }
+
+    // Step 3: Both failed — clean up and redirect to login
+    console.error('[auth-callback] All auth methods failed, clearing cookies and redirecting to /login')
+    const errorResponse = NextResponse.redirect(realOrigin + '/login?error=auth_failed')
+    clearSupabaseCookies(request, errorResponse, host)
+    return errorResponse
   }
 
   // -- Implicit path: tokens in hash fragment --
-  // Serve HTML page that reads hash tokens and POSTs them to this endpoint
-  // so the server can set proper httpOnly cookies with correct domain.
   const html = [
     '<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/>',
     '<meta name="viewport" content="width=device-width,initial-scale=1"/>',
@@ -109,13 +163,14 @@ export async function POST(request: NextRequest) {
     })
 
     if (error) {
-      console.error('Auth callback POST error:', error.message)
+      console.error('[auth-callback] POST setSession error:', error.message)
       return NextResponse.json({ error: error.message }, { status: 400 })
     }
 
+    console.log('[auth-callback] POST setSession successful')
     return response
   } catch (e: any) {
-    console.error('Auth callback POST exception:', e)
+    console.error('[auth-callback] POST exception:', e)
     return NextResponse.json({ error: 'Internal error' }, { status: 500 })
   }
 }

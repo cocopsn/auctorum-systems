@@ -25,6 +25,9 @@ import {
 import { runWhatsAppReplyWithFunctions } from '@/lib/ai-with-functions'
 import { dispatchFunctionCall } from '@/lib/whatsapp-functions'
 import crypto from 'crypto'
+import { createQueue } from '@quote-engine/queue'
+
+const whatsappQueue = createQueue('whatsapp-messages')
 
 // --------------- HMAC Signature Verification ---------------
 function verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
@@ -296,7 +299,17 @@ async function processInBackground(body: WebhookPayload) {
   if (appointmentHandled) return
 
   // --- AI concierge with function calling ---
-  await handleAiReplyWithFunctions(from, normalized, originalText, externalId)
+  // Enqueue AI reply for background worker processing
+  const resolved = await resolveTenant(normalized)
+  if (resolved) {
+    await whatsappQueue.add('message.received', {
+      tenant_id: resolved.tenantId,
+      from,
+      text: originalText,
+      external_id: externalId,
+    })
+    console.log('[whatsapp webhook] enqueued AI message for tenant', resolved.tenant.slug)
+  }
 }
 
 // --------------- Appointment keyword handler (existing logic) ---------------
