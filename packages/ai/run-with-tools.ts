@@ -123,6 +123,139 @@ export async function runWhatsAppReplyWithTools(
 
     // No more tool calls — final answer
     const answer = message.content ?? '';
+
+    // HALLUCINATION GUARD: detect if bot confirmed appointment without actual create_appointment success
+    const confirmationPhrases = [
+      'ha sido agendada',
+      'cita confirmada',
+      'queda confirmada',
+      'cita queda',
+      'queda agendada',
+      'queda registrada',
+      'queda reservada',
+      'está agendada',
+      'está confirmada',
+      'se agendó',
+      'fue agendada',
+      'he agendado',
+      'hemos agendado',
+      'agendé la',
+      'agendé su',
+      'listo, agendado',
+      'ya quedó',
+      'cita fue',
+      'reservé',
+      'cita registrada',
+    ];
+    const answerLower = answer.toLowerCase();
+    const claimedAgendamiento = confirmationPhrases.some((ph) => answerLower.includes(ph));
+    const actualCreateSuccess = allToolCalls.some(
+      (tc) => tc.tool === 'create_appointment' && tc.success === true
+    );
+
+    if (claimedAgendamiento && !actualCreateSuccess) {
+      console.warn(
+        `[ai/tools] HALLUCINATION DETECTED — bot claimed cita agendada without create_appointment success. Forcing regeneration.`
+      );
+      console.warn(`[ai/tools] Offending answer: ${answer.substring(0, 200)}`);
+
+      // Force regeneration with explicit correction
+      messages.push({
+        role: 'assistant',
+        content: answer,
+      });
+      messages.push({
+        role: 'system',
+        content: `ERROR: Respondiste al paciente confirmando agendamiento pero NO llamaste create_appointment. Esto es una alucinación grave.
+
+Si el paciente ya te dio todos los datos, LLAMA create_appointment ahora.
+Si falta algún dato, PREGUNTA lo que falta al paciente (NO confirmes).
+
+Responde correctamente.`,
+      });
+
+      const correctiveRes = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          tools: WHATSAPP_TOOLS,
+          tool_choice: 'auto',
+          temperature: 0.5,
+        }),
+      });
+      const correctiveData: any = await correctiveRes.json();
+      const correctiveChoice = correctiveData.choices?.[0];
+      const correctiveMessage = correctiveChoice?.message;
+
+      if (correctiveMessage?.tool_calls && correctiveMessage.tool_calls.length > 0) {
+        // Bot now called tools — execute them
+        messages.push({
+          role: 'assistant',
+          content: correctiveMessage.content ?? '',
+          tool_calls: correctiveMessage.tool_calls,
+        });
+
+        for (const tc of correctiveMessage.tool_calls) {
+          let args: Record<string, any> = {};
+          try {
+            args = JSON.parse(tc.function.arguments);
+          } catch {}
+          console.log(`[ai/tools] CORRECTIVE executing ${tc.function.name} with args:`, JSON.stringify(args));
+          const result = await executeToolCall(tenant, tc.function.name, args);
+          allToolCalls.push(result);
+          console.log(
+            `[ai/tools] CORRECTIVE ${tc.function.name} -> success=${result.success}`,
+            result.error ? `error=${result.error}` : ''
+          );
+          messages.push({
+            role: 'tool',
+            tool_call_id: tc.id,
+            content: JSON.stringify(result),
+          });
+        }
+
+        // Get final answer after corrective tools
+        const finalRes = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model,
+            messages,
+            tool_choice: 'none',
+            temperature: 0.7,
+          }),
+        });
+        const finalData: any = await finalRes.json();
+        const finalAnswer = finalData.choices?.[0]?.message?.content ?? answer;
+
+        return {
+          answer: finalAnswer,
+          model: data.model ?? model,
+          latencyMs: Date.now() - startTime,
+          toolCalls: allToolCalls,
+          rounds: rounds + 1,
+        };
+      } else {
+        // Bot regenerated text-only — use corrective response
+        const correctiveAnswer = correctiveMessage?.content ?? answer;
+        return {
+          answer: correctiveAnswer,
+          model: data.model ?? model,
+          latencyMs: Date.now() - startTime,
+          toolCalls: allToolCalls,
+          rounds: rounds + 1,
+        };
+      }
+    }
+
     return {
       answer,
       model: data.model ?? model,

@@ -237,8 +237,8 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
   }
 
   // Build per-tenant system prompt (medical vs industrial template + RAG context).
-  // Inject current date/time (America/Monterrey) and patient's WhatsApp phone
-  // so the LLM resolves relative dates correctly and never prompts for phone.
+  // Inject current date/time (America/Monterrey), patient's WhatsApp phone,
+  // and explicit next-weekday mapping so the LLM never does date arithmetic wrong.
   const nowInMonterrey = new Date().toLocaleString('sv-SE', {
     timeZone: 'America/Monterrey',
   });
@@ -251,6 +251,27 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
   });
   const patientPhoneFull = (from || '').replace(/\D/g, '') || normalized;
 
+  // Build weekday mapping (next occurrence of each weekday in America/Monterrey TZ)
+  function getNextWeekdayDate(targetDayIdx: number, tz: string): string {
+    const now = new Date();
+    const todayInTz = new Date(now.toLocaleString('en-US', { timeZone: tz }));
+    const todayIdx = todayInTz.getDay(); // 0=Sun, 1=Mon, ...
+    let daysUntil = (targetDayIdx - todayIdx + 7) % 7;
+    if (daysUntil === 0) daysUntil = 7; // "próximo lunes" = next week if today is Monday
+    const target = new Date(todayInTz.getTime() + daysUntil * 24 * 60 * 60 * 1000);
+    return target.toISOString().slice(0, 10);
+  }
+
+  const weekdayMap = {
+    lunes: getNextWeekdayDate(1, 'America/Monterrey'),
+    martes: getNextWeekdayDate(2, 'America/Monterrey'),
+    miercoles: getNextWeekdayDate(3, 'America/Monterrey'),
+    jueves: getNextWeekdayDate(4, 'America/Monterrey'),
+    viernes: getNextWeekdayDate(5, 'America/Monterrey'),
+    sabado: getNextWeekdayDate(6, 'America/Monterrey'),
+    domingo: getNextWeekdayDate(0, 'America/Monterrey'),
+  };
+
   const contextInjection = `
 
 ===== CONTEXTO TEMPORAL Y DE CANAL (información del sistema, NO del paciente) =====
@@ -258,18 +279,48 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
 FECHA Y HORA ACTUAL: ${nowInMonterrey} (America/Monterrey)
 HOY ES: ${dayOfWeekSpanish}, ${todayISO}
 
-CUANDO EL PACIENTE USE EXPRESIONES RELATIVAS:
-- "hoy" → resuelve a ${todayISO}
+PRÓXIMAS OCURRENCIAS DE DÍAS DE LA SEMANA (usa EXACTAMENTE estas fechas):
+- "el lunes" / "próximo lunes" → ${weekdayMap.lunes}
+- "el martes" / "próximo martes" → ${weekdayMap.martes}
+- "el miércoles" / "próximo miércoles" → ${weekdayMap.miercoles}
+- "el jueves" / "próximo jueves" → ${weekdayMap.jueves}
+- "el viernes" / "próximo viernes" → ${weekdayMap.viernes}
+- "el sábado" / "próximo sábado" → ${weekdayMap.sabado}
+- "el domingo" / "próximo domingo" → ${weekdayMap.domingo}
+
+OTROS RELATIVOS:
+- "hoy" → ${todayISO}
 - "mañana" → calcula ${todayISO} + 1 día
 - "pasado mañana" → calcula ${todayISO} + 2 días
-- "el lunes/martes/etc" → calcula próxima ocurrencia de ese día desde hoy
 
-SIEMPRE envía fechas absolutas (YYYY-MM-DD) a los tools. NUNCA envíes "mañana" o frases relativas a check_availability o create_appointment.
+NUNCA envíes fechas relativas a los tools. SIEMPRE convierte a YYYY-MM-DD usando la tabla arriba.
 
 NÚMERO DE WHATSAPP DEL PACIENTE: ${patientPhoneFull}
 
 Cuando llames a create_appointment, usa ESE número como patient_phone.
 NUNCA preguntes al paciente su número — ya lo tienes por WhatsApp.
+
+===== REGLA ANTI-ALUCINACIÓN (CRÍTICA) =====
+
+JAMÁS respondas al paciente con frases que impliquen que una cita está creada
+sin haber llamado la tool create_appointment en ESTA MISMA conversación.
+
+Frases PROHIBIDAS a menos que create_appointment haya retornado success=true:
+- "Su cita ha sido agendada"
+- "Cita confirmada"
+- "Listo, agendado"
+- "Ya quedó su cita"
+- "Se agendó exitosamente"
+- Cualquier variación que afirme agendamiento completado
+
+Si el paciente te da todos los datos en un solo mensaje (nombre, fecha, hora, motivo),
+DEBES:
+1. Llamar check_availability
+2. Llamar create_appointment
+3. Solo entonces confirmar con el ID de cita real
+
+NUNCA asumas que "tienes todo" y respondas confirmando. La confirmación requiere
+tool execution exitosa.
 `;
 
   const systemPromptOverride = buildTenantSystemPrompt({
