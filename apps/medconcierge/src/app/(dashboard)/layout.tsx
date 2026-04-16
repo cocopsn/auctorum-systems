@@ -15,6 +15,7 @@ export default async function DashboardLayout({
     <DashboardShell
       brand={tenant.name}
       userName={tenant.name}
+      tenantId={tenant.id}
     >
       {children}
     </DashboardShell>

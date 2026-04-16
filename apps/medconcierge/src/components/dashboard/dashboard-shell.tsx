@@ -19,6 +19,7 @@ import {
 import { AppShell, type DashboardNavItem } from '@quote-engine/ui'
 import { ToastContainer } from '@/components/ui/Toast'
 import { OnboardingGate } from '@/components/onboarding/onboarding-gate'
+import { DashboardRealtimeIndicator } from '@/components/DashboardRealtimeIndicator'
 
 const navItems: DashboardNavItem[] = [
   // PRINCIPAL
@@ -46,14 +47,17 @@ const navItems: DashboardNavItem[] = [
 export function DashboardShell({
   brand,
   userName,
+  tenantId,
   children,
 }: {
   brand: string
   userName: string
+  tenantId: string
   children: React.ReactNode
 }) {
   return (
     <>
+      <DashboardRealtimeIndicator tenantId={tenantId} />
       <AppShell
         navItems={navItems}
         brand={brand}
