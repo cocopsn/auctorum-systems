@@ -237,10 +237,45 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
   }
 
   // Build per-tenant system prompt (medical vs industrial template + RAG context).
+  // Inject current date/time (America/Monterrey) and patient's WhatsApp phone
+  // so the LLM resolves relative dates correctly and never prompts for phone.
+  const nowInMonterrey = new Date().toLocaleString('sv-SE', {
+    timeZone: 'America/Monterrey',
+  });
+  const todayISO = new Date().toLocaleDateString('en-CA', {
+    timeZone: 'America/Monterrey',
+  });
+  const dayOfWeekSpanish = new Date().toLocaleDateString('es-MX', {
+    timeZone: 'America/Monterrey',
+    weekday: 'long',
+  });
+  const patientPhoneFull = (from || '').replace(/\D/g, '') || normalized;
+
+  const contextInjection = `
+
+===== CONTEXTO TEMPORAL Y DE CANAL (información del sistema, NO del paciente) =====
+
+FECHA Y HORA ACTUAL: ${nowInMonterrey} (America/Monterrey)
+HOY ES: ${dayOfWeekSpanish}, ${todayISO}
+
+CUANDO EL PACIENTE USE EXPRESIONES RELATIVAS:
+- "hoy" → resuelve a ${todayISO}
+- "mañana" → calcula ${todayISO} + 1 día
+- "pasado mañana" → calcula ${todayISO} + 2 días
+- "el lunes/martes/etc" → calcula próxima ocurrencia de ese día desde hoy
+
+SIEMPRE envía fechas absolutas (YYYY-MM-DD) a los tools. NUNCA envíes "mañana" o frases relativas a check_availability o create_appointment.
+
+NÚMERO DE WHATSAPP DEL PACIENTE: ${patientPhoneFull}
+
+Cuando llames a create_appointment, usa ESE número como patient_phone.
+NUNCA preguntes al paciente su número — ya lo tienes por WhatsApp.
+`;
+
   const systemPromptOverride = buildTenantSystemPrompt({
     tenant,
     ragChunks: ragChunks.map((c) => c.content),
-    customInstructions: settings.systemPrompt, // append tenant-custom system prompt as-is
+    customInstructions: (settings.systemPrompt ?? '') + contextInjection,
   });
 
   // Call OpenAI with function calling tools
