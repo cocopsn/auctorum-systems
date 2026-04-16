@@ -35,12 +35,12 @@ importers:
       '@quote-engine/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@quote-engine/events':
+        specifier: workspace:*
+        version: link:../../packages/events
       '@quote-engine/payments':
         specifier: workspace:*
         version: link:../../packages/payments
-      '@quote-engine/queue':
-        specifier: workspace:*
-        version: link:../../packages/queue
       '@quote-engine/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -126,6 +126,9 @@ importers:
       '@quote-engine/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@quote-engine/events':
+        specifier: workspace:*
+        version: link:../../packages/events
       '@quote-engine/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
@@ -209,6 +212,25 @@ importers:
         specifier: ^5.4.0
         version: 5.9.3
 
+  apps/worker:
+    dependencies:
+      '@quote-engine/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
+      '@quote-engine/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@quote-engine/events':
+        specifier: workspace:*
+        version: link:../../packages/events
+    devDependencies:
+      tsx:
+        specifier: ^4.7.2
+        version: 4.21.0
+      typescript:
+        specifier: ^5.4.5
+        version: 5.9.3
+
   packages/ai:
     dependencies:
       '@quote-engine/db':
@@ -236,6 +258,19 @@ importers:
         version: 0.31.10
       typescript:
         specifier: ^5.4.0
+        version: 5.9.3
+
+  packages/events:
+    dependencies:
+      bullmq:
+        specifier: ^5.74.1
+        version: 5.74.1
+      ioredis:
+        specifier: ^5.10.1
+        version: 5.10.1
+    devDependencies:
+      typescript:
+        specifier: ^5.4.5
         version: 5.9.3
 
   packages/notifications:
