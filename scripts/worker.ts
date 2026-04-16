@@ -22,6 +22,7 @@ import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 import {
   getAiSettings,
   runWhatsAppReply,
+  runWhatsAppReplyWithTools,
   searchKnowledgeBase,
   buildTenantSystemPrompt,
   checkTenantBudget,
@@ -242,15 +243,24 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
     customInstructions: settings.systemPrompt, // append tenant-custom system prompt as-is
   });
 
-  // Call OpenAI
-  console.log(`[worker] calling OpenAI for tenant=${tenant.slug} phone=${normalized}`);
-  const { answer, model, latencyMs } = await runWhatsAppReply({
+  // Call OpenAI with function calling tools
+  console.log(`[worker] calling OpenAI (tools) for tenant=${tenant.slug} phone=${normalized}`);
+  const toolResult = await runWhatsAppReplyWithTools({
     tenant,
-    messageHistory: history,
+    systemPrompt: systemPromptOverride,
+    messageHistory: history.map((m) => ({
+      role: m.direction === 'inbound' ? ('user' as const) : ('assistant' as const),
+      content: m.content,
+    })),
     incomingMessage: text,
-    systemPromptOverride,
   });
-  console.log(`[worker] OpenAI responded in ${latencyMs}ms model=${model}`);
+  const { answer, model, latencyMs, toolCalls, rounds } = toolResult;
+  console.log(`[worker] OpenAI responded in ${latencyMs}ms model=${model} rounds=${rounds} toolCalls=${toolCalls.length}`);
+  if (toolCalls.length > 0) {
+    for (const tc of toolCalls) {
+      console.log(`[worker]   - ${tc.tool} success=${tc.success}${tc.error ? ` error=${tc.error}` : ''}`);
+    }
+  }
 
   // Save outbound message
   await db.insert(messages).values({

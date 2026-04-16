@@ -362,3 +362,11 @@ export { searchKnowledgeBase, type KnowledgeChunk as RAGChunk } from './rag';
 export { buildTenantSystemPrompt, getTenantVertical } from './prompts';
 export { checkTenantBudget, getTenantUsage, type BudgetCheckResult } from './budget';
 
+
+// --------------------------------------------------------------------------
+// Function calling / tools (added 2026-04-16 PROMPT 2.1b.2)
+// --------------------------------------------------------------------------
+export { runWhatsAppReplyWithTools } from './run-with-tools';
+export type { RunWithToolsParams, RunWithToolsResult } from './run-with-tools';
+export { WHATSAPP_TOOLS } from './tools';
+export type { ToolCallResult, ToolName } from './tools';
