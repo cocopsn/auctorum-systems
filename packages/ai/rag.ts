@@ -1,7 +1,6 @@
 /**
- * RAG search against pgvector knowledge_base table (existing schema).
- * Schema: id uuid, tenant_id uuid, content text, embedding vector(1536), metadata jsonb, created_at
- * Note: existing table has RLS policy on tenant_id, so we use direct parameterized query.
+ * RAG search against pgvector knowledge_base table.
+ * Schema: id uuid, tenant_id uuid, content text, embedding vector(1536), metadata jsonb
  */
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
@@ -36,10 +35,6 @@ export type KnowledgeChunk = {
   metadata: Record<string, unknown>;
 };
 
-/**
- * Searches the knowledge_base for chunks similar to the query, scoped by tenant.
- * Returns [] on any error — RAG must NEVER block WhatsApp replies.
- */
 export async function searchKnowledgeBase(params: {
   tenantId: string;
   query: string;
@@ -47,10 +42,17 @@ export async function searchKnowledgeBase(params: {
   minSimilarity?: number;
 }): Promise<KnowledgeChunk[]> {
   const { tenantId, query, topK = 3, minSimilarity = 0.55 } = params;
+  console.log('[rag] ENTER tenantId=' + tenantId + ' query="' + query.substring(0, 50) + '" topK=' + topK + ' minSim=' + minSimilarity);
+
   try {
+    console.log('[rag] computing embedding...');
     const embedding = await embed(query);
-    const embeddingStr = `[${embedding.join(',')}]`;
-    const rows = (await db.execute(sql`
+    console.log('[rag] embedding ready dim=' + embedding.length);
+
+    const embeddingStr = '[' + embedding.join(',') + ']';
+
+    console.log('[rag] executing SQL query...');
+    const result: any = await db.execute(sql`
       SELECT id, content, metadata,
         1 - (embedding <=> ${embeddingStr}::vector) AS similarity
       FROM knowledge_base
@@ -58,20 +60,40 @@ export async function searchKnowledgeBase(params: {
         AND 1 - (embedding <=> ${embeddingStr}::vector) > ${minSimilarity}
       ORDER BY embedding <=> ${embeddingStr}::vector
       LIMIT ${topK}
-    `)) as unknown as Array<{
-      id: string;
-      content: string;
-      metadata: Record<string, unknown> | null;
-      similarity: number | string;
-    }>;
-    return rows.map((r) => ({
+    `);
+
+    const rows: any[] = Array.isArray(result) ? result : (result?.rows ?? []);
+    console.log('[rag] SQL returned rows.length=' + rows.length);
+    console.log('[rag] result type=' + typeof result + ' isArray=' + Array.isArray(result));
+
+    if (rows.length > 0) {
+      console.log('[rag] first row keys=' + Object.keys(rows[0]).join(','));
+      console.log('[rag] first row similarity=' + rows[0].similarity);
+      console.log('[rag] first row content preview=' + String(rows[0].content).substring(0, 60));
+    } else {
+      console.log('[rag] ZERO rows. Running debug count query...');
+      const debug: any = await db.execute(sql`
+        SELECT COUNT(*)::int as total FROM knowledge_base WHERE tenant_id = ${tenantId}::uuid
+      `);
+      const debugRows: any[] = Array.isArray(debug) ? debug : (debug?.rows ?? []);
+      console.log('[rag] Debug count result=' + JSON.stringify(debugRows));
+    }
+
+    const chunks = rows.map((r: any) => ({
       id: r.id,
       content: r.content,
       similarity: Number(r.similarity),
       metadata: r.metadata ?? {},
     }));
-  } catch (e) {
-    console.warn('[ai/rag] searchKnowledgeBase failed (non-blocking):', (e as Error).message);
+
+    console.log('[rag] EXIT returning ' + chunks.length + ' chunks');
+    return chunks;
+  } catch (err: any) {
+    console.error('[rag] ERROR message=' + (err?.message || String(err)));
+    if (err?.stack) {
+      const firstLines = String(err.stack).split('\n').slice(0, 3).join(' | ');
+      console.error('[rag] stack=' + firstLines);
+    }
     return [];
   }
 }

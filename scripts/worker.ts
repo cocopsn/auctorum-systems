@@ -287,7 +287,7 @@ console.log('[worker] Starting WhatsApp message worker...');
 
 // IMPORTANT: queue name must match the one used by the webhook (packages/events/index.ts).
 // Webhook uses MESSAGE_QUEUE_NAME = 'whatsapp_messages' (underscore).
-const worker = createWorker('whatsapp_messages', processWhatsAppMessage, 2);
+const worker = createWorker('whatsapp-messages', processWhatsAppMessage, 2);
 
 worker.on('completed', (job) => {
   console.log(`[worker] Job ${job.id} completed`);
@@ -312,4 +312,4 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-console.log('[worker] Ready, waiting for jobs on queue: whatsapp_messages');
+console.log('[worker] Ready, waiting for jobs on queue: whatsapp-messages');
