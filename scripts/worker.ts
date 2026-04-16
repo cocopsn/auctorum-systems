@@ -19,7 +19,13 @@ import {
   type Tenant,
 } from '../packages/db/index';
 import { eq, and, desc, sql, isNull } from 'drizzle-orm';
-import { getAiSettings, runWhatsAppReply } from '../packages/ai/index';
+import {
+  getAiSettings,
+  runWhatsAppReply,
+  searchKnowledgeBase,
+  buildTenantSystemPrompt,
+  checkTenantBudget,
+} from '../packages/ai/index';
 
 // --------------- WhatsApp send (inlined to avoid Next.js path aliases) ---------------
 
@@ -137,27 +143,55 @@ async function loadHistory(conversationId: string, limit = 20) {
 // --------------- Job processor ---------------
 
 async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
-  const { tenant_id, from, text, external_id } = job.data as {
-    tenant_id: string;
-    from: string;
-    text: string;
-    external_id: string | null;
-  };
+  // Accept both payload shapes:
+  //  - scripts/worker legacy: { tenant_id, from, text, external_id }
+  //  - webhook (packages/events): { tenantId, phone, phoneNumberId, text, externalId, timestamp }
+  const data = job.data as Record<string, any>;
+  const hintedTenantId: string | null = data.tenantId ?? data.tenant_id ?? null;
+  const from: string = data.phone ?? data.from ?? '';
+  const text: string = data.text ?? '';
+  const external_id: string | null = data.externalId ?? data.external_id ?? null;
+  // phoneNumberId reserved for future bot_instances routing:
+  // const phoneNumberId: string | null = data.phoneNumberId ?? null;
 
   const normalized = (from || '').replace(/\D/g, '').replace(/^52/, '');
   if (!normalized || !text) throw new Error('Missing from or text');
 
-  const resolved = await resolveTenant(normalized);
-  if (!resolved) {
-    console.log(`[worker] no tenant found for phone ${normalized}`);
+  // Trust hinted tenantId from webhook (already resolved via integrations).
+  // Fall back to patient/medical lookup if not provided.
+  let tenant: Tenant | null = null;
+  let tenantId: string | null = null;
+  if (hintedTenantId) {
+    const [t] = await db.select().from(tenants).where(eq(tenants.id, hintedTenantId)).limit(1);
+    if (t) {
+      tenant = t;
+      tenantId = t.id;
+    }
+  }
+  if (!tenant) {
+    const resolved = await resolveTenant(normalized);
+    if (!resolved) {
+      console.log(`[worker] no tenant found for phone ${normalized}`);
+      return;
+    }
+    tenant = resolved.tenant;
+    tenantId = resolved.tenantId;
+  }
+
+  const settings = getAiSettings(tenant);
+  if (!settings.enabled) {
+    console.log(`[worker] AI disabled for tenant ${tenant.slug}`);
     return;
   }
 
-  const { tenant, tenantId } = resolved;
-  const settings = getAiSettings(tenant);
-
-  if (!settings.enabled) {
-    console.log(`[worker] AI disabled for tenant ${tenant.slug}`);
+  // Budget check (non-blocking on failure, soft stop on hard limit).
+  const budget = await checkTenantBudget(tenantId!, (tenant as any).plan);
+  if (!budget.canProceed) {
+    console.warn(`[worker] tenant ${tenant.slug} over budget: ${budget.reason}`);
+    await sendWhatsAppMessage(
+      from,
+      'Hemos alcanzado el limite diario de consultas automatizadas. Un asesor te contactara pronto.',
+    );
     return;
   }
 
@@ -191,12 +225,30 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
   // Load history
   const history = await loadHistory(conversation.id, 20);
 
+  // RAG: pull top-3 chunks from tenant knowledge_base (soft-fails to []).
+  const ragChunks = await searchKnowledgeBase({
+    tenantId: tenantId!,
+    query: text,
+    topK: 3,
+  });
+  if (ragChunks.length > 0) {
+    console.log(`[worker] RAG matched ${ragChunks.length} chunks for tenant=${tenant.slug}`);
+  }
+
+  // Build per-tenant system prompt (medical vs industrial template + RAG context).
+  const systemPromptOverride = buildTenantSystemPrompt({
+    tenant,
+    ragChunks: ragChunks.map((c) => c.content),
+    customInstructions: settings.systemPrompt, // append tenant-custom system prompt as-is
+  });
+
   // Call OpenAI
   console.log(`[worker] calling OpenAI for tenant=${tenant.slug} phone=${normalized}`);
   const { answer, model, latencyMs } = await runWhatsAppReply({
     tenant,
     messageHistory: history,
     incomingMessage: text,
+    systemPromptOverride,
   });
   console.log(`[worker] OpenAI responded in ${latencyMs}ms model=${model}`);
 
@@ -233,7 +285,9 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
 
 console.log('[worker] Starting WhatsApp message worker...');
 
-const worker = createWorker('whatsapp-messages', processWhatsAppMessage, 2);
+// IMPORTANT: queue name must match the one used by the webhook (packages/events/index.ts).
+// Webhook uses MESSAGE_QUEUE_NAME = 'whatsapp_messages' (underscore).
+const worker = createWorker('whatsapp_messages', processWhatsAppMessage, 2);
 
 worker.on('completed', (job) => {
   console.log(`[worker] Job ${job.id} completed`);
@@ -258,4 +312,4 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-console.log('[worker] Ready, waiting for jobs on queue: whatsapp-messages');
+console.log('[worker] Ready, waiting for jobs on queue: whatsapp_messages');
