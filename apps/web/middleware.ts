@@ -76,7 +76,11 @@ export async function middleware(request: NextRequest) {
     }
 
     // Rewrite public routes to /[tenant]/...
+    // Fix EPROTO: the listener is HTTP-only; without forcing protocol here,
+    // Next treats the rewrite as an external proxy to https://localhost:3000
+    // and fails the TLS handshake ("wrong version number") on every request.
     url.pathname = `/${tenant}${url.pathname}`;
+    url.protocol = 'http:';
     const response = NextResponse.rewrite(url);
     response.headers.set('x-tenant-slug', tenant);
     return response;
