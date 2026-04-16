@@ -30,7 +30,7 @@ export default function PlatformPage() {
         </p>
         <div className="mt-8 flex flex-wrap justify-center gap-4">
           <Link href="/signup" className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
-            Crear cuenta gratis
+            Crear cuenta
           </Link>
           <a href="https://demo.auctorum.com.mx" target="_blank" rel="noopener noreferrer" className="border border-slate-300 text-slate-700 px-6 py-3 rounded-lg font-medium hover:bg-slate-50 transition-colors">
             Ver demo
@@ -62,7 +62,7 @@ export default function PlatformPage() {
       <section className="py-20 px-6 text-center">
         <h2 className="text-2xl font-bold text-slate-900">¿Listo para profesionalizar tus cotizaciones?</h2>
         <Link href="/signup" className="mt-6 inline-block bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
-          Crear cuenta gratis
+          Crear cuenta
         </Link>
       </section>
 

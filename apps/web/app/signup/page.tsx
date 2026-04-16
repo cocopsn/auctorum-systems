@@ -6,14 +6,14 @@ import Link from 'next/link'
 import { Loader2, Check, X } from 'lucide-react'
 import { validateSlug, suggestSlug } from '@/lib/slug'
 
-type TenantType = 'medical' | 'industrial'
-type Plan = 'free' | 'pro' | 'enterprise'
+type TenantType = 'medical' | 'indus'
+type Plan = 'basico' | 'auctorum' | 'enterprise'
 type Prefix = 'dr' | 'dra' | 'doc'
 type SlugStatus = 'idle' | 'checking' | 'available' | 'taken' | 'invalid'
 
 export default function SignupPage() {
   const [tenantType, setTenantType] = useState<TenantType>('medical')
-  const [plan, setPlan] = useState<Plan>('pro')
+  const [plan, setPlan] = useState<Plan>('auctorum')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [businessName, setBusinessName] = useState('')
@@ -130,7 +130,7 @@ export default function SignupPage() {
     businessName &&
     slug &&
     slugStatus === 'available' &&
-    (!tenantType || tenantType === 'industrial' || specialty) &&
+    (!tenantType || tenantType === 'indus' || specialty) &&
     !submitting
 
   const inputCls =
@@ -170,8 +170,8 @@ export default function SignupPage() {
                       <span className="block text-sm font-medium">Medico</span>
                       <span className="block text-xs mt-1">Portal publico, agenda, WhatsApp, onboarding medico</span>
                     </button>
-                    <button type="button" onClick={() => setTenantType('industrial')} className={`rounded-lg border px-3 py-3 text-left ${tenantType === 'industrial' ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-slate-700 text-slate-400'}`}>
-                      <span className="block text-sm font-medium">Industrial</span>
+                    <button type="button" onClick={() => setTenantType('indus')} className={`rounded-lg border px-3 py-3 text-left ${tenantType === 'indus' ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-slate-700 text-slate-400'}`}>
+                      <span className="block text-sm font-medium">Indus</span>
                       <span className="block text-xs mt-1">Opera dentro de portal.auctorum.com.mx en v1</span>
                     </button>
                   </div>
@@ -181,8 +181,8 @@ export default function SignupPage() {
                   <p className="text-sm font-medium text-white mb-3">Plan inicial</p>
                   <div className="grid gap-2">
                     {[
-                      { key: 'free', label: 'Free', price: '$0' },
-                      { key: 'pro', label: 'Pro', price: '$1,500 MXN' },
+                      { key: 'basico', label: 'Básico', price: '$1,400' },
+                      { key: 'auctorum', label: 'Pro', price: '$1,800 MXN' },
                       { key: 'enterprise', label: 'Enterprise', price: 'Contactar' },
                     ].map((option) => (
                       <button key={option.key} type="button" onClick={() => setPlan(option.key as Plan)} className={`rounded-lg border px-3 py-3 text-left ${plan === option.key ? 'border-blue-500 bg-blue-500/10 text-white' : 'border-slate-700 text-slate-400'}`}>
@@ -208,7 +208,7 @@ export default function SignupPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-1.5">Nombre del negocio</label>
-                  <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} required maxLength={255} placeholder={tenantType === 'medical' ? 'Clinica Dra. Martinez' : 'Grupo Industrial Norte'} className={inputCls} />
+                  <input type="text" value={businessName} onChange={(e) => setBusinessName(e.target.value)} required maxLength={255} placeholder={tenantType === 'medical' ? 'Clinica Dra. Martinez' : 'Grupo Indus Norte'} className={inputCls} />
                 </div>
                 {tenantType === 'medical' ? (
                   <div>
@@ -217,7 +217,7 @@ export default function SignupPage() {
                   </div>
                 ) : (
                   <div className="rounded-lg border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">
-                    El tenant industrial usara el portal unificado y no generara landing publica propia en v1.
+                    El tenant indus usara el portal unificado y no generara landing publica propia en v1.
                   </div>
                 )}
               </div>

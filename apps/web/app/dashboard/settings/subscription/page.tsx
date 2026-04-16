@@ -56,9 +56,9 @@ interface PlanDefinition {
 
 const PLANS: PlanDefinition[] = [
   {
-    key: 'free',
+    key: 'basico',
     name: 'Free',
-    price: '$0',
+    price: '$1,400',
     priceDetail: 'MXN/mes',
     features: ['100 conversaciones', '1 usuario', 'Funciones basicas'],
     icon: Zap,
@@ -70,9 +70,9 @@ const PLANS: PlanDefinition[] = [
     buttonLabel: 'Cambiar',
   },
   {
-    key: 'pro',
+    key: 'auctorum',
     name: 'Pro',
-    price: '$1,500',
+    price: '$1,800',
     priceDetail: 'MXN/mes',
     features: ['1,000 conversaciones', '5 usuarios', 'Todas las funciones'],
     icon: Crown,
@@ -118,7 +118,6 @@ function statusBadge(status: string) {
     active: { label: 'Activo', className: 'bg-green-50 text-green-700' },
     past_due: { label: 'Pago pendiente', className: 'bg-red-50 text-red-700' },
     cancelled: { label: 'Cancelado', className: 'bg-gray-100 text-gray-500' },
-    trial: { label: 'Prueba', className: 'bg-blue-50 text-blue-700' },
   };
   const entry = map[status] ?? { label: status, className: 'bg-gray-100 text-gray-500' };
   return (
@@ -223,7 +222,7 @@ export default function SubscriptionSettingsPage() {
     );
   }
 
-  const currentPlan = subscription?.plan ?? 'free';
+  const currentPlan = subscription?.plan ?? 'basico';
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 py-8 px-4">
@@ -321,8 +320,8 @@ export default function SubscriptionSettingsPage() {
                 key={plan.key}
                 className={`rounded-xl border bg-white shadow-sm flex flex-col ${
                   isCurrent ? plan.borderColor + ' ring-2 ring-offset-1' : 'border-gray-100'
-                } ${isCurrent && plan.key === 'pro' ? 'ring-indigo-300' : ''} ${
-                  isCurrent && plan.key === 'free' ? 'ring-gray-300' : ''
+                } ${isCurrent && plan.key === 'auctorum' ? 'ring-indigo-300' : ''} ${
+                  isCurrent && plan.key === 'basico' ? 'ring-gray-300' : ''
                 } ${isCurrent && plan.key === 'enterprise' ? 'ring-amber-300' : ''}`}
               >
                 <div className="px-5 pt-5 pb-4 flex-1">

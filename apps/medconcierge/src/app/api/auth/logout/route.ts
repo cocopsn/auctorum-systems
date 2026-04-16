@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { safeGetAuthCookie } from '@/lib/safe-cookie-get'
 import { withAuthCookieDomain } from '@/lib/auth-cookie'
 
 export async function POST(request: NextRequest) {
@@ -15,7 +16,7 @@ export async function POST(request: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          return request.cookies.get(name)?.value
+          return safeGetAuthCookie(request.cookies.get(name)?.value)
         },
         set(name: string, value: string, options: Record<string, unknown>) {
           const opts = withAuthCookieDomain(options ?? {}, host)

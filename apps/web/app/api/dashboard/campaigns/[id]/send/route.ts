@@ -29,11 +29,11 @@ export async function POST(
     const [sub] = await db.execute(
       sql`SELECT plan FROM subscriptions WHERE tenant_id = ${auth.tenant.id} ORDER BY created_at DESC LIMIT 1`
     ) as any[];
-    const plan = sub?.plan || 'free';
+    const plan = sub?.plan || 'basico';
 
     const CAMPAIGN_LIMITS: Record<string, number> = {
-      free: 1,
-      pro: 10,
+      basico: 1,
+      auctorum: 10,
       enterprise: 100,
     };
 

@@ -20,7 +20,7 @@ type FollowUp = {
 type SimpleClient = { id: string; name: string }
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  scheduled: { label: 'Programado', color: 'bg-indigo-50 text-indigo-700' },
+  scheduled: { label: 'Programado', color: 'bg-blue-50 text-blue-700' },
   sent: { label: 'Enviado', color: 'bg-green-50 text-green-700' },
   responded: { label: 'Respondido', color: 'bg-emerald-50 text-emerald-700' },
   cancelled: { label: 'Cancelado', color: 'bg-gray-50 text-gray-500' },

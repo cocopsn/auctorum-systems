@@ -46,7 +46,7 @@ type ShellResponse = {
 }
 
 const PLAN_LABELS: Record<string, string> = {
-  free: 'Plan Free',
+  free: 'Plan Básico',
   pro: 'Plan Pro',
   enterprise: 'Plan Enterprise',
 }
@@ -168,7 +168,7 @@ export default function DashboardLayout({
       })
       .catch(() => {
         setShell({
-          tenant: { name: 'Auctorum Systems', type: 'industrial', plan: 'free' },
+          tenant: { name: 'Auctorum Systems', type: 'industrial', plan: 'basico' },
           user: { name: 'Admin' },
           preferences: { hiddenWidgets: [], widgetOrder: [] },
         })
@@ -208,7 +208,7 @@ export default function DashboardLayout({
         logoUrl="/logo.png"
         appName={shell?.tenant.type === 'medical' ? 'Portal Medico' : 'Portal Unificado'}
         userName={shell?.user.name || 'Admin'}
-        planLabel={PLAN_LABELS[shell?.tenant.plan || 'free'] || 'Plan Free'}
+        planLabel={PLAN_LABELS[shell?.tenant.plan || 'basico'] || 'Plan Básico'}
         greeting="Bienvenido de vuelta"
         subtitle={shell?.tenant.type === 'medical' ? 'Gestion, onboarding e integraciones del consultorio.' : 'Gestion comercial, integraciones y operacion.'}
         ctaHref="/dashboard/ai-settings"

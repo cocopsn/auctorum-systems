@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { safeGetAuthCookie } from '@/lib/safe-cookie-get'
 import { withAuthCookieDomain } from '@/lib/auth-cookie'
 
 const DASHBOARD_ROUTES = [
@@ -95,9 +96,14 @@ async function handleRequest(request: NextRequest) {
   // 4. /login always public
   if (pathname === '/login') return NextResponse.next()
 
-  // 5. Portal routes: subdomain + non-dashboard path -> rewrite with marker
+  // 5. Landing page: root path on subdomain shows the public landing
+  if (slug && pathname === '/') {
+    return NextResponse.next()
+  }
+
+  // 5b. Portal routes: subdomain + non-dashboard path -> rewrite with marker
   if (slug && !isDashboardRoute(pathname)) {
-    const portalPath = pathname === '/' ? `/${slug}` : `/${slug}${pathname}`
+    const portalPath = `/${slug}${pathname}`
     const rewriteUrl = request.nextUrl.clone()
     // Force http:// for internal rewrites — Next.js serves on plain HTTP
     // behind Caddy. Without this, cloned URLs inherit the https:// protocol
@@ -127,7 +133,7 @@ async function handleRequest(request: NextRequest) {
         cookies: {
           get(name: string) {
             try {
-              return request.cookies.get(name)?.value
+              return safeGetAuthCookie(request.cookies.get(name)?.value)
             } catch {
               return undefined
             }

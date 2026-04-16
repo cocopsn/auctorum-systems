@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { MessageCircle, Send, Bot, User, Pause, Play, Phone, Search } from 'lucide-react'
+import { MessageCircle, Send, Bot, User, Pause, Play, Phone, Search, Pencil, Check, X } from 'lucide-react'
 
 interface ConversationItem {
   id: string
@@ -79,6 +79,23 @@ export default function ConversationsPage() {
     } catch {}
   }, [])
 
+  // Realtime: refresh conversations list + active messages on new message event
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail: any = (e as CustomEvent).detail
+      fetchConvos()
+      const convId = detail?.conversation_id
+      if (convId && convId === selectedId) {
+        fetchMessages(convId)
+      } else if (selectedId) {
+        // still refresh in case selected conversation got a message from other side
+        fetchMessages(selectedId)
+      }
+    }
+    window.addEventListener('realtime:message', handler)
+    return () => window.removeEventListener('realtime:message', handler)
+  }, [fetchConvos, fetchMessages, selectedId])
+
   useEffect(() => {
     fetchConvos()
     const interval = setInterval(fetchConvos, 10000)
@@ -127,6 +144,23 @@ export default function ConversationsPage() {
       })
       fetchConvos()
     } catch {}
+  }
+
+  const [renaming, setRenaming] = useState(false)
+  const [renameVal, setRenameVal] = useState('')
+  async function saveRename() {
+    if (!selectedId || !renameVal.trim()) { setRenaming(false); return }
+    try {
+      const res = await fetch(`/api/dashboard/conversations/${selectedId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientName: renameVal.trim() }),
+      })
+      if (res.ok) {
+        await fetchConvos()
+      }
+    } catch {}
+    setRenaming(false)
   }
 
   const filtered = convos.filter(c => {
@@ -231,7 +265,36 @@ export default function ConversationsPage() {
                 {(selectedConvo.clientName || '?')[0].toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{selectedConvo.clientName || 'Sin nombre'}</p>
+                {renaming ? (
+                  <div className="flex items-center gap-1">
+                    <input
+                      autoFocus
+                      value={renameVal}
+                      onChange={(e) => setRenameVal(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveRename(); if (e.key === 'Escape') setRenaming(false) }}
+                      className="text-sm font-semibold text-gray-900 border border-indigo-300 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-indigo-400 min-w-0 flex-1"
+                      placeholder="Nombre del contacto"
+                      maxLength={255}
+                    />
+                    <button onClick={saveRename} className="p-1 text-green-600 hover:bg-green-50 rounded" title="Guardar">
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                    <button onClick={() => setRenaming(false)} className="p-1 text-gray-500 hover:bg-gray-100 rounded" title="Cancelar">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 group">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{selectedConvo.clientName || 'Sin nombre'}</p>
+                    <button
+                      onClick={() => { setRenameVal(selectedConvo.clientName || ''); setRenaming(true) }}
+                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-opacity"
+                      title="Renombrar contacto"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
                 {selectedConvo.clientPhone && (
                   <p className="text-xs text-gray-500 flex items-center gap-1">
                     <Phone className="h-3 w-3" />

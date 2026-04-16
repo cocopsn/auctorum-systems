@@ -42,7 +42,7 @@ export function Navbar({ activePage }: { activePage?: ActivePage }) {
           href="/signup"
           className="hidden rounded-full bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors md:inline-flex"
         >
-          Comenzar Gratis
+          Comenzar
         </Link>
 
         <button onClick={() => setOpen(!open)} className="p-2 text-slate-600 md:hidden" aria-label="Menu">
@@ -65,7 +65,7 @@ export function Navbar({ activePage }: { activePage?: ActivePage }) {
             Iniciar sesión
           </Link>
           <Link href="/signup" onClick={() => setOpen(false)} className="mt-2 block rounded-full bg-blue-600 px-5 py-2.5 text-center text-sm font-medium text-white">
-            Comenzar Gratis
+            Comenzar
           </Link>
         </div>
       )}

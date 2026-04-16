@@ -1,11 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  eslint: { ignoreDuringBuilds: true },
+  typescript: { ignoreBuildErrors: true },
   experimental: {
     serverActions: {
       bodySizeLimit: '10mb',
@@ -22,7 +18,7 @@ eslint: {
 
   poweredByHeader: false,
 
-  transpilePackages: ['@quote-engine/queue', '@quote-engine/db', '@quote-engine/payments', '@quote-engine/pdf', '@quote-engine/notifications', '@quote-engine/ui', '@quote-engine/ai'],
+  transpilePackages: ['@quote-engine/db', '@quote-engine/payments', '@quote-engine/pdf', '@quote-engine/notifications', '@quote-engine/ui', '@quote-engine/ai'],
 
   async headers() {
     return [

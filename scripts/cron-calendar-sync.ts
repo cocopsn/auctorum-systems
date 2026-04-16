@@ -13,7 +13,7 @@ import {
   getCalendarConfig,
   listCalendarEvents,
   type CalendarEvent,
-} from "../../apps/medconcierge/src/lib/google-calendar"
+} from "../apps/medconcierge/src/lib/google-calendar"
 
 // --------------- Helpers ---------------
 

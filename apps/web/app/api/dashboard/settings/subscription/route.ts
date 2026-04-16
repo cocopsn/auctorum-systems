@@ -34,12 +34,12 @@ export async function GET() {
 // PATCH /api/dashboard/settings/subscription
 // Update the plan
 const PLAN_AMOUNTS: Record<string, number> = {
-  free: 0,
-  pro: 1500,
+  basico: 1400,
+  auctorum: 1800,
 };
 
 const patchSchema = z.object({
-  plan: z.enum(['free', 'pro']),
+  plan: z.enum(['basico', 'auctorum']),
 });
 
 export async function PATCH(request: NextRequest) {

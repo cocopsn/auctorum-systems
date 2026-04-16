@@ -4,7 +4,7 @@ import { tenants } from './tenants'
 export const subscriptions = pgTable('subscriptions', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }).unique(),
-  plan: varchar('plan', { length: 50 }).default('free'),
+  plan: varchar('plan', { length: 50 }).default('basico'),
   status: varchar('status', { length: 20 }).default('active'),
   amount: decimal('amount', { precision: 12, scale: 2 }).default('0'),
   currency: varchar('currency', { length: 3 }).default('MXN'),

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, conversations, messages } from '@quote-engine/db'
+import { db, conversations, messages, clients } from '@quote-engine/db'
 import { eq, and, lt, desc } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
+import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { z } from 'zod';
 
 export const dynamic = 'force-dynamic'
@@ -97,13 +98,29 @@ export async function POST(
       return NextResponse.json({ error: 'Conversación no encontrada' }, { status: 404 })
     }
 
+    // Lookup client phone to send via WhatsApp Cloud API
+    const [client] = conv.clientId
+      ? await db.select({ phone: clients.phone }).from(clients).where(eq(clients.id, conv.clientId)).limit(1)
+      : [null as any]
+
+    const content = body.content.trim()
+    let sent = false
+    if (client?.phone) {
+      try {
+        sent = await sendWhatsAppMessage(client.phone, content)
+      } catch (e) {
+        console.error('manual send WA error:', e)
+      }
+    }
+
     const [msg] = await db
       .insert(messages)
       .values({
         conversationId: params.id,
         direction: 'outbound',
         senderType: 'manual',
-        content: body.content.trim(),
+        content,
+        ...(sent ? {} : { metadata: { delivery_error: true } as any }),
       })
       .returning()
 
@@ -115,7 +132,7 @@ export async function POST(
       })
       .where(eq(conversations.id, params.id))
 
-    return NextResponse.json({ message: msg })
+    return NextResponse.json({ message: msg, sent })
   } catch (err: any) {
     console.error('message send error:', err)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

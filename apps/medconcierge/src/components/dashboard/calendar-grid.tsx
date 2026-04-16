@@ -131,6 +131,12 @@ export function CalendarGrid() {
 
   useEffect(() => { fetchAppointments() }, [fetchAppointments])
 
+  useEffect(() => {
+    const handler = () => { fetchAppointments() }
+    window.addEventListener('realtime:appointment', handler)
+    return () => window.removeEventListener('realtime:appointment', handler)
+  }, [fetchAppointments])
+
   // Scroll to current time on mount
   useEffect(() => {
     if (scrollRef.current && view !== "month") {

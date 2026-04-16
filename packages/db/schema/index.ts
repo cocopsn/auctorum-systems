@@ -69,3 +69,5 @@ export { portalPages, type PortalPage, type NewPortalPage, type PortalSection, t
 
 // Notifications  
 export { notifications, type Notification, type NewNotification } from "./notifications";
+export { knowledgeBase } from './knowledge-base';
+export { auditLogs } from './audit-logs';

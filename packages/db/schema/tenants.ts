@@ -161,7 +161,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   },
   account: {
     type: 'industrial',
-    plan: 'free',
+    plan: 'basico',
     portalHost: 'portal.auctorum.com.mx',
   },
   quote_settings: {

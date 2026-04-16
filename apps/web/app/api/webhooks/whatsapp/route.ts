@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, quotes, quoteEvents, clients } from '@quote-engine/db';
-import { eq, and, desc } from 'drizzle-orm';
+import { db, quotes, quoteEvents, clients, integrations } from '@quote-engine/db';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import crypto from 'crypto';
 
 // ============================================================
@@ -102,6 +102,9 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
   const from = message.from as string | undefined;
   const msgType = message.type as string | undefined;
   const timestamp = message.timestamp as string | undefined;
+  // Meta metadata containing phone_number_id
+  const metadata = (message as any)?.metadata || {};
+  const phoneNumberId = metadata.phone_number_id as string | undefined;
 
   let text = '';
   if (msgType === 'text') {
@@ -114,14 +117,31 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
   // to match the format stored in the clients table.
   const cleanPhone = from?.replace(/\D/g, '').replace(/^52/, '') ?? '';
 
-  if (!cleanPhone) {
-
+  if (!cleanPhone || !phoneNumberId) {
     return;
   }
 
   try {
-    // 1. Look up the client by phone number in the clients table
-    //    Try both with and without country code since storage format may vary
+    // 0. MAP PHONE_NUMBER_ID TO TENANT_ID (Multi-Tenant Isolation)
+    const [integration] = await db
+      .select({ tenantId: integrations.tenantId })
+      .from(integrations)
+      .where(
+        and(
+          eq(integrations.type, 'meta'),
+          sql`${integrations.config}->>'phone_number_id' = ${phoneNumberId}`
+        )
+      )
+      .limit(1);
+
+    if (!integration) {
+      console.warn(`WhatsApp webhook: Unmapped phone_number_id ${phoneNumberId}`);
+      return;
+    }
+
+    const tenantId = integration.tenantId;
+
+    // 1. Look up the client by phone number SCOPED to the active Tenant
     const phoneCandidates = [cleanPhone, `52${cleanPhone}`];
     let matchedClient: { id: string; tenantId: string } | undefined;
 
@@ -129,7 +149,12 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
       const [found] = await db
         .select({ id: clients.id, tenantId: clients.tenantId })
         .from(clients)
-        .where(eq(clients.phone, phone))
+        .where(
+          and(
+            eq(clients.tenantId, tenantId),
+            eq(clients.phone, phone)
+          )
+        )
         .limit(1);
       if (found) {
         matchedClient = found;
@@ -142,7 +167,12 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
       const [recentQuote] = await db
         .select({ id: quotes.id, tenantId: quotes.tenantId })
         .from(quotes)
-        .where(eq(quotes.clientPhone, cleanPhone))
+        .where(
+          and(
+            eq(quotes.tenantId, tenantId),
+            eq(quotes.clientPhone, cleanPhone)
+          )
+        )
         .orderBy(desc(quotes.createdAt))
         .limit(1);
 

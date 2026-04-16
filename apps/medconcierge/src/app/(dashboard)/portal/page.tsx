@@ -144,7 +144,7 @@ export default function PortalEditorPage() {
     setDragOverIndex(null)
   }
 
-  if (loading) return <div className="flex items-center justify-center min-h-[40vh]"><Loader2 className="h-6 w-6 animate-spin text-indigo-600" /></div>
+  if (loading) return <div className="flex items-center justify-center min-h-[40vh]"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div>
 
   const sortedSections = [...sections].sort((a, b) => a.order - b.order)
 
@@ -157,7 +157,7 @@ export default function PortalEditorPage() {
         </div>
         <div className="flex items-center gap-2">
           <button onClick={saveConfig} disabled={saving}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
             <Save className="w-4 h-4" /> {saving ? "Guardando..." : "Guardar"}
           </button>
         </div>
@@ -181,7 +181,7 @@ export default function PortalEditorPage() {
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-700">Secciones ({sections.length})</h3>
               <div className="relative group">
-                <button className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition">
+                <button className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition">
                   <Plus className="w-3 h-3" /> Agregar
                 </button>
                 <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl border border-gray-200 shadow-lg py-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-10">
@@ -204,9 +204,9 @@ export default function PortalEditorPage() {
                 onDrop={() => handleDrop(index)}
                 onDragEnd={handleDragEnd}
                 className={`flex items-center gap-3 p-3 bg-white rounded-xl border transition cursor-pointer select-none
-                  ${editingSection?.id === section.id ? "border-indigo-300 ring-2 ring-indigo-100" : "border-gray-200 hover:border-gray-300"}
+                  ${editingSection?.id === section.id ? "border-blue-300 ring-2 ring-blue-100" : "border-gray-200 hover:border-gray-300"}
                   ${dragIndex === index ? "opacity-50" : ""}
-                  ${dragOverIndex === index ? "border-indigo-400 bg-indigo-50" : ""}
+                  ${dragOverIndex === index ? "border-blue-400 bg-blue-50" : ""}
                 `}
                 onClick={() => setEditingSection(section)}>
                 <GripVertical className="w-4 h-4 text-gray-300 cursor-grab active:cursor-grabbing flex-shrink-0" />
@@ -215,7 +215,7 @@ export default function PortalEditorPage() {
                   <p className="text-xs text-gray-400 truncate">{section.data?.title || section.data?.headline || "Sin titulo"}</p>
                 </div>
                 <button onClick={e => { e.stopPropagation(); toggleVisibility(section.id, !section.visible) }}
-                  className={`p-1.5 rounded-lg ${section.visible ? "text-indigo-600 bg-indigo-50" : "text-gray-400 bg-gray-100"}`}>
+                  className={`p-1.5 rounded-lg ${section.visible ? "text-blue-600 bg-blue-50" : "text-gray-400 bg-gray-100"}`}>
                   {section.visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                 </button>
                 <button onClick={e => { e.stopPropagation(); deleteSection(section.id) }}
@@ -297,10 +297,10 @@ function ImageUpload({ value, onChange, label }: { value: string; onChange: (url
           onDragOver={e => e.preventDefault()}
           onDrop={handleDrop}
           onClick={() => inputRef.current?.click()}
-          className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition"
+          className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 hover:bg-blue-50/30 transition"
         >
           {uploading ? (
-            <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+            <Loader2 className="w-5 h-5 animate-spin text-blue-500" />
           ) : (
             <>
               <Upload className="w-5 h-5 text-gray-400" />
@@ -396,7 +396,7 @@ function SectionEditor({ section, onSave }: { section: Section; onSave: (data: a
       )}
 
       <button onClick={() => onSave(data)}
-        className="w-full py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition">
+        className="w-full py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition">
         Guardar Seccion
       </button>
     </div>
@@ -448,7 +448,7 @@ function GalleryEditor({ images, onChange }: { images: string[]; onChange: (imgs
         ))}
       </div>
       <button type="button" onClick={() => inputRef.current?.click()}
-        className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition w-full justify-center">
+        className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition w-full justify-center">
         {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ImageIcon className="w-3 h-3" />}
         {uploading ? "Subiendo..." : "Agregar imagenes"}
       </button>
@@ -465,7 +465,7 @@ function Field({ label, value, onChange }: { label: string; value: string; onCha
     <label className="block">
       <span className="text-sm text-gray-600">{label}</span>
       <input type="text" value={value} onChange={e => onChange(e.target.value)}
-        className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition" />
+        className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition" />
     </label>
   )
 }
@@ -475,7 +475,7 @@ function TextArea({ label, value, onChange }: { label: string; value: string; on
     <label className="block">
       <span className="text-sm text-gray-600">{label}</span>
       <textarea value={value} onChange={e => onChange(e.target.value)} rows={4}
-        className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-y focus:ring-2 focus:ring-indigo-200 focus:border-indigo-400 transition" />
+        className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-y focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition" />
     </label>
   )
 }
@@ -543,7 +543,7 @@ function PortalConfigEditor({ config, setConfig, saving, onSave }: { config: any
       </div>
 
       <button onClick={onSave} disabled={saving}
-        className="w-full py-2.5 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition disabled:opacity-50">
+        className="w-full py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
         {saving ? "Guardando..." : "Guardar Configuracion"}
       </button>
     </div>

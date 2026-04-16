@@ -39,7 +39,7 @@ export async function GET() {
       const msgRows: any[] = await db.execute(sql`
         SELECT DISTINCT ON (conversation_id) conversation_id, content
         FROM messages
-        WHERE conversation_id = ANY(${convIds})
+        WHERE conversation_id IN (${sql.join(convIds.map((id) => sql`${id}::uuid`), sql`, `)})
         ORDER BY conversation_id, created_at DESC
       `)
       for (const row of msgRows) {

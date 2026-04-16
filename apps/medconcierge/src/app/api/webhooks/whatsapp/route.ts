@@ -90,6 +90,7 @@ type WebhookPayload = {
   entry?: Array<{
     changes?: Array<{
       value?: {
+        metadata?: { phone_number_id?: string; display_phone_number?: string }
         messages?: Array<{
           from?: string
           id?: string
@@ -271,7 +272,8 @@ async function removeAppointmentFromCalendar(
 
 // --------------- Main processing ---------------
 async function processInBackground(body: WebhookPayload) {
-  const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
+  const value = body?.entry?.[0]?.changes?.[0]?.value
+  const message = value?.messages?.[0]
   if (!message || message.type !== 'text') return
 
   const from = message.from ?? ''
@@ -283,8 +285,7 @@ async function processInBackground(body: WebhookPayload) {
   if (!normalized) return
 
   const externalId = message.id ?? null
-  const metadata = (message as any)?.metadata || {}
-  const phoneNumberId = metadata.phone_number_id as string | undefined
+  const phoneNumberId = value?.metadata?.phone_number_id as string | undefined
 
   if (!phoneNumberId) {
     console.log('[whatsapp webhook] Missing phone_number_id in metadata');

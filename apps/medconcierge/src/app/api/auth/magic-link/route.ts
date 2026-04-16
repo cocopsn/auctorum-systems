@@ -7,6 +7,7 @@ import { db, users } from "@quote-engine/db"
 import { eq } from "drizzle-orm"
 import { rateLimit } from "@/lib/rate-limit"
 import { withAuthCookieDomain } from "@/lib/auth-cookie"
+import { safeGetAuthCookie } from "@/lib/safe-cookie-get"
 
 const schema = z.object({
   email: z.string().email().max(255),
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
         cookies: {
           get(name: string) {
             try {
-              return request.cookies.get(name)?.value
+              return safeGetAuthCookie(request.cookies.get(name)?.value)
             } catch {
               return undefined
             }

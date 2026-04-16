@@ -223,7 +223,7 @@ function GoogleCalendarConfig({
       </button>
 
       {showInstructions && (
-        <div className="rounded-lg bg-indigo-50 px-4 py-3 text-sm text-indigo-800 space-y-2">
+        <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800 space-y-2">
           <p className="font-semibold">Pasos para configurar Google Calendar:</p>
           <ol className="list-decimal list-inside space-y-1 text-xs">
             <li>Ve a <strong>Google Cloud Console</strong> (console.cloud.google.com)</li>

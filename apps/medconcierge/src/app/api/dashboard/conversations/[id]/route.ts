@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, conversations } from '@quote-engine/db'
+import { db, conversations, clients } from '@quote-engine/db'
 import { eq, and } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { z } from 'zod';
@@ -43,6 +43,15 @@ export async function PATCH(
         .update(conversations)
         .set(updates)
         .where(eq(conversations.id, params.id))
+    }
+
+    // Optional: rename the underlying client (WhatsApp contact name)
+    if (typeof body.clientName === 'string' && body.clientName.trim() && conv.clientId) {
+      const name = body.clientName.trim().slice(0, 255)
+      await db
+        .update(clients)
+        .set({ name, updatedAt: new Date() })
+        .where(and(eq(clients.id, conv.clientId), eq(clients.tenantId, auth.tenant.id)))
     }
 
     const [updated] = await db

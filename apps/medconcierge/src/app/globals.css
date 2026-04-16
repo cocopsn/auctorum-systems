@@ -127,3 +127,12 @@
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--text-tertiary);
 }
+
+/* Landing page utilities */
+@layer components {
+  .landing-glass {
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}

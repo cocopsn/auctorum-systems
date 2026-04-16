@@ -130,7 +130,7 @@ export default function HomePage() {
         <div className="mx-auto max-w-3xl text-center">
           <Sparkles className="w-10 h-10 text-blue-400 mx-auto mb-6" />
           <h2 className="text-3xl md:text-4xl font-bold text-white">¿Listo para automatizar tu negocio?</h2>
-          <p className="mt-4 text-lg text-slate-400">Comienza gratis. Sin tarjeta de crédito. Sin compromiso.</p>
+          <p className="mt-4 text-lg text-slate-400">Comienza hoy.  Sin compromiso.</p>
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link href="/signup" className="rounded-full bg-blue-600 px-8 py-4 text-lg font-medium text-white hover:bg-blue-500 transition-colors">
               Crear mi cuenta

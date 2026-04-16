@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { safeGetAuthCookie } from './safe-cookie-get'
 import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
 import { db, users, tenants } from '@quote-engine/db'
@@ -14,7 +15,7 @@ function createSupabaseServerClient() {
       cookies: {
         get(name: string) {
           try {
-            return cookieStore.get(name)?.value
+            return safeGetAuthCookie(cookieStore.get(name)?.value)
           } catch {
             return undefined
           }
