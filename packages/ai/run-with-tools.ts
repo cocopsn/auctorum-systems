@@ -124,54 +124,94 @@ export async function runWhatsAppReplyWithTools(
     // No more tool calls — final answer
     const answer = message.content ?? '';
 
-    // HALLUCINATION GUARD: detect if bot confirmed appointment without actual create_appointment success
+    // HALLUCINATION GUARDS: (1) confirmed cita sin create_appointment, (2) mencionó horarios sin check_availability
+    // Frases que implican cita creada (SIN create_appointment = alucinación)
     const confirmationPhrases = [
-      'ha sido agendada',
+      'cita ha sido agendada',
+      'cita queda agendada',
       'cita confirmada',
+      'cita queda confirmada',
       'queda confirmada',
-      'cita queda',
       'queda agendada',
-      'queda registrada',
-      'queda reservada',
-      'está agendada',
-      'está confirmada',
-      'se agendó',
-      'fue agendada',
-      'he agendado',
-      'hemos agendado',
-      'agendé la',
-      'agendé su',
+      'su cita queda',
       'listo, agendado',
-      'ya quedó',
-      'cita fue',
-      'reservé',
-      'cita registrada',
+      'ya quedó su cita',
+      'ya quedó agendada',
+      'se agendó exitosamente',
+      'agendé su cita',
+      'agendé la cita',
+      'he agendado su cita',
+      'he agendado la cita',
+      'cita creada',
+      'reservación confirmada',
+      'reserva confirmada',
     ];
+
+    // Frases que implican mostrar horarios (SIN check_availability = alucinación)
+    const availabilityFakePatterns = [
+      /tengo disponibles? (los siguientes )?horarios?/i,
+      /horarios? disponibles?:/i,
+      /estos son los horarios?/i,
+      /estas? son las? opcion(es)?/i,
+      /te ofrezco los siguientes/i,
+      /puedo ofrecerte/i,
+    ];
+
+    // Detecta horas específicas tipo "09:00 AM", "10:30", "3pm"
+    const specificTimePattern = /\d{1,2}[:\.]\d{2}\s*(AM|PM|am|pm|hrs?)?/i;
+
     const answerLower = answer.toLowerCase();
+
+    // Check 1: bot confirmó agendamiento sin crear cita
     const claimedAgendamiento = confirmationPhrases.some((ph) => answerLower.includes(ph));
     const actualCreateSuccess = allToolCalls.some(
       (tc) => tc.tool === 'create_appointment' && tc.success === true
     );
+    const hallucinatedConfirmation = claimedAgendamiento && !actualCreateSuccess;
 
-    if (claimedAgendamiento && !actualCreateSuccess) {
+    // Check 2: bot inventó horarios sin consultar disponibilidad
+    const mentionsAvailability = availabilityFakePatterns.some((p) => p.test(answer));
+    const mentionsSpecificTimes = specificTimePattern.test(answer);
+    const actualCheckAvailCalled = allToolCalls.some(
+      (tc) => tc.tool === 'check_availability' && tc.success === true
+    );
+    const hallucinatedAvailability =
+      mentionsAvailability && mentionsSpecificTimes && !actualCheckAvailCalled;
+
+    if (hallucinatedConfirmation || hallucinatedAvailability) {
+      const hallucinationType = hallucinatedConfirmation ? 'CONFIRMATION' : 'AVAILABILITY';
       console.warn(
-        `[ai/tools] HALLUCINATION DETECTED — bot claimed cita agendada without create_appointment success. Forcing regeneration.`
+        `[ai/tools] HALLUCINATION DETECTED (${hallucinationType}) — bot ${
+          hallucinatedConfirmation
+            ? 'claimed cita creada without create_appointment'
+            : 'mentioned specific times without check_availability'
+        }. Forcing regeneration with tool_choice=required.`
       );
       console.warn(`[ai/tools] Offending answer: ${answer.substring(0, 200)}`);
 
-      // Force regeneration with explicit correction
+      // Force regeneration with explicit correction AND tool_choice=required
       messages.push({
         role: 'assistant',
         content: answer,
       });
+
+      const correctionMessage = hallucinatedConfirmation
+        ? `ERROR: Respondiste confirmando la cita pero NO llamaste create_appointment. Esto es una alucinación grave.
+
+Si el paciente ya te dio TODOS los datos (nombre, fecha, hora, motivo) y confirmó, LLAMA create_appointment AHORA con esos datos.
+Si falta algún dato, PREGUNTA lo que falta en lugar de confirmar.
+
+Responde correctamente llamando la tool necesaria.`
+        : `ERROR: Mencionaste horarios específicos pero NO llamaste check_availability. Esto es una alucinación grave — estás inventando disponibilidad sin consultar el calendario real.
+
+LLAMA check_availability(date) AHORA con la fecha que el paciente mencionó para obtener los slots REALES disponibles.
+NUNCA inventes horarios.
+
+Responde correctamente llamando check_availability.`;
+
       messages.push({
         role: 'system',
-        content: `ERROR: Respondiste al paciente confirmando agendamiento pero NO llamaste create_appointment. Esto es una alucinación grave.
-
-Si el paciente ya te dio todos los datos, LLAMA create_appointment ahora.
-Si falta algún dato, PREGUNTA lo que falta al paciente (NO confirmes).
-
-Responde correctamente.`,
+        content: correctionMessage,
       });
 
       const correctiveRes = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
@@ -184,8 +224,8 @@ Responde correctamente.`,
           model,
           messages,
           tools: WHATSAPP_TOOLS,
-          tool_choice: 'auto',
-          temperature: 0.5,
+          tool_choice: 'required',
+          temperature: 0.3,
         }),
       });
       const correctiveData: any = await correctiveRes.json();
@@ -193,7 +233,6 @@ Responde correctamente.`,
       const correctiveMessage = correctiveChoice?.message;
 
       if (correctiveMessage?.tool_calls && correctiveMessage.tool_calls.length > 0) {
-        // Bot now called tools — execute them
         messages.push({
           role: 'assistant',
           content: correctiveMessage.content ?? '',
@@ -205,13 +244,13 @@ Responde correctamente.`,
           try {
             args = JSON.parse(tc.function.arguments);
           } catch {}
-          console.log(`[ai/tools] CORRECTIVE executing ${tc.function.name} with args:`, JSON.stringify(args));
+          console.log(
+            `[ai/tools] CORRECTIVE executing ${tc.function.name}`,
+            JSON.stringify(args)
+          );
           const result = await executeToolCall(tenant, tc.function.name, args);
           allToolCalls.push(result);
-          console.log(
-            `[ai/tools] CORRECTIVE ${tc.function.name} -> success=${result.success}`,
-            result.error ? `error=${result.error}` : ''
-          );
+          console.log(`[ai/tools] CORRECTIVE ${tc.function.name} -> success=${result.success}`);
           messages.push({
             role: 'tool',
             tool_call_id: tc.id,
@@ -219,7 +258,7 @@ Responde correctamente.`,
           });
         }
 
-        // Get final answer after corrective tools
+        // Get final answer after corrective tools (allow chained tool calls)
         const finalRes = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
           method: 'POST',
           headers: {
@@ -229,15 +268,62 @@ Responde correctamente.`,
           body: JSON.stringify({
             model,
             messages,
-            tool_choice: 'none',
+            tools: WHATSAPP_TOOLS,
+            tool_choice: 'auto',
             temperature: 0.7,
           }),
         });
         const finalData: any = await finalRes.json();
-        const finalAnswer = finalData.choices?.[0]?.message?.content ?? answer;
+        const finalMessage = finalData.choices?.[0]?.message;
+
+        // Chained tool calls (ej: check_availability -> create_appointment)
+        if (finalMessage?.tool_calls && finalMessage.tool_calls.length > 0) {
+          messages.push({
+            role: 'assistant',
+            content: finalMessage.content ?? '',
+            tool_calls: finalMessage.tool_calls,
+          });
+          for (const tc of finalMessage.tool_calls) {
+            let args: Record<string, any> = {};
+            try {
+              args = JSON.parse(tc.function.arguments);
+            } catch {}
+            console.log(`[ai/tools] CHAINED executing ${tc.function.name}`, JSON.stringify(args));
+            const result = await executeToolCall(tenant, tc.function.name, args);
+            allToolCalls.push(result);
+            console.log(`[ai/tools] CHAINED ${tc.function.name} -> success=${result.success}`);
+            messages.push({
+              role: 'tool',
+              tool_call_id: tc.id,
+              content: JSON.stringify(result),
+            });
+          }
+          // Final answer after chained tools
+          const lastRes = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              model,
+              messages,
+              tool_choice: 'none',
+              temperature: 0.7,
+            }),
+          });
+          const lastData: any = await lastRes.json();
+          return {
+            answer: lastData.choices?.[0]?.message?.content ?? answer,
+            model: data.model ?? model,
+            latencyMs: Date.now() - startTime,
+            toolCalls: allToolCalls,
+            rounds: rounds + 2,
+          };
+        }
 
         return {
-          answer: finalAnswer,
+          answer: finalMessage?.content ?? answer,
           model: data.model ?? model,
           latencyMs: Date.now() - startTime,
           toolCalls: allToolCalls,
