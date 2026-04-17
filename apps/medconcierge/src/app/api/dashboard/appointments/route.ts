@@ -5,6 +5,7 @@ import { and, eq, gte, lte, ilike, or, desc, sql } from 'drizzle-orm'
 import { db } from '@quote-engine/db'
 import { appointments, patients, appointmentEvents } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod';
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthTenant()
@@ -77,16 +78,20 @@ export async function PATCH(request: NextRequest) {
   const tenantId = auth.tenant.id
 
   try {
-    const { appointmentId, status: newStatus } = await request.json()
+    const patchSchema = z.object({
+      appointmentId: z.string().uuid(),
+      status: z.enum(['scheduled', 'confirmed', 'in_progress', 'completed', 'no_show', 'cancelled']),
+    });
+    const parsed = patchSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const { appointmentId, status: newStatus } = parsed.data;
 
-    if (!appointmentId || !newStatus) {
+    if (false) {
       return NextResponse.json({ error: 'Missing appointmentId or status' }, { status: 400 })
     }
 
-    const validStatuses = ['scheduled', 'confirmed', 'in_progress', 'completed', 'no_show', 'cancelled']
-    if (!validStatuses.includes(newStatus)) {
-      return NextResponse.json({ error: 'Invalid status' }, { status: 400 })
-    }
 
     const updateData: Record<string, unknown> = { status: newStatus }
     if (newStatus === 'confirmed') {

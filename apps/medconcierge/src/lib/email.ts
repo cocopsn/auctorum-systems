@@ -4,7 +4,7 @@ let resendClient: Resend | null = null
 
 function getResend(): Resend | null {
   if (!process.env.RESEND_API_KEY) {
-    console.warn('Resend not configured — skipping email')
+
     return null
   }
   if (!resendClient) {
@@ -29,7 +29,7 @@ export async function sendEmail({
 
   try {
     await resend.emails.send({ from, to, subject, html })
-    console.log(`Email sent to ${to}: ${subject}`)
+
     return true
   } catch (error) {
     console.error('Email send error:', error)

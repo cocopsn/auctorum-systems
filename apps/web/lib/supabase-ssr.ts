@@ -1,23 +1,30 @@
 import { createServerClient as createSSRClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { type NextRequest, NextResponse } from 'next/server'
+import { withAuthCookieDomain } from './auth-cookie'
 
 // For use in Server Components, Server Actions, Route Handlers
 export function createSupabaseServer() {
   const cookieStore = cookies()
+  const host = headers().get('host')
   return createSSRClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value
+        getAll() {
+          return cookieStore.getAll()
         },
-        set(name: string, value: string, options: any) {
-          try { cookieStore.set({ name, value, ...options }) } catch {}
-        },
-        remove(name: string, options: any) {
-          try { cookieStore.set({ name, value: '', ...options }) } catch {}
+        setAll(cookiesToSet) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set({ name, value, ...withAuthCookieDomain(options ?? {}, host) })
+            })
+          } catch {
+            // The `setAll` method is called from a Server Component where
+            // cookies cannot be set. This can be safely ignored if middleware
+            // refreshes the session.
+          }
         },
       },
     }
@@ -26,21 +33,21 @@ export function createSupabaseServer() {
 
 // For use in middleware
 export function createSupabaseMiddleware(request: NextRequest, response: NextResponse) {
+  const host = request.headers.get('host')
   return createSSRClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll()
         },
-        set(name: string, value: string, options: any) {
-          request.cookies.set({ name, value, ...options })
-          response.cookies.set({ name, value, ...options })
-        },
-        remove(name: string, options: any) {
-          request.cookies.set({ name, value: '', ...options })
-          response.cookies.set({ name, value: '', ...options })
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            const opts = withAuthCookieDomain(options ?? {}, host)
+            request.cookies.set({ name, value, ...opts })
+            response.cookies.set({ name, value, ...opts })
+          })
         },
       },
     }

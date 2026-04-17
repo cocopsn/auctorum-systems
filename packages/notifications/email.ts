@@ -22,6 +22,23 @@ interface SendEmailParams {
   total: number;
   pdfBuffer: Buffer;
   config: TenantConfig;
+  /** Optional tracking pixel URL. When present, a 1x1 transparent
+   *  GIF img tag is appended to the HTML so opens get recorded
+   *  even when the client never visits /q/[token]. */
+  pixelUrl?: string | null;
+}
+
+interface NewQuoteAlertParams {
+  to: string;
+  tenantName: string;
+  quoteFolio: string;
+  clientName: string;
+  clientCompany: string;
+  clientPhone: string;
+  clientEmail?: string | null;
+  total: number;
+  dashboardUrl: string;
+  config: TenantConfig;
 }
 
 function formatMXN(amount: number): string {
@@ -70,6 +87,7 @@ export async function sendEmailQuote(params: SendEmailParams): Promise<boolean> 
           <div style="background: #f8f9fa; padding: 16px; text-align: center; font-size: 12px; color: #999;">
             ${params.config.business.razon_social} · ${params.config.contact.address}
           </div>
+          ${params.pixelUrl ? `<img src="${params.pixelUrl}" width="1" height="1" alt="" style="display:block;border:0;width:1px;height:1px;" />` : ''}
         </div>
       `,
       attachments: [
@@ -88,6 +106,64 @@ export async function sendEmailQuote(params: SendEmailParams): Promise<boolean> 
     return true;
   } catch (error) {
     console.error('Email send failed:', error);
+    return false;
+  }
+}
+
+// ============================================================
+// sendNewQuoteAlert — notifies the tenant owner when a client
+// submits a new quote through the public portal. Brief HTML with
+// client info + total + CTA back to /dashboard/quotes. No PDF
+// attachment: the owner opens it from the dashboard.
+// ============================================================
+export async function sendNewQuoteAlert(params: NewQuoteAlertParams): Promise<boolean> {
+  try {
+    const { data, error } = await getResend().emails.send({
+      from: `${params.tenantName} <${EMAIL_FROM}>`,
+      to: params.to,
+      subject: `Nueva cotización recibida — ${params.clientName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: ${params.config.colors.primary}; padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 18px;">${params.tenantName}</h1>
+          </div>
+          <div style="padding: 28px 24px;">
+            <h2 style="color: ${params.config.colors.primary}; margin-top: 0; font-size: 18px;">
+              Nueva cotización ${params.quoteFolio}
+            </h2>
+            <p style="color: #444; line-height: 1.6;">
+              Ha recibido una nueva cotización a través de su portal.
+            </p>
+            <div style="background: #f8f9fa; border-left: 3px solid ${params.config.colors.primary}; padding: 16px 20px; margin: 20px 0;">
+              <p style="margin: 0 0 6px 0; font-size: 14px; color: #111;"><strong>${params.clientName}</strong></p>
+              <p style="margin: 0 0 6px 0; font-size: 14px; color: #555;">${params.clientCompany}</p>
+              <p style="margin: 0 0 6px 0; font-size: 14px; color: #555;">Tel: ${params.clientPhone}</p>
+              ${params.clientEmail ? `<p style="margin: 0; font-size: 14px; color: #555;">${params.clientEmail}</p>` : ''}
+            </div>
+            <p style="color: #444; font-size: 15px;">
+              Total: <strong style="color: ${params.config.colors.primary}; font-size: 17px;">${formatMXN(params.total)}</strong>
+            </p>
+            <div style="margin: 28px 0 8px 0;">
+              <a href="${params.dashboardUrl}"
+                 style="display: inline-block; background: ${params.config.colors.primary}; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600;">
+                Ver en el dashboard
+              </a>
+            </div>
+          </div>
+          <div style="background: #f8f9fa; padding: 14px; text-align: center; font-size: 11px; color: #999;">
+            Notificación automática · ${params.tenantName}
+          </div>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('New quote alert email error:', error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error('New quote alert email failed:', err);
     return false;
   }
 }

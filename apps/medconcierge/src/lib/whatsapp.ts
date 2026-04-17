@@ -5,7 +5,7 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<boo
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
 
   if (!token || !phoneNumberId) {
-    console.warn('WhatsApp not configured — skipping message to', to)
+
     return false
   }
 
@@ -32,7 +32,7 @@ export async function sendWhatsAppMessage(to: string, body: string): Promise<boo
       return false
     }
 
-    console.log(`WhatsApp sent to ${normalizedPhone}`)
+
     return true
   } catch (error) {
     console.error('WhatsApp send error:', error)

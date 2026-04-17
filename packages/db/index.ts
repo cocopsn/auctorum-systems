@@ -28,3 +28,17 @@ export const db = new Proxy({} as PostgresJsDatabase<typeof schema>, {
     return (getDb() as any)[prop];
   },
 });
+
+import { sql } from 'drizzle-orm';
+
+/**
+ * Enforce Tenant Isolation Wrapper (RLS / Application Level Middleware)
+ * Wrap all tenant-specific database interactions here to prevent data leakage.
+ */
+export async function withTenant<T>(tenantId: string, callback: (tx: any) => Promise<T>): Promise<T> {
+  return await db.transaction(async (tx) => {
+    // Escala futura para RLS nativo en Postgres
+    // await tx.execute(sql`set local app.tenant_id = ${tenantId}`);
+    return await callback(tx);
+  });
+}

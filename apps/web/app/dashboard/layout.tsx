@@ -1,149 +1,230 @@
-'use client';
+'use client'
 
-import { useState } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { ToastContainer } from '../../components/ui/Toast';
+import { useEffect, useMemo, useState } from 'react'
 import {
-  LayoutDashboard,
+  Bot,
+  CreditCard,
   FileText,
+  GitBranch,
+  LayoutDashboard,
+  Megaphone,
+  MessageSquare,
   Package,
-  BarChart3,
-  Users,
+  Plug,
+  Receipt,
   Settings,
-  X,
-  Menu,
-  LogOut,
-} from 'lucide-react';
+  Users,
+  PanelsTopLeft,
+  Check,
+} from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { AppShell, type DashboardNavItem } from '@quote-engine/ui'
+import { ToastContainer } from '../../components/ui/Toast'
+import { OnboardingGate } from '../../components/onboarding/onboarding-gate'
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/dashboard/quotes', label: 'Cotizaciones', icon: FileText },
-  { href: '/dashboard/products', label: 'Productos', icon: Package },
-  { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
-  { href: '/dashboard/clients', label: 'Clientes', icon: Users },
-  { href: '/dashboard/settings', label: 'Configuracion', icon: Settings },
-];
+type ModuleKey =
+  | 'dashboard'
+  | 'onboarding'
+  | 'quotes'
+  | 'clients'
+  | 'funnel'
+  | 'products'
+  | 'budgets'
+  | 'payments'
+  | 'invoices'
+  | 'campaigns'
+  | 'conversations'
+  | 'integrations'
+  | 'reports'
+  | 'ai-settings'
+  | 'settings'
 
-function SidebarContent({ pathname, onClose }: { pathname: string; onClose?: () => void }) {
-  return (
-    <div className="flex flex-col h-full bg-gradient-to-b from-slate-900 to-slate-800">
-      {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-6 border-b border-white/10">
-        <div className="relative w-9 h-9 rounded-xl bg-blue-500/20 flex items-center justify-center flex-shrink-0 ring-1 ring-blue-400/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]">
-          <span className="text-blue-400 text-xs font-bold tracking-wide">AS</span>
-        </div>
-        <div className="min-w-0">
-          <p className="text-sm font-bold text-white truncate">Auctorum Systems</p>
-          <p className="text-[11px] text-slate-400 truncate">Motor de Cotizaciones</p>
-        </div>
-      </div>
-
-      {/* Navigation */}
-      <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto" role="navigation" aria-label="Menu principal">
-        {navItems.map(item => {
-          const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));
-          const Icon = item.icon;
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={onClose}
-              {...(isActive ? { 'aria-current': 'page' as const } : {})}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                isActive
-                  ? 'bg-white/10 text-white border-l-2 border-blue-400 pl-[10px]'
-                  : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
-              }`}
-            >
-              <Icon className={`h-[18px] w-[18px] flex-shrink-0 ${isActive ? 'text-blue-400' : ''}`} />
-              {item.label}
-            </Link>
-          );
-        })}
-      </nav>
-
-      {/* Footer */}
-      <div className="px-5 py-4 border-t border-white/10">
-        <div className="flex items-center gap-1.5 justify-center text-[11px] text-slate-500">
-          <span>Powered by</span>
-          <span className="font-semibold text-slate-400">Auctorum Systems</span>
-        </div>
-      </div>
-    </div>
-  );
+type ShellResponse = {
+  tenant: { name: string; type: 'medical' | 'industrial'; plan: string }
+  user: { name: string }
+  preferences: { hiddenWidgets: ModuleKey[]; widgetOrder: ModuleKey[]; defaultLandingModule?: string | null }
 }
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const pathname = usePathname();
+const PLAN_LABELS: Record<string, string> = {
+  free: 'Plan Básico',
+  pro: 'Plan Pro',
+  enterprise: 'Plan Enterprise',
+}
+
+const MODULE_REGISTRY: Record<ModuleKey, DashboardNavItem & { tenantTypes: Array<'medical' | 'industrial'> }> = {
+  dashboard: { key: 'dashboard', href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, tenantTypes: ['medical', 'industrial'] },
+  onboarding: { key: 'onboarding', href: '/dashboard/onboarding', label: 'Onboarding', icon: PanelsTopLeft, tenantTypes: ['medical', 'industrial'] },
+  quotes: { key: 'quotes', href: '/dashboard/quotes', label: 'Cotizaciones', icon: FileText, tenantTypes: ['industrial'] },
+  clients: { key: 'clients', href: '/dashboard/clients', label: 'Pacientes / Clientes', icon: Users, tenantTypes: ['medical', 'industrial'] },
+  funnel: { key: 'funnel', href: '/dashboard/funnel', label: 'Embudo', icon: GitBranch, tenantTypes: ['medical', 'industrial'] },
+  products: { key: 'products', href: '/dashboard/products', label: 'Productos / Servicios', icon: Package, tenantTypes: ['industrial'] },
+  budgets: { key: 'budgets', href: '/dashboard/budgets', label: 'Presupuestos', icon: Receipt, tenantTypes: ['medical', 'industrial'] },
+  payments: { key: 'payments', href: '/dashboard/payments', label: 'Pagos', icon: CreditCard, tenantTypes: ['medical', 'industrial'] },
+  invoices: { key: 'invoices', href: '/dashboard/invoices', label: 'Facturas', icon: FileText, tenantTypes: ['medical', 'industrial'] },
+  campaigns: { key: 'campaigns', href: '/dashboard/campaigns', label: 'Campanas', icon: Megaphone, tenantTypes: ['industrial'] },
+  conversations: { key: 'conversations', href: '/dashboard/conversations', label: 'Conversaciones', icon: MessageSquare, tenantTypes: ['medical', 'industrial'] },
+  integrations: { key: 'integrations', href: '/dashboard/integrations', label: 'Integraciones', icon: Plug, tenantTypes: ['medical', 'industrial'] },
+  reports: { key: 'reports', href: '/dashboard/reports', label: 'Reportes', icon: FileText, tenantTypes: ['medical', 'industrial'] },
+  'ai-settings': { key: 'ai-settings', href: '/dashboard/ai-settings', label: 'AI Concierge', icon: Bot, tenantTypes: ['medical', 'industrial'] },
+  settings: { key: 'settings', href: '/dashboard/settings', label: 'Configuracion', icon: Settings, tenantTypes: ['medical', 'industrial'] },
+}
+
+const DEFAULT_ORDER: ModuleKey[] = [
+  'dashboard',
+  'onboarding',
+  'conversations',
+  'clients',
+  'funnel',
+  'quotes',
+  'products',
+  'budgets',
+  'payments',
+  'invoices',
+  'campaigns',
+  'integrations',
+  'reports',
+  'ai-settings',
+  'settings',
+]
+
+function Customizer({
+  visibleKeys,
+  hiddenKeys,
+  onSave,
+}: {
+  visibleKeys: ModuleKey[]
+  hiddenKeys: ModuleKey[]
+  onSave: (nextHidden: ModuleKey[]) => Promise<void>
+}) {
+  const [open, setOpen] = useState(false)
+  const [draftHidden, setDraftHidden] = useState<ModuleKey[]>(hiddenKeys)
+
+  useEffect(() => {
+    setDraftHidden(hiddenKeys)
+  }, [hiddenKeys])
 
   return (
-    <div className="min-h-screen bg-gray-50/50 flex">
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-col w-60 fixed inset-y-0 z-30">
-        <SidebarContent pathname={pathname} />
-      </aside>
-
-      {/* Mobile sidebar overlay */}
-      {sidebarOpen && (
-        <div className="fixed inset-0 z-40 lg:hidden">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setSidebarOpen(false)}
-          />
-          <aside className="absolute left-0 top-0 bottom-0 w-64 shadow-2xl z-50">
-            <div className="absolute top-4 right-3 z-10">
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors"
-                aria-label="Cerrar menu"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <SidebarContent pathname={pathname} onClose={() => setSidebarOpen(false)} />
-          </aside>
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50"
+      >
+        Personalizar panel
+      </button>
+      {open && (
+        <div className="absolute right-0 top-12 z-50 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-xl">
+          <p className="text-sm font-semibold text-slate-900">Modulos visibles</p>
+          <div className="mt-4 space-y-2">
+            {visibleKeys.map((key) => {
+              const item = MODULE_REGISTRY[key]
+              const checked = !draftHidden.includes(key)
+              return (
+                <label key={key} className="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2 text-sm text-slate-700">
+                  <span>{item.label}</span>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(event) => {
+                      setDraftHidden((current) => event.target.checked ? current.filter((value) => value !== key) : [...current, key])
+                    }}
+                  />
+                </label>
+              )
+            })}
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              await onSave(draftHidden)
+              setOpen(false)
+            }}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+          >
+            <Check className="h-4 w-4" />
+            Guardar preferencias
+          </button>
         </div>
       )}
-
-      {/* Main content */}
-      <div className="flex-1 lg:ml-60 flex flex-col min-h-screen">
-        {/* Top bar */}
-        <header className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-20">
-          <div className="flex items-center justify-between px-4 lg:px-6 h-14">
-            <div className="flex items-center gap-3">
-              {/* Hamburger for mobile */}
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
-                aria-label="Abrir menu"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-              <span className="text-sm font-bold text-gray-700 lg:hidden">Auctorum Systems</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <form action="/api/auth/logout" method="POST">
-                <button
-                  type="submit"
-                  className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-gray-700 transition-colors"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  Cerrar sesion
-                </button>
-              </form>
-            </div>
-          </div>
-        </header>
-
-        {/* Page content */}
-        <main className="flex-1 overflow-x-hidden">
-          {children}
-        </main>
-      </div>
-
-      <ToastContainer />
     </div>
-  );
+  )
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const pathname = usePathname()
+  const [shell, setShell] = useState<ShellResponse | null>(null)
+  const [hiddenWidgets, setHiddenWidgets] = useState<ModuleKey[]>([])
+
+  useEffect(() => {
+    fetch('/api/dashboard/shell')
+      .then((r) => r.json())
+      .then((data) => {
+        setShell(data)
+        setHiddenWidgets((data.preferences?.hiddenWidgets || []) as ModuleKey[])
+      })
+      .catch(() => {
+        setShell({
+          tenant: { name: 'Auctorum Systems', type: 'industrial', plan: 'basico' },
+          user: { name: 'Admin' },
+          preferences: { hiddenWidgets: [], widgetOrder: [] },
+        })
+      })
+  }, [])
+
+  const navItems = useMemo(() => {
+    const tenantType = shell?.tenant.type || 'industrial'
+    const allowed = DEFAULT_ORDER.filter((key) => MODULE_REGISTRY[key].tenantTypes.includes(tenantType))
+    const visible = allowed.filter((key) => !hiddenWidgets.includes(key))
+    return visible.map((key) => MODULE_REGISTRY[key])
+  }, [hiddenWidgets, shell?.tenant.type])
+
+  const customizableKeys = useMemo(() => {
+    const tenantType = shell?.tenant.type || 'industrial'
+    return DEFAULT_ORDER.filter((key) => MODULE_REGISTRY[key].tenantTypes.includes(tenantType))
+  }, [shell?.tenant.type])
+
+  async function savePreferences(nextHidden: ModuleKey[]) {
+    setHiddenWidgets(nextHidden)
+    await fetch('/api/dashboard/preferences', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        hiddenWidgets: nextHidden,
+        widgetOrder: customizableKeys,
+        defaultLandingModule: 'dashboard',
+      }),
+    })
+  }
+
+  return (
+    <>
+      <AppShell
+        navItems={navItems}
+        brand={shell?.tenant.name || 'Auctorum Systems'}
+        logoUrl="/logo.png"
+        appName={shell?.tenant.type === 'medical' ? 'Portal Medico' : 'Portal Unificado'}
+        userName={shell?.user.name || 'Admin'}
+        planLabel={PLAN_LABELS[shell?.tenant.plan || 'basico'] || 'Plan Básico'}
+        greeting="Bienvenido de vuelta"
+        subtitle={shell?.tenant.type === 'medical' ? 'Gestion, onboarding e integraciones del consultorio.' : 'Gestion comercial, integraciones y operacion.'}
+        ctaHref="/dashboard/ai-settings"
+        headerActions={
+          <Customizer
+            visibleKeys={customizableKeys}
+            hiddenKeys={hiddenWidgets}
+            onSave={savePreferences}
+          />
+        }
+      >
+        <OnboardingGate>
+          <div key={pathname}>{children}</div>
+        </OnboardingGate>
+      </AppShell>
+      <ToastContainer />
+    </>
+  )
 }

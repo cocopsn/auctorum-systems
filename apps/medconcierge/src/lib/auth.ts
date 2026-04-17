@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { safeGetAuthCookie } from './safe-cookie-get'
 import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
 import { db, users, tenants } from '@quote-engine/db'
@@ -13,7 +14,11 @@ function createSupabaseServerClient() {
     {
       cookies: {
         get(name: string) {
-          return cookieStore.get(name)?.value
+          try {
+            return safeGetAuthCookie(cookieStore.get(name)?.value)
+          } catch {
+            return undefined
+          }
         },
       },
     }
@@ -21,9 +26,19 @@ function createSupabaseServerClient() {
 }
 
 export async function getSession() {
-  const supabase = createSupabaseServerClient()
-  const { data: { session } } = await supabase.auth.getSession()
-  return session
+  try {
+    const supabase = createSupabaseServerClient()
+    // Use getUser() instead of getSession() — getUser() authenticates
+    // against the Supabase Auth server rather than trusting cookie data.
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    // Return a session-like object for backwards compatibility
+    return { user }
+  } catch (err) {
+    // Corrupted session cookie — treat as unauthenticated
+    console.error('getSession error:', err instanceof Error ? err.message : err)
+    return null
+  }
 }
 
 export async function requireAuth(): Promise<{ user: User; tenant: Tenant }> {
@@ -49,10 +64,6 @@ export async function requireAuth(): Promise<{ user: User; tenant: Tenant }> {
   return { user, tenant }
 }
 
-/**
- * Auth helper for API routes — returns null instead of redirecting.
- * Use this in route handlers where redirect() is not appropriate.
- */
 export async function getAuthTenant(): Promise<{ user: User; tenant: Tenant } | null> {
   const session = await getSession()
   if (!session) return null
@@ -74,4 +85,12 @@ export async function getAuthTenant(): Promise<{ user: User; tenant: Tenant } | 
   if (!tenant) return null
 
   return { user, tenant }
+}
+
+export async function requireRole(allowedRoles: string[]): Promise<{ user: User; tenant: Tenant } | null> {
+  const auth = await getAuthTenant();
+  if (!auth) return null;
+  const userRole = (auth.user as any).role || 'viewer';
+  if (!allowedRoles.includes(userRole)) return null;
+  return auth;
 }

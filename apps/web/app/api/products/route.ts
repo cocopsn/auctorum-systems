@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { db, products, tenants, users } from '@quote-engine/db';
+import { db, products, tenants } from '@quote-engine/db';
 import { eq, and, asc, count, isNull } from 'drizzle-orm';
 import { rateLimit } from '@/lib/rate-limit';
 import { validateOrigin } from '@/lib/csrf';
 import { apiError } from '@/lib/api-helpers';
-import { createSupabaseServer } from '@/lib/supabase-ssr';
+import { getAuthTenant } from '@/lib/auth';
 
 const createProductSchema = z.object({
   tenantSlug: z.string().min(1).max(63),
@@ -90,21 +90,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify authenticated user
-    const supabase = createSupabaseServer();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
+    const auth = await getAuthTenant();
+    if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
-
-    // Verify user exists in our DB
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, session.user.id))
-      .limit(1);
-    if (!user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
+    const user = auth.user;
 
     const body = await request.json();
     const parsed = createProductSchema.safeParse(body);

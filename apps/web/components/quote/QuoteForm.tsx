@@ -4,11 +4,6 @@ import { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AlertCircle, CheckCircle2, Download, MessageCircle, User, Building2, Mail, Phone } from 'lucide-react';
 
-// ============================================================
-// Quote form: the client fills their data → submits → PDF generated
-// URL: toolroom.cotizarapido.mx/quote?items=[...]
-// ============================================================
-
 interface QuoteFormProps {
   tenantSlug: string;
 }
@@ -43,16 +38,12 @@ export default function QuoteForm({ tenantSlug }: QuoteFormProps) {
       const res = await fetch('/api/quotes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          items,
-          tenantSlug,
-        }),
+        body: JSON.stringify({ ...form, items, tenantSlug }),
       });
 
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Error al generar cotizacion');
+        throw new Error(data.error || 'Error al generar cotización');
       }
 
       const data = await res.json();
@@ -65,29 +56,34 @@ export default function QuoteForm({ tenantSlug }: QuoteFormProps) {
     }
   };
 
+  const inputClass =
+    'w-full rounded-lg border border-[var(--border)] bg-[var(--bg-tertiary)] px-4 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] focus:outline-none transition-colors';
+
+  const labelClass = 'flex items-center gap-1.5 text-sm font-medium text-[var(--text-secondary)] mb-1.5';
+
   if (success) {
     return (
-      <div className="max-w-lg mx-auto text-center py-20 animate-scale-in">
-        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-50 ring-8 ring-green-50/50 animate-check-bounce">
-          <CheckCircle2 className="h-10 w-10 text-green-500" />
+      <div className="max-w-lg mx-auto text-center py-20 animate-fade-in">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--success)]/10">
+          <CheckCircle2 className="h-8 w-8 text-[var(--success)]" />
         </div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-3 tracking-tight">Cotizacion generada</h2>
-        <p className="text-gray-500 text-base mb-8 max-w-sm mx-auto">
-          Cotizacion <span className="font-semibold text-gray-700">#{success.quoteNumber}</span> enviada a su WhatsApp y correo.
+        <h2 className="text-2xl font-semibold text-[var(--text-primary)] mb-2">
+          Cotización generada
+        </h2>
+        <p className="text-[var(--text-secondary)] text-sm mb-8">
+          Cotización <span className="font-mono font-semibold text-[var(--text-primary)]">#{success.quoteNumber}</span> enviada a su WhatsApp y correo.
         </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-          <a
-            href={success.pdfUrl}
-            target="_blank"
-            className="inline-flex items-center gap-2 rounded-xl px-6 py-3.5 text-white font-bold shadow-lg shadow-tenant-primary/25 bg-tenant-primary transition-all duration-200 hover:shadow-xl hover:shadow-tenant-primary/30 hover:brightness-110 active:scale-[0.97]"
-          >
-            <Download className="h-4 w-4" />
-            Descargar PDF
-          </a>
-        </div>
-        <div className="mt-8 flex items-center justify-center gap-2 text-sm text-gray-400">
-          <MessageCircle className="h-4 w-4" />
-          <p>Si tiene preguntas, contactenos directamente por WhatsApp.</p>
+        <a
+          href={success.pdfUrl}
+          target="_blank"
+          className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-white font-medium text-sm bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-colors"
+        >
+          <Download className="h-4 w-4" />
+          Descargar PDF
+        </a>
+        <div className="mt-6 flex items-center justify-center gap-2 text-xs text-[var(--text-tertiary)]">
+          <MessageCircle className="h-3.5 w-3.5" />
+          <p>Si tiene preguntas, contáctenos directamente por WhatsApp.</p>
         </div>
       </div>
     );
@@ -96,17 +92,19 @@ export default function QuoteForm({ tenantSlug }: QuoteFormProps) {
   return (
     <div className="max-w-lg mx-auto">
       <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 tracking-tight">Datos para su cotizacion</h2>
-        <p className="mt-2 text-gray-500 text-base">
-          Complete sus datos y recibira la cotizacion formal al instante por WhatsApp y correo.
+        <h2 className="text-2xl font-semibold text-[var(--text-primary)] tracking-tight">
+          Datos para su cotización
+        </h2>
+        <p className="mt-2 text-[var(--text-secondary)] text-sm">
+          Complete sus datos y recibirá la cotización formal al instante.
         </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <div className="space-y-1.5">
-          <label htmlFor="clientName" className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-            <User className="h-3.5 w-3.5 text-gray-400" />
-            Nombre completo <span className="text-red-400">*</span>
+        <div>
+          <label htmlFor="clientName" className={labelClass}>
+            <User className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+            Nombre completo <span className="text-[var(--error)]">*</span>
           </label>
           <input
             id="clientName"
@@ -114,15 +112,15 @@ export default function QuoteForm({ tenantSlug }: QuoteFormProps) {
             required
             value={form.clientName}
             onChange={e => setForm(prev => ({ ...prev, clientName: e.target.value }))}
-            className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-200 focus:border-tenant-primary focus:ring-2 focus:ring-tenant-primary/20 focus:outline-none hover:border-gray-300"
-            placeholder="Ing. Juan Perez"
+            className={inputClass}
+            placeholder="Ing. Juan Pérez"
           />
         </div>
 
-        <div className="space-y-1.5">
-          <label htmlFor="clientCompany" className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-            <Building2 className="h-3.5 w-3.5 text-gray-400" />
-            Empresa <span className="text-red-400">*</span>
+        <div>
+          <label htmlFor="clientCompany" className={labelClass}>
+            <Building2 className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+            Empresa <span className="text-[var(--error)]">*</span>
           </label>
           <input
             id="clientCompany"
@@ -130,30 +128,30 @@ export default function QuoteForm({ tenantSlug }: QuoteFormProps) {
             required
             value={form.clientCompany}
             onChange={e => setForm(prev => ({ ...prev, clientCompany: e.target.value }))}
-            className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-200 focus:border-tenant-primary focus:ring-2 focus:ring-tenant-primary/20 focus:outline-none hover:border-gray-300"
+            className={inputClass}
             placeholder="Magna International"
           />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <label htmlFor="clientEmail" className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-              <Mail className="h-3.5 w-3.5 text-gray-400" />
-              Correo electronico
+          <div>
+            <label htmlFor="clientEmail" className={labelClass}>
+              <Mail className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+              Correo electrónico
             </label>
             <input
               id="clientEmail"
               type="email"
               value={form.clientEmail}
               onChange={e => setForm(prev => ({ ...prev, clientEmail: e.target.value }))}
-              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-200 focus:border-tenant-primary focus:ring-2 focus:ring-tenant-primary/20 focus:outline-none hover:border-gray-300"
+              className={inputClass}
               placeholder="jperez@magna.com"
             />
           </div>
-          <div className="space-y-1.5">
-            <label htmlFor="clientPhone" className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
-              <Phone className="h-3.5 w-3.5 text-gray-400" />
-              Telefono / WhatsApp <span className="text-red-400">*</span>
+          <div>
+            <label htmlFor="clientPhone" className={labelClass}>
+              <Phone className="h-3.5 w-3.5 text-[var(--text-tertiary)]" />
+              Teléfono / WhatsApp <span className="text-[var(--error)]">*</span>
             </label>
             <input
               id="clientPhone"
@@ -161,30 +159,30 @@ export default function QuoteForm({ tenantSlug }: QuoteFormProps) {
               required
               value={form.clientPhone}
               onChange={e => setForm(prev => ({ ...prev, clientPhone: e.target.value }))}
-              className="w-full rounded-lg border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 transition-all duration-200 focus:border-tenant-primary focus:ring-2 focus:ring-tenant-primary/20 focus:outline-none hover:border-gray-300"
+              className={inputClass}
               placeholder="844 123 4567"
             />
           </div>
         </div>
 
         {error && (
-          <div className="flex items-start gap-2.5 rounded-lg bg-red-50 border border-red-100 p-4 text-sm text-red-700 animate-scale-in">
-            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-red-500" />
+          <div className="flex items-start gap-2.5 rounded-lg bg-[var(--error)]/10 border border-[var(--error)]/20 p-3 text-sm text-[var(--error)]">
+            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
-        <div className="pt-4">
-          <div className="flex items-center gap-2 text-xs text-gray-400 mb-4">
-            <div className="flex h-5 w-5 items-center justify-center rounded-md bg-tenant-primary/10">
-              <span className="text-[10px] font-bold text-tenant-primary">{items.length}</span>
-            </div>
+        <div className="pt-2">
+          <div className="flex items-center gap-2 text-xs text-[var(--text-tertiary)] mb-4">
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-[var(--accent-muted)] text-[10px] font-mono font-bold text-[var(--accent)]">
+              {items.length}
+            </span>
             <span>producto{items.length !== 1 ? 's' : ''} seleccionado{items.length !== 1 ? 's' : ''}</span>
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-xl py-3.5 text-white font-bold text-sm bg-tenant-secondary shadow-lg shadow-tenant-secondary/25 transition-all duration-200 hover:shadow-xl hover:shadow-tenant-secondary/30 hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg"
+            className="w-full rounded-lg py-2.5 text-white font-medium text-sm bg-[var(--accent)] hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? (
               <span className="inline-flex items-center gap-2">
@@ -192,10 +190,10 @@ export default function QuoteForm({ tenantSlug }: QuoteFormProps) {
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Generando cotizacion...
+                Generando cotización...
               </span>
             ) : (
-              'Generar cotizacion en PDF'
+              'Generar cotización en PDF'
             )}
           </button>
         </div>

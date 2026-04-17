@@ -23,7 +23,7 @@ export function BookingForm({
   slot: Slot
   insuranceProviders: string[]
   onBack: () => void
-  onSuccess: (data: { appointmentId: string }) => void
+  onSuccess: (data: { appointmentId: string; portalToken: string; reason?: string }) => void
 }) {
   const [form, setForm] = useState<BookingFormInput>({
     patientName: '',
@@ -86,9 +86,13 @@ export function BookingForm({
       }
 
       const data = await res.json()
-      onSuccess({ appointmentId: data.appointment.id })
+      onSuccess({
+        appointmentId: data.appointment.id,
+        portalToken: data.patient.portalToken,
+        reason: result.data.reason,
+      })
     } catch {
-      setServerError('Error de conexión. Intente de nuevo.')
+      setServerError('Error de conexion. Intente de nuevo.')
       setSubmitting(false)
     }
   }
@@ -100,74 +104,72 @@ export function BookingForm({
     year: 'numeric',
   })
 
+  const inputClass = (hasError: boolean) =>
+    `w-full px-4 py-2.5 border rounded-lg text-sm bg-[var(--bg-tertiary)] text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] transition-colors focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] ${hasError ? 'border-[var(--error)]' : 'border-[var(--border)]'}`
+
   return (
     <div>
-      {/* Selected slot summary */}
-      <div className="bg-tenant-primary/5 border border-tenant-primary/20 rounded-xl p-5 mb-8">
+      {/* Selected slot */}
+      <div className="bg-[var(--accent-muted)] border border-[var(--accent)]/20 rounded-lg p-4 mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-tenant-primary/10 flex items-center justify-center shrink-0">
-            <CalendarCheck className="w-5 h-5 text-tenant-primary" />
-          </div>
+          <CalendarCheck className="w-5 h-5 text-[var(--accent)] shrink-0" />
           <div>
-            <p className="text-tenant-primary font-semibold capitalize">{displayDate}</p>
+            <p className="text-sm font-medium text-[var(--text-primary)] capitalize">{displayDate}</p>
             <div className="flex items-center gap-1.5 mt-0.5">
-              <Clock className="w-3.5 h-3.5 text-tenant-primary/70" />
-              <span className="text-lg font-bold text-tenant-primary">{slot.startTime.slice(0, 5)}</span>
+              <Clock className="w-3 h-3 text-[var(--accent)]" />
+              <span className="text-base font-bold text-[var(--accent)]">{slot.startTime.slice(0, 5)}</span>
             </div>
           </div>
         </div>
         <button
           onClick={onBack}
-          className="mt-3 text-sm text-gray-500 hover:text-tenant-primary font-medium underline underline-offset-2 transition-colors"
+          className="mt-2 text-xs text-[var(--text-tertiary)] hover:text-[var(--accent)] transition-colors"
         >
           Cambiar horario
         </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Name */}
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
             Nombre completo *
           </label>
           <input
             type="text"
             value={form.patientName}
             onChange={(e) => handleChange('patientName', e.target.value)}
-            placeholder="María González"
-            className={`w-full px-4 py-2.5 border rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-tenant-primary/20 focus:border-tenant-primary ${errors.patientName ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+            placeholder="Maria Gonzalez"
+            className={inputClass(!!errors.patientName)}
           />
           {errors.patientName && (
-            <div className="flex items-center gap-1.5 mt-1.5">
-              <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-              <p className="text-xs text-red-500">{errors.patientName}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <AlertCircle className="w-3 h-3 text-[var(--error)] shrink-0" />
+              <p className="text-xs text-[var(--error)]">{errors.patientName}</p>
             </div>
           )}
         </div>
 
-        {/* Phone */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Teléfono (WhatsApp) *
+          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+            Telefono (WhatsApp) *
           </label>
           <input
             type="tel"
             value={form.patientPhone}
             onChange={(e) => handleChange('patientPhone', e.target.value)}
             placeholder="844 100 1001"
-            className={`w-full px-4 py-2.5 border rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-tenant-primary/20 focus:border-tenant-primary ${errors.patientPhone ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+            className={inputClass(!!errors.patientPhone)}
           />
           {errors.patientPhone && (
-            <div className="flex items-center gap-1.5 mt-1.5">
-              <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-              <p className="text-xs text-red-500">{errors.patientPhone}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <AlertCircle className="w-3 h-3 text-[var(--error)] shrink-0" />
+              <p className="text-xs text-[var(--error)]">{errors.patientPhone}</p>
             </div>
           )}
         </div>
 
-        {/* Email */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
             Email
           </label>
           <input
@@ -175,19 +177,18 @@ export function BookingForm({
             value={form.patientEmail}
             onChange={(e) => handleChange('patientEmail', e.target.value)}
             placeholder="maria@email.com"
-            className={`w-full px-4 py-2.5 border rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-tenant-primary/20 focus:border-tenant-primary ${errors.patientEmail ? 'border-red-400 bg-red-50' : 'border-gray-300'}`}
+            className={inputClass(!!errors.patientEmail)}
           />
           {errors.patientEmail && (
-            <div className="flex items-center gap-1.5 mt-1.5">
-              <AlertCircle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-              <p className="text-xs text-red-500">{errors.patientEmail}</p>
+            <div className="flex items-center gap-1.5 mt-1">
+              <AlertCircle className="w-3 h-3 text-[var(--error)] shrink-0" />
+              <p className="text-xs text-[var(--error)]">{errors.patientEmail}</p>
             </div>
           )}
         </div>
 
-        {/* Reason */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+          <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
             Motivo de consulta
           </label>
           <textarea
@@ -195,20 +196,19 @@ export function BookingForm({
             onChange={(e) => handleChange('reason', e.target.value)}
             placeholder="Describa brevemente el motivo de su consulta"
             rows={3}
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-tenant-primary/20 focus:border-tenant-primary resize-none"
+            className={`${inputClass(false)} resize-none`}
           />
         </div>
 
-        {/* Insurance */}
         {insuranceProviders.length > 0 && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Seguro médico
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
+              Seguro medico
             </label>
             <select
               value={form.insurance}
               onChange={(e) => handleChange('insurance', e.target.value)}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm transition-all focus:outline-none focus:ring-2 focus:ring-tenant-primary/20 focus:border-tenant-primary bg-white"
+              className={inputClass(false)}
             >
               <option value="">Sin seguro / Particular</option>
               {insuranceProviders.map((ins) => (
@@ -218,23 +218,21 @@ export function BookingForm({
           </div>
         )}
 
-        {/* Server error */}
         {serverError && (
-          <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-sm text-red-600">
-            <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+          <div className="flex items-start gap-2 p-3 bg-[var(--error)]/10 border border-[var(--error)]/20 rounded-lg text-sm text-[var(--error)]">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>{serverError}</span>
           </div>
         )}
 
-        {/* Submit */}
         <button
           type="submit"
           disabled={submitting}
-          className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-tenant-primary text-white font-semibold rounded-xl shadow-lg hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all duration-200 disabled:opacity-60 disabled:hover:shadow-lg disabled:hover:scale-100"
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[var(--accent)] text-white text-sm font-medium rounded-lg hover:bg-[var(--accent-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {submitting ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <Loader2 className="w-4 h-4 animate-spin" />
               Agendando...
             </>
           ) : (

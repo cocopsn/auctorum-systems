@@ -1,15 +1,39 @@
-import { pgTable, uuid, varchar, text, boolean, jsonb, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, boolean, jsonb, timestamp, integer } from 'drizzle-orm/pg-core';
+
+export const TENANT_TYPES = ['medical', 'industrial'] as const;
+export const PUBLIC_SUBDOMAIN_PREFIXES = ['dr', 'dra', 'doc'] as const;
+export const TENANT_PROVISIONING_STATUSES = ['draft', 'pending_plan', 'active', 'suspended'] as const;
+
+export type TenantType = (typeof TENANT_TYPES)[number];
+export type PublicSubdomainPrefix = (typeof PUBLIC_SUBDOMAIN_PREFIXES)[number];
+export type TenantProvisioningStatus = (typeof TENANT_PROVISIONING_STATUSES)[number];
 
 export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
   slug: varchar('slug', { length: 63 }).unique().notNull(),
   name: varchar('name', { length: 255 }).notNull(),
+  tenantType: varchar('tenant_type', { length: 20 }).notNull().default('industrial'),
+  publicSubdomain: varchar('public_subdomain', { length: 120 }),
+  publicSubdomainPrefix: varchar('public_subdomain_prefix', { length: 20 }),
+  provisioningStatus: varchar('provisioning_status', { length: 20 }).notNull().default('draft'),
+  provisionedAt: timestamp('provisioned_at', { withTimezone: true }),
   logoUrl: text('logo_url'),
   config: jsonb('config').notNull().default({}),
   isActive: boolean('is_active').default(true),
   plan: varchar('plan', { length: 20 }).default('basico'),
+  quoteSequence: integer('quote_sequence').notNull().default(0),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+  // Tier 2 columns
+  botMessages: jsonb('bot_messages').default({}),
+  botConfig: jsonb('bot_config').default({}),
+  budgetSequence: integer('budget_sequence').default(0),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  // Tier 3 columns
+  paymentConfig: jsonb('payment_config').default({}),
+  invoiceConfig: jsonb('invoice_config').default({}),
+  invoiceSequence: integer('invoice_sequence').default(0),
+  channelsConfig: jsonb('channels_config').default({}),
 });
 
 // TypeScript types derived from schema
@@ -34,6 +58,12 @@ export interface TenantConfig {
     razon_social: string;
     rfc: string;
     giro: string;
+  };
+  account?: {
+    type?: TenantType;
+    plan?: string;
+    portalHost?: string;
+    publicHost?: string;
   };
   // Quote Engine (B2B)
   quote_settings?: {
@@ -98,6 +128,17 @@ export interface TenantConfig {
     prescription_pdf?: boolean;
     receipt_pdf?: boolean;
   };
+  ai?: {
+    enabled: boolean;
+    systemPrompt: string;
+    autoSchedule: boolean;
+    answerFaq: boolean;
+    humanHandoff: boolean;
+    model: string;
+    vectorStoreId?: string | null;
+    temperature?: number;
+    maxTokens?: number;
+  };
 }
 
 // Default config for new B2B tenants
@@ -118,12 +159,17 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     rfc: '',
     giro: '',
   },
+  account: {
+    type: 'industrial',
+    plan: 'basico',
+    portalHost: 'portal.auctorum.com.mx',
+  },
   quote_settings: {
     currency: 'MXN',
     tax_rate: 0.16,
     validity_days: 15,
     payment_terms: '50% anticipo, 50% contra entrega',
-    delivery_terms: '3-5 días hábiles',
+    delivery_terms: '3-5 dias habiles',
     custom_footer: 'Precios sujetos a cambio sin previo aviso.',
   },
 };

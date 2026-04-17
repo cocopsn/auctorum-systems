@@ -36,64 +36,64 @@ export function PatientsTable() {
   return (
     <div>
       <div className="relative mb-4 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Buscar por nombre o teléfono..."
-          className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-tenant-primary/30"
+          className="w-full pl-9 pr-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
         />
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Paciente</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Teléfono</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500">Citas</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500">No-shows</th>
-                <th className="text-right px-4 py-3 font-medium text-gray-500">Total</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-500">Última visita</th>
+              <tr className="border-b border-[var(--border)]">
+                <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Paciente</th>
+                <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Teléfono</th>
+                <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Email</th>
+                <th className="text-right px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Citas</th>
+                <th className="text-right px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">No-shows</th>
+                <th className="text-right px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Total</th>
+                <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Última visita</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">Cargando...</td>
+                  <td colSpan={7} className="px-4 py-8 text-center text-[var(--text-tertiary)]">Cargando...</td>
                 </tr>
               ) : patients.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-400">
-                    <User className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                  <td colSpan={7} className="px-4 py-8 text-center text-[var(--text-tertiary)]">
+                    <User className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     No hay pacientes registrados.
                   </td>
                 </tr>
               ) : (
                 patients.map((p) => (
-                  <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <tr key={p.id} className="border-b border-[var(--border)] hover:bg-[var(--bg-elevated)] transition-colors">
                     <td className="px-4 py-3">
-                      <Link href={`/dashboard/pacientes/${p.id}`} className="font-medium text-gray-900 hover:text-tenant-primary">
+                      <Link href={`/dashboard/pacientes/${p.id}`} className="font-medium text-[var(--text-primary)] hover:text-[var(--accent)]">
                         {p.name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-gray-500">{p.phone}</td>
-                    <td className="px-4 py-3 text-gray-500">{p.email ?? '—'}</td>
-                    <td className="px-4 py-3 text-right">{p.totalAppointments}</td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">{p.phone}</td>
+                    <td className="px-4 py-3 text-[var(--text-secondary)]">{p.email ?? '—'}</td>
+                    <td className="px-4 py-3 text-right text-[var(--text-primary)]">{p.totalAppointments}</td>
                     <td className="px-4 py-3 text-right">
                       {(p.totalNoShows ?? 0) > 0 ? (
-                        <span className="text-red-600 font-medium">{p.totalNoShows}</span>
+                        <span className="text-[var(--error)] font-medium">{p.totalNoShows}</span>
                       ) : (
-                        <span className="text-gray-400">0</span>
+                        <span className="text-[var(--text-tertiary)]">0</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-right font-medium">
+                    <td className="px-4 py-3 text-right font-medium text-[var(--text-primary)]">
                       ${Number(p.totalSpent ?? 0).toLocaleString()}
                     </td>
-                    <td className="px-4 py-3 text-gray-500 text-xs">
+                    <td className="px-4 py-3 text-[var(--text-tertiary)] text-xs">
                       {p.lastAppointmentAt
                         ? new Date(p.lastAppointmentAt).toLocaleDateString('es-MX')
                         : '—'}

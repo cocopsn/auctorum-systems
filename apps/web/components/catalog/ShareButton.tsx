@@ -15,17 +15,17 @@ export function ShareButton({ url, title }: { url: string; title: string }) {
         setTimeout(() => setCopied(false), 2000);
       }
     } catch {
-      // User cancelled share dialog or clipboard failed
+      // User cancelled
     }
   }
 
   return (
     <button
       onClick={handleShare}
-      className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-mono text-gray-500 border border-gray-200 rounded-lg hover:border-tenant-primary/30 hover:text-tenant-primary transition-all"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-[var(--text-secondary)] border border-[var(--border)] rounded-lg hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] transition-colors"
       aria-label="Compartir portal"
     >
-      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
         <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8M16 6l-4-4-4 4M12 2v13" />
       </svg>
       {copied ? 'Copiado!' : 'Compartir'}

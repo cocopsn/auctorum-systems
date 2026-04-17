@@ -2,18 +2,21 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db, quotes, tenants } from '@quote-engine/db';
 import { eq, desc, and, count, isNull } from 'drizzle-orm';
 import { headers } from 'next/headers';
+import { getAuthTenant } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
 
 // GET /api/quotes/list
 // Returns all quotes for the current tenant (resolved from x-tenant-slug header
 // or from the ?tenant=slug query param for client-side calls).
 //
-// SEC-06 AUTH AUDIT: This route does NOT verify the user is authenticated.
-// Anyone who knows a tenant slug can list all quotes for that tenant.
-// TODO: Enforce authentication (e.g., verify magic-link session or Supabase JWT)
-// before returning quote data. Only authenticated users belonging to the
-// tenant should be able to access this dashboard endpoint.
 export async function GET(request: NextRequest) {
   try {
+    const auth = await getAuthTenant();
+    if (!auth) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
     let slug = searchParams.get('tenant');
 
@@ -23,7 +26,7 @@ export async function GET(request: NextRequest) {
       slug = headersList.get('x-tenant-slug');
     }
 
-    let tenantId: string | null = null;
+    let tenantId: string | null = auth.tenant.id;
 
     if (slug) {
       const [tenant] = await db
@@ -31,11 +34,10 @@ export async function GET(request: NextRequest) {
         .from(tenants)
         .where(and(eq(tenants.slug, slug), eq(tenants.isActive, true)))
         .limit(1);
-      tenantId = tenant?.id ?? null;
-    } else {
-      // Dev fallback: use the first tenant
-      const [first] = await db.select({ id: tenants.id }).from(tenants).limit(1);
-      tenantId = first?.id ?? null;
+      if (!tenant || tenant.id !== auth.tenant.id) {
+        return NextResponse.json({ error: 'No autorizado para este tenant' }, { status: 403 });
+      }
+      tenantId = tenant.id;
     }
 
     if (!tenantId) {

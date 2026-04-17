@@ -1,0 +1,425 @@
+export const dynamic = 'force-dynamic'
+
+import { NextRequest, NextResponse } from 'next/server'
+import { eq, and, gte, asc, desc, sql, isNull } from 'drizzle-orm'
+import {
+  db,
+  appointments,
+  patients,
+  appointmentEvents,
+  conversations,
+  messages,
+  clients,
+  tenants,
+  integrations,
+  notifications,
+  type Tenant,
+} from '@quote-engine/db'
+import { getAiSettings } from '@quote-engine/ai'
+import { sendWhatsAppMessage } from '@/lib/whatsapp'
+import { notifyAppointmentCancelled } from '@/lib/notifications'
+import {
+  isGoogleCalendarConfigured,
+  createCalendarEvent,
+  cancelCalendarEvent,
+} from '@/lib/google-calendar'
+import crypto from 'crypto'
+import { messageQueue } from '@quote-engine/events'
+
+// --------------- HMAC Signature Verification ---------------
+function verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
+  const appSecret = process.env.WHATSAPP_APP_SECRET
+  if (!appSecret || appSecret === 'PLACEHOLDER_CONFIGURE_IN_META') {
+    return false
+  }
+  if (!signatureHeader) return false
+  const expectedSig =
+    'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex')
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(expectedSig),
+      Buffer.from(signatureHeader),
+    )
+  } catch {
+    return false
+  }
+}
+
+// GET: Meta verification challenge
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url)
+  const mode = url.searchParams.get('hub.mode')
+  const token = url.searchParams.get('hub.verify_token')
+  const challenge = url.searchParams.get('hub.challenge')
+
+  if (mode === 'subscribe' && token === process.env.WHATSAPP_VERIFY_TOKEN) {
+    return new NextResponse(challenge, { status: 200 })
+  }
+  return new NextResponse('Forbidden', { status: 403 })
+}
+
+// POST: incoming messages
+export async function POST(req: NextRequest) {
+  try {
+    const rawBody = await req.text()
+    const signature = req.headers.get('x-hub-signature-256')
+
+    if (!verifyWebhookSignature(rawBody, signature)) {
+      console.warn('[whatsapp webhook] invalid HMAC signature')
+      return new NextResponse('Invalid signature', { status: 403 })
+    }
+
+    const body: WebhookPayload | null = (() => {
+      try { return JSON.parse(rawBody) } catch { return null }
+    })()
+
+    if (body) {
+      processInBackground(body).catch((e) =>
+        console.error('[whatsapp webhook] bg error', e),
+      )
+    }
+
+    return NextResponse.json({ ok: true })
+  } catch (error) {
+    console.error('[whatsapp webhook] parse error:', error)
+    return NextResponse.json({ error: 'Invalid payload' }, { status: 400 })
+  }
+}
+
+type WebhookPayload = {
+  entry?: Array<{
+    changes?: Array<{
+      value?: {
+        metadata?: { phone_number_id?: string; display_phone_number?: string }
+        messages?: Array<{
+          from?: string
+          id?: string
+          type?: string
+          text?: { body?: string }
+          timestamp?: string
+        }>
+      }
+    }>
+  }>
+}
+
+// --------------- Normalize phone helper ---------------
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, '').replace(/^52/, '')
+}
+
+// --------------- Resolve tenant from patient or fallback ---------------
+async function resolveTenant(normalized: string, phoneNumberId: string): Promise<{ tenant: Tenant; patientId: string | null; tenantId: string } | null> {
+  const [integration] = await db.select({ tenantId: integrations.tenantId })
+    .from(integrations)
+    .where(and(eq(integrations.type, 'meta'), sql`${integrations.config}->>'phone_number_id' = ${phoneNumberId}`))
+    .limit(1);
+
+  if (!integration) return null;
+  const tenantId = integration.tenantId;
+
+  const [matchedPatient] = await db
+    .select({ id: patients.id })
+    .from(patients)
+    .where(
+      and(
+        eq(patients.tenantId, tenantId),
+        sql`REGEXP_REPLACE(${patients.phone}, '[^0-9]', '', 'g') LIKE ${'%' + normalized}`
+      )
+    )
+    .limit(1);
+
+  const patientId = matchedPatient ? matchedPatient.id : null;
+
+
+
+  const [tenant] = await db
+    .select()
+    .from(tenants)
+    .where(eq(tenants.id, tenantId))
+    .limit(1)
+
+  if (!tenant) return null
+  return { tenant, patientId, tenantId }
+}
+
+// --------------- Find or create client + conversation ---------------
+async function getOrCreateConversation(tenantId: string, phone: string, normalized: string) {
+  let [client] = await db
+    .select()
+    .from(clients)
+    .where(
+      and(
+        eq(clients.tenantId, tenantId),
+        sql`REGEXP_REPLACE(${clients.phone}, '[^0-9]', '', 'g') LIKE ${'%' + normalized}`,
+      ),
+    )
+    .limit(1)
+
+  if (!client) {
+    const [created] = await db
+      .insert(clients)
+      .values({
+        tenantId,
+        name: `WhatsApp ${phone}`,
+        phone,
+        status: 'lead',
+      })
+      .returning()
+    client = created
+  }
+
+  let [conv] = await db
+    .select()
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.tenantId, tenantId),
+        eq(conversations.clientId, client.id),
+        eq(conversations.channel, 'whatsapp'),
+        eq(conversations.status, 'open'),
+      ),
+    )
+    .orderBy(desc(conversations.createdAt))
+    .limit(1)
+
+  if (!conv) {
+    const [created] = await db
+      .insert(conversations)
+      .values({
+        tenantId,
+        clientId: client.id,
+        channel: 'whatsapp',
+        status: 'open',
+        lastMessageAt: new Date(),
+      })
+      .returning()
+    conv = created
+  }
+
+  return { client, conversation: conv }
+}
+
+// --------------- Load message history ---------------
+async function loadHistory(conversationId: string, limit = 10) {
+  const rows = await db
+    .select({ direction: messages.direction, content: messages.content })
+    .from(messages)
+    .where(eq(messages.conversationId, conversationId))
+    .orderBy(desc(messages.createdAt))
+    .limit(limit)
+
+  return rows.reverse()
+}
+
+// --------------- Google Calendar sync helper ---------------
+async function syncAppointmentToCalendar(
+  appt: { id: string; date: string; startTime: string; endTime: string; reason: string | null },
+  patientName: string,
+  tenantConfig: Record<string, any>,
+) {
+  if (!isGoogleCalendarConfigured(tenantConfig)) return
+  const autoSync = tenantConfig?.googleCalendar?.autoSync !== false
+  if (!autoSync) return
+
+  try {
+    const startDateTime = `${appt.date}T${appt.startTime}`
+    const endDateTime = `${appt.date}T${appt.endTime}`
+
+    const eventId = await createCalendarEvent(
+      {
+        summary: `Cita Dermatologia - ${patientName}`,
+        description: appt.reason || 'Consulta general',
+        startDateTime,
+        endDateTime,
+        location: 'Saltillo, Coahuila',
+        reminderMinutes: 60,
+      },
+      tenantConfig,
+    )
+
+    if (eventId) {
+      await db.execute(
+        sql`UPDATE appointments SET google_event_id = ${eventId} WHERE id = ${appt.id}`,
+      )
+      console.log('[webhook] appointment synced to Google Calendar:', eventId)
+    }
+  } catch (e) {
+    console.error('[webhook] Google Calendar sync failed (non-blocking):', e)
+  }
+}
+
+async function removeAppointmentFromCalendar(
+  appointmentId: string,
+  tenantConfig: Record<string, any>,
+) {
+  if (!isGoogleCalendarConfigured(tenantConfig)) return
+
+  try {
+    const [row] = await db.execute(
+      sql`SELECT google_event_id FROM appointments WHERE id = ${appointmentId}`,
+    ) as any[]
+
+    const googleEventId = row?.google_event_id
+    if (!googleEventId) return
+
+    await cancelCalendarEvent(googleEventId, tenantConfig)
+    console.log('[webhook] appointment removed from Google Calendar:', googleEventId)
+  } catch (e) {
+    console.error('[webhook] Google Calendar removal failed (non-blocking):', e)
+  }
+}
+
+// --------------- Main processing ---------------
+async function processInBackground(body: WebhookPayload) {
+  const value = body?.entry?.[0]?.changes?.[0]?.value
+  const message = value?.messages?.[0]
+  if (!message || message.type !== 'text') return
+
+  const from = message.from ?? ''
+  const originalText = (message.text?.body ?? '').trim()
+  const text = originalText.toUpperCase()
+  if (!from || !text) return
+
+  const normalized = normalizePhone(from)
+  if (!normalized) return
+
+  const externalId = message.id ?? null
+  const phoneNumberId = value?.metadata?.phone_number_id as string | undefined
+
+  if (!phoneNumberId) {
+    console.log('[whatsapp webhook] Missing phone_number_id in metadata');
+    return;
+  }
+
+  const resolved = await resolveTenant(normalized, phoneNumberId);
+  if (!resolved) {
+    console.warn(`[whatsapp webhook] unmapped phone_number_id ${phoneNumberId}`);
+    return;
+  }
+
+  // --- Try appointment keyword handling first inline (fast) ---
+  const appointmentHandled = await handleAppointmentKeyword(from, normalized, text, phoneNumberId)
+  if (appointmentHandled) return
+
+  // --- Push AI concierge to background worker queue ---
+  const timestamp = message.timestamp as string | undefined;
+  
+  await messageQueue.add('incoming_message', {
+    tenantId: resolved.tenantId,
+    phone: from,
+    phoneNumberId,
+    text: originalText,
+    externalId,
+    timestamp
+  });
+
+  console.log(`[whatsapp webhook] enqueued message ${externalId} for tenant ${resolved.tenantId}`);
+}
+
+async function handleAppointmentKeyword(from: string, normalized: string, text: string, phoneNumberId: string): Promise<boolean> {
+  const CONFIRM_KEYWORDS = ['CONFIRMO', 'CONFIRMAR', 'SI']
+  const CANCEL_KEYWORDS = ['CANCELO', 'CANCELAR', 'NO']
+
+  if (![...CONFIRM_KEYWORDS, ...CANCEL_KEYWORDS].includes(text)) {
+    return false
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+
+  const resolved = await resolveTenant(normalized, phoneNumberId);
+  if (!resolved) return false;
+  const matchedPatient = resolved.patientId ? { id: resolved.patientId, tenantId: resolved.tenantId } : null;
+
+  if (!matchedPatient) return false
+
+  const [tenant] = await db
+    .select()
+    .from(tenants)
+    .where(eq(tenants.id, matchedPatient.tenantId))
+    .limit(1)
+  const tenantConfig = (tenant?.config as Record<string, any>) || {}
+
+  const [row] = await db
+    .select({ appt: appointments, patient: patients })
+    .from(appointments)
+    .innerJoin(patients, eq(patients.id, appointments.patientId))
+    .where(
+      and(
+        eq(appointments.patientId, matchedPatient.id),
+        eq(appointments.tenantId, matchedPatient.tenantId),
+        eq(appointments.status, 'scheduled'),
+        gte(appointments.date, today),
+      ),
+    )
+    .orderBy(asc(appointments.date), asc(appointments.startTime))
+    .limit(1)
+
+  if (!row) return false
+
+  if (CONFIRM_KEYWORDS.includes(text)) {
+    await db
+      .update(appointments)
+      .set({ confirmedByPatient: true, confirmedAt: new Date() })
+      .where(eq(appointments.id, row.appt.id))
+
+    await db.insert(appointmentEvents).values({
+      appointmentId: row.appt.id,
+      tenantId: row.appt.tenantId,
+      eventType: 'confirmed_by_patient',
+      metadata: { source: 'whatsapp_inbound', text },
+    })
+
+    syncAppointmentToCalendar(row.appt, row.patient.name, tenantConfig).catch((e) =>
+      console.error('[webhook] gcal sync error:', e),
+    )
+
+    // Create notification for doctor
+    await db.insert(notifications).values({
+      tenantId: row.appt.tenantId,
+      type: 'confirmed_appointment',
+      title: 'Cita confirmada',
+      message: `${row.patient.name} confirmo su cita del ${row.appt.date} a las ${row.appt.startTime.slice(0, 5)}`,
+    }).catch(() => {})
+
+    await sendWhatsAppMessage(from, 'Gracias, su cita queda confirmada.')
+    return true
+  }
+
+  if (CANCEL_KEYWORDS.includes(text)) {
+    await db
+      .update(appointments)
+      .set({ status: 'cancelled', cancelledAt: new Date() })
+      .where(eq(appointments.id, row.appt.id))
+
+    await db.insert(appointmentEvents).values({
+      appointmentId: row.appt.id,
+      tenantId: row.appt.tenantId,
+      eventType: 'cancelled',
+      metadata: { source: 'whatsapp_inbound', text },
+    })
+
+    removeAppointmentFromCalendar(row.appt.id, tenantConfig).catch((e) =>
+      console.error('[webhook] gcal removal error:', e),
+    )
+
+    // Create notification for doctor
+    await db.insert(notifications).values({
+      tenantId: row.appt.tenantId,
+      type: 'cancelled_appointment',
+      title: 'Cita cancelada',
+      message: `${row.patient.name} cancelo su cita del ${row.appt.date} a las ${row.appt.startTime.slice(0, 5)}`,
+    }).catch(() => {})
+
+    notifyAppointmentCancelled(
+      row.appt,
+      row.patient,
+      row.appt.tenantId,
+      'Cancelada por el paciente via WhatsApp',
+    ).catch((e) => console.error('[webhook cancel] notify failed', e))
+    return true
+  }
+
+  return false
+}
+

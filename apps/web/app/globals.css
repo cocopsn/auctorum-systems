@@ -2,134 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ═══════════════════════════════════════════════════════════
-   AUCTORUM — Brand Design System v2 (Enterprise Rebrand)
-   ═══════════════════════════════════════════════════════════ */
-
 :root {
-  /* Background */
-  --auctorum-bg: #050508;
-  --auctorum-surface-1: #0a0a10;
-  --auctorum-surface-2: #101018;
-  --auctorum-surface-3: #16161f;
-  --auctorum-border: #1e1e2e;
-
-  /* Text */
-  --auctorum-body: #c8c8d4;
-  --auctorum-light: #e8e8f0;
-  --auctorum-white: #f4f4f8;
-
-  /* Accent */
-  --auctorum-blue: #2d7aff;
-  --auctorum-blue-bright: #5c9aff;
-  --auctorum-glow: #2d7aff40;
-  --auctorum-cyan: #00d4ff;
-  --auctorum-purple: #8b5cf6;
-  --auctorum-green: #10b981;
-
-  /* Tenant defaults (overridden per-tenant) */
-  --tenant-primary: #1B3A5C;
-  --tenant-secondary: #C0392B;
+  --bg-primary: #F8FAFC;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #F1F5F9;
+  --bg-elevated: #F8FAFC;
+  --text-primary: #0F172A;
+  --text-secondary: #64748B;
+  --text-tertiary: #94A3B8;
+  --accent: #2563EB;
+  --accent-hover: #1D4ED8;
+  --accent-muted: #EFF6FF;
+  --border: #E2E8F0;
+  --border-hover: #CBD5E1;
+  --success: #059669;
+  --warning: #D97706;
+  --error: #DC2626;
+  --tenant-primary: #1E40AF;
+  --tenant-secondary: #3B82F6;
   --tenant-bg: #FFFFFF;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   Base Styles
-   ═══════════════════════════════════════════════════════════ */
-
-::selection {
-  background: var(--auctorum-blue);
-  color: var(--auctorum-white);
+@layer base {
+  html { scroll-behavior: smooth; color-scheme: light; }
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-secondary);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  ::selection { background: #2563EB; color: #FFFFFF; }
+  h1, h2, h3, h4, h5, h6 { color: var(--text-primary); }
+  :focus-visible { outline: 2px solid #2563EB; outline-offset: 2px; }
 }
-
-html {
-  scroll-behavior: smooth;
-}
-
-/* ═══════════════════════════════════════════════════════════
-   Animations (enterprise — subtle, fast)
-   ═══════════════════════════════════════════════════════════ */
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-
-@keyframes pulse-dot {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  50% {
-    opacity: 0.6;
-    transform: scale(1.3);
-  }
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to { opacity: 1; transform: translateX(0); }
 }
-
-/* Utility animation classes */
-.animate-fade-in {
-  animation: fadeIn 0.6s ease-out forwards;
-  opacity: 0;
-}
-
-.animate-slide-up {
-  animation: slideUp 0.6s ease-out forwards;
-  opacity: 0;
-}
-
-.animate-pulse-dot {
-  animation: pulse-dot 2s ease-in-out infinite;
-}
-
-/* Stagger delays */
+.animate-fade-in { animation: fadeIn 0.5s ease-out both; }
+.animate-slide-up { animation: slideUp 0.5s ease-out both; }
+.animate-slide-in { animation: slideIn 0.4s ease-out both; }
 .delay-1 { animation-delay: 0.1s; }
 .delay-2 { animation-delay: 0.2s; }
 .delay-3 { animation-delay: 0.3s; }
 .delay-4 { animation-delay: 0.4s; }
 .delay-5 { animation-delay: 0.5s; }
 
-/* ═══════════════════════════════════════════════════════════
-   Interactive Utilities
-   ═══════════════════════════════════════════════════════════ */
-
-.transition-smooth {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* ═══════════════════════════════════════════════════════════
-   Typography Helpers
-   ═══════════════════════════════════════════════════════════ */
-
-.text-gradient-blue {
-  background: linear-gradient(135deg, var(--auctorum-blue) 0%, var(--auctorum-cyan) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-/* ═══════════════════════════════════════════════════════════
-   Print Styles
-   ═══════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background-color: #CBD5E1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background-color: #94A3B8; }
 
 @media print {
   nav, footer, .no-print { display: none !important; }
   body { background: white !important; color: black !important; }
-  * { color: inherit !important; background: transparent !important; border-color: #ddd !important; }
 }

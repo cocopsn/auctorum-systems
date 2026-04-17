@@ -1,28 +1,85 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { safeGetAuthCookie } from '@/lib/safe-cookie-get'
+import { withAuthCookieDomain } from '@/lib/auth-cookie'
 
-const PROTECTED_ROUTES = ['/citas', '/pacientes', '/horarios', '/notas', '/settings', '/agenda']
+const DASHBOARD_ROUTES = [
+  '/citas', '/pacientes', '/horarios', '/notas', '/settings',
+  '/agenda', '/ai-settings', '/portal', '/integrations', '/conversaciones',
+  '/recordatorios', '/funnel', '/reports', '/follow-ups', '/budgets',
+  '/payments', '/invoices', '/campaigns', '/dashboard',
+]
+
+function isDashboardRoute(pathname: string): boolean {
+  return DASHBOARD_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))
+}
+
+function isStaticOrApi(pathname: string): boolean {
+  if (pathname.startsWith('/_next')) return true
+  if (pathname.startsWith('/api/')) return true
+  if (pathname === '/api') return true
+  if (/\.(ico|png|jpg|jpeg|svg|gif|webp|css|js|woff2?)$/.test(pathname)) return true
+  return false
+}
+
+/** Clear all Supabase cookies from a response to recover from corruption. */
+function clearSupabaseCookies(request: NextRequest, response: NextResponse, host: string) {
+  const cookieDomain = host.includes('localhost')
+    ? undefined
+    : `.${process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'auctorum.com.mx'}`
+
+  for (const cookie of request.cookies.getAll()) {
+    if (cookie.name.startsWith('sb-') || cookie.name.includes('auth-token')) {
+      response.cookies.set({
+        name: cookie.name,
+        value: '',
+        maxAge: 0,
+        path: '/',
+        ...(cookieDomain ? { domain: cookieDomain } : {}),
+      })
+    }
+  }
+}
 
 export async function middleware(request: NextRequest) {
+  // Global try/catch — the middleware must NEVER throw. A crash here
+  // takes down the entire process and triggers PM2 restart loops.
+  try {
+    return await handleRequest(request)
+  } catch (err) {
+    console.error(
+      'Middleware uncaught error (recovering):',
+      err instanceof Error ? err.message : err,
+    )
+    // On any unexpected error, let the request through rather than crashing.
+    // Clear any Supabase cookies that might be corrupted to prevent loops.
+    const response = NextResponse.next()
+    const host = request.headers.get('host') ?? ''
+    clearSupabaseCookies(request, response, host)
+    return response
+  }
+}
+
+async function handleRequest(request: NextRequest) {
   const host = request.headers.get('host') ?? ''
   const { pathname } = request.nextUrl
-  const url = request.nextUrl.clone()
+  const realOrigin = host.includes('localhost')
+    ? `http://${host}`
+    : `https://${host || 'auctorum.com.mx'}`
 
-  // Skip static/public routes
-  if (
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/api') ||
-    pathname === '/login' ||
-    pathname.match(/\.(ico|png|jpg|svg)$/)
-  ) {
-    return NextResponse.next()
+  // 1. Skip static assets and API routes
+  if (isStaticOrApi(pathname)) return NextResponse.next()
+
+  // 2. Portal rewrite pass-through: if this is an internal rewritten request, let it through
+  if (request.nextUrl.searchParams.get('_portal') === '1') {
+    const response = NextResponse.next()
+    const slugFromPath = pathname.split('/')[1]
+    if (slugFromPath) response.headers.set('x-tenant-slug', slugFromPath)
+    return response
   }
 
-  // Extract subdomain
-  // Production: dra-martinez.auctorum.com.mx
-  // Dev: dra-martinez.localhost:3000
+  // 3. Extract subdomain slug
   let slug: string | null = null
-
   if (host.includes('localhost')) {
     const parts = host.split('.')
     if (parts.length >= 2 && parts[0] !== 'localhost') {
@@ -32,67 +89,95 @@ export async function middleware(request: NextRequest) {
     const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'auctorum.com.mx'
     if (host.endsWith(appDomain)) {
       const sub = host.replace(`.${appDomain}`, '')
-      if (sub && sub !== 'www') {
-        slug = sub
-      }
+      if (/^(dr|dra|doc)-/.test(sub)) slug = sub
     }
   }
 
-  // Protect dashboard routes — require auth session
-  if (PROTECTED_ROUTES.some(r => pathname.startsWith(r))) {
-    const response = NextResponse.next()
+  // 4. /login always public
+  if (pathname === '/login') return NextResponse.next()
+
+  // 5. Landing page: root path on subdomain shows the public landing
+  if (slug && pathname === '/') {
+    return NextResponse.next()
+  }
+
+  // 5b. Portal routes: subdomain + non-dashboard path -> rewrite with marker
+  if (slug && !isDashboardRoute(pathname)) {
+    const portalPath = `/${slug}${pathname}`
+    const rewriteUrl = request.nextUrl.clone()
+    // Force http:// for internal rewrites — Next.js serves on plain HTTP
+    // behind Caddy. Without this, cloned URLs inherit the https:// protocol
+    // from Caddy's forwarded request, causing EPROTO SSL errors.
+    rewriteUrl.protocol = 'http:'
+    rewriteUrl.pathname = portalPath
+    rewriteUrl.searchParams.set('_portal', '1')
+    const response = NextResponse.rewrite(rewriteUrl)
+    response.headers.set('x-tenant-slug', slug)
+    return response
+  }
+
+  // 6. /dashboard redirect
+  if (pathname === '/dashboard' || pathname === '/dashboard/') {
+    return NextResponse.redirect(new URL('/agenda', realOrigin))
+  }
+
+  // 7. Dashboard routes - require auth
+  const response = NextResponse.next()
+
+  let session = null
+  try {
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
         cookies: {
           get(name: string) {
-            return request.cookies.get(name)?.value
+            try {
+              return safeGetAuthCookie(request.cookies.get(name)?.value)
+            } catch {
+              return undefined
+            }
           },
           set(name: string, value: string, options: Record<string, unknown>) {
-            request.cookies.set({ name, value, ...options })
-            response.cookies.set({ name, value, ...options })
+            try {
+              const opts = withAuthCookieDomain(options ?? {}, host)
+              request.cookies.set({ name, value, ...opts })
+              response.cookies.set({ name, value, ...opts })
+            } catch {
+              // Cookie set failures are not fatal
+            }
           },
           remove(name: string, options: Record<string, unknown>) {
-            request.cookies.set({ name, value: '', ...options })
-            response.cookies.set({ name, value: '', ...options })
+            try {
+              const opts = withAuthCookieDomain(options ?? {}, host)
+              request.cookies.set({ name, value: '', ...opts })
+              response.cookies.set({ name, value: '', ...opts })
+            } catch {
+              // Cookie remove failures are not fatal
+            }
           },
         },
       }
     )
-
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
-
-    if (slug) response.headers.set('x-tenant-slug', slug)
-    return response
-  }
-
-  // Dashboard and API routes — pass tenant header through
-  if (url.pathname.startsWith('/dashboard') || url.pathname.startsWith('/api')) {
-    const response = NextResponse.next()
-    if (slug) {
-      response.headers.set('x-tenant-slug', slug)
-    }
-    return response
-  }
-
-  // Portal routes — rewrite to [slug] dynamic route
-  if (slug) {
-    const response = NextResponse.rewrite(
-      new URL(`/${slug}${url.pathname}`, request.url)
+    const { data: { user: authUser } } = await supabase.auth.getUser()
+    session = authUser ? true : null
+  } catch (err) {
+    console.error(
+      'Middleware getUser error (clearing cookies):',
+      err instanceof Error ? err.message : err,
     )
-    response.headers.set('x-tenant-slug', slug)
-    return response
+    const clearResponse = NextResponse.redirect(new URL('/login', realOrigin))
+    clearSupabaseCookies(request, clearResponse, host)
+    return clearResponse
   }
 
-  return NextResponse.next()
+  if (!session) return NextResponse.redirect(new URL('/login', realOrigin))
+  if (slug) response.headers.set('x-tenant-slug', slug)
+  return response
 }
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, boolean, text, timestamp } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
 
 export const users = pgTable('users', {
@@ -8,6 +8,14 @@ export const users = pgTable('users', {
   name: varchar('name', { length: 255 }),
   role: varchar('role', { length: 20 }).default('admin'),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  // Tier 2 columns
+  isActive: boolean('is_active').default(true),
+  lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+  invitedBy: uuid('invited_by'),
+  // Tier 3 columns
+  twoFactorEnabled: boolean('two_factor_enabled').default(false),
+  twoFactorSecret: text('two_factor_secret'),
+  twoFactorVerifiedAt: timestamp('two_factor_verified_at', { withTimezone: true }),
 });
 
 export type User = typeof users.$inferSelect;

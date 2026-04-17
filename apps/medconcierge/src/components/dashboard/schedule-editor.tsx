@@ -85,14 +85,16 @@ export function ScheduleEditor() {
     )
   }
 
+  const inputClass = 'px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded text-sm text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30'
+
   return (
     <div>
       <div className="space-y-3">
         {days.map((day, i) => (
           <div
             key={day.dayOfWeek}
-            className={`bg-white rounded-xl border p-4 transition-colors ${
-              day.isActive ? 'border-gray-200' : 'border-gray-100 bg-gray-50'
+            className={`bg-[var(--bg-secondary)] rounded-xl border p-4 transition-colors ${
+              day.isActive ? 'border-[var(--border)]' : 'border-[var(--border)] opacity-60'
             }`}
           >
             <div className="flex items-center gap-4">
@@ -100,7 +102,7 @@ export function ScheduleEditor() {
               <button
                 onClick={() => updateDay(i, { isActive: !day.isActive })}
                 className={`w-12 h-6 rounded-full transition-colors relative ${
-                  day.isActive ? 'bg-tenant-primary' : 'bg-gray-300'
+                  day.isActive ? 'bg-[var(--accent)]' : 'bg-[var(--bg-tertiary)]'
                 }`}
               >
                 <span
@@ -111,7 +113,7 @@ export function ScheduleEditor() {
               </button>
 
               {/* Day name */}
-              <span className={`w-24 font-medium ${day.isActive ? 'text-gray-900' : 'text-gray-400'}`}>
+              <span className={`w-24 font-medium ${day.isActive ? 'text-[var(--text-primary)]' : 'text-[var(--text-tertiary)]'}`}>
                 {DAY_NAMES[day.dayOfWeek]}
               </span>
 
@@ -121,19 +123,19 @@ export function ScheduleEditor() {
                     type="time"
                     value={day.startTime}
                     onChange={(e) => updateDay(i, { startTime: e.target.value })}
-                    className="px-2 py-1 border border-gray-300 rounded text-sm"
+                    className={inputClass}
                   />
-                  <span className="text-gray-400">a</span>
+                  <span className="text-[var(--text-tertiary)]">a</span>
                   <input
                     type="time"
                     value={day.endTime}
                     onChange={(e) => updateDay(i, { endTime: e.target.value })}
-                    className="px-2 py-1 border border-gray-300 rounded text-sm"
+                    className={inputClass}
                   />
                   <select
                     value={day.slotDurationMin}
                     onChange={(e) => updateDay(i, { slotDurationMin: Number(e.target.value) })}
-                    className="px-2 py-1 border border-gray-300 rounded text-sm bg-white"
+                    className={inputClass}
                   >
                     <option value={15}>15 min</option>
                     <option value={20}>20 min</option>
@@ -152,7 +154,7 @@ export function ScheduleEditor() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-4 py-2 bg-tenant-primary text-white font-medium rounded-lg hover:opacity-90 disabled:opacity-60"
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--accent)] text-white font-medium rounded-lg hover:bg-[var(--accent-hover)] disabled:opacity-60 transition-colors"
         >
           {saving ? (
             <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</>
@@ -160,7 +162,7 @@ export function ScheduleEditor() {
             <><Save className="w-4 h-4" /> Guardar Horarios</>
           )}
         </button>
-        {saved && <span className="text-sm text-green-600">Horarios guardados</span>}
+        {saved && <span className="text-sm text-[var(--success)]">Horarios guardados</span>}
       </div>
     </div>
   )

@@ -5,6 +5,7 @@ import { and, eq, desc } from 'drizzle-orm'
 import { db } from '@quote-engine/db'
 import { clinicalNotes, patients } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod';
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthTenant()
@@ -48,8 +49,20 @@ export async function POST(request: NextRequest) {
   const tenantId = auth.tenant.id
 
   try {
-    const body = await request.json()
-    const { patientId, appointmentId, subjective, objective, assessment, plan, content } = body
+    const noteSchema = z.object({
+      patientId: z.string().uuid(),
+      appointmentId: z.string().uuid().nullable().optional(),
+      subjective: z.string().max(5000).nullable().optional(),
+      objective: z.string().max(5000).nullable().optional(),
+      assessment: z.string().max(5000).nullable().optional(),
+      plan: z.string().max(5000).nullable().optional(),
+      content: z.string().max(10000).nullable().optional(),
+    });
+    const parsed = noteSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+    const { patientId, appointmentId, subjective, objective, assessment, plan, content } = parsed.data
 
     if (!patientId) {
       return NextResponse.json({ error: 'patientId required' }, { status: 400 })
@@ -80,8 +93,19 @@ export async function PUT(request: NextRequest) {
   const tenantId = auth.tenant.id
 
   try {
-    const body = await request.json()
-    const { id, subjective, objective, assessment, plan, content } = body
+    const updateSchema = z.object({
+      id: z.string().uuid(),
+      subjective: z.string().max(5000).nullable().optional(),
+      objective: z.string().max(5000).nullable().optional(),
+      assessment: z.string().max(5000).nullable().optional(),
+      plan: z.string().max(5000).nullable().optional(),
+      content: z.string().max(10000).nullable().optional(),
+    });
+    const parsedUpdate = updateSchema.safeParse(await request.json());
+    if (!parsedUpdate.success) {
+      return NextResponse.json({ error: parsedUpdate.error.flatten() }, { status: 400 });
+    }
+    const { id, subjective, objective, assessment, plan, content } = parsedUpdate.data
 
     if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 

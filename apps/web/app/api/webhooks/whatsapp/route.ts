@@ -1,17 +1,37 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db, quotes, quoteEvents, clients } from '@quote-engine/db';
-import { eq, and, desc } from 'drizzle-orm';
+import { db, quotes, quoteEvents, clients, integrations } from '@quote-engine/db';
+import { eq, and, desc, sql } from 'drizzle-orm';
+import crypto from 'crypto';
 
 // ============================================================
 // WhatsApp Cloud API Webhook
 // GET:  Meta challenge verification
-// POST: Process incoming messages → log to quote_events
+// POST: Process incoming messages \u2192 log to quote_events
 // Docs: https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks
 // ============================================================
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN ?? '';
 
-// GET /api/webhooks/whatsapp — Meta webhook challenge verification
+// --------------- HMAC Signature Verification ---------------
+function verifyWebhookSignature(rawBody: string, signatureHeader: string | null): boolean {
+  const appSecret = process.env.WHATSAPP_APP_SECRET;
+  if (!appSecret || appSecret === 'PLACEHOLDER_CONFIGURE_IN_META') {
+    return false;
+  }
+  if (!signatureHeader) return false;
+  const expectedSig =
+    'sha256=' + crypto.createHmac('sha256', appSecret).update(rawBody).digest('hex');
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(expectedSig),
+      Buffer.from(signatureHeader),
+    );
+  } catch {
+    return false;
+  }
+}
+
+// GET /api/webhooks/whatsapp \u2014 Meta webhook challenge verification
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const mode = searchParams.get('hub.mode');
@@ -19,17 +39,26 @@ export async function GET(request: NextRequest) {
   const challenge = searchParams.get('hub.challenge');
 
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('WhatsApp webhook verified');
+    // Webhook verified
     return new NextResponse(challenge, { status: 200 });
   }
 
   return new NextResponse('Forbidden', { status: 403 });
 }
 
-// POST /api/webhooks/whatsapp — Incoming message handler
+// POST /api/webhooks/whatsapp \u2014 Incoming message handler
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Read raw body first for HMAC verification, then parse JSON
+    const rawBody = await request.text();
+    const signature = request.headers.get('x-hub-signature-256');
+
+    if (!verifyWebhookSignature(rawBody, signature)) {
+      console.warn('WhatsApp webhook: invalid HMAC signature');
+      return new NextResponse('Invalid signature', { status: 403 });
+    }
+
+    const body = JSON.parse(rawBody);
 
     // Acknowledge immediately (Meta requires < 200ms response)
     // Process asynchronously below
@@ -73,26 +102,46 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
   const from = message.from as string | undefined;
   const msgType = message.type as string | undefined;
   const timestamp = message.timestamp as string | undefined;
+  // Meta metadata containing phone_number_id
+  const metadata = (message as any)?.metadata || {};
+  const phoneNumberId = metadata.phone_number_id as string | undefined;
 
   let text = '';
   if (msgType === 'text') {
     text = ((message.text as Record<string, unknown>)?.body as string) ?? '';
   }
 
-  console.log(`WhatsApp message from ${from}: [${msgType}] ${text}`);
 
-  // Normalize the phone number — strip non-digits and remove Mexico country code
+
+  // Normalize the phone number \u2014 strip non-digits and remove Mexico country code
   // to match the format stored in the clients table.
   const cleanPhone = from?.replace(/\D/g, '').replace(/^52/, '') ?? '';
 
-  if (!cleanPhone) {
-    console.warn('WhatsApp webhook: no valid phone number extracted');
+  if (!cleanPhone || !phoneNumberId) {
     return;
   }
 
   try {
-    // 1. Look up the client by phone number in the clients table
-    //    Try both with and without country code since storage format may vary
+    // 0. MAP PHONE_NUMBER_ID TO TENANT_ID (Multi-Tenant Isolation)
+    const [integration] = await db
+      .select({ tenantId: integrations.tenantId })
+      .from(integrations)
+      .where(
+        and(
+          eq(integrations.type, 'meta'),
+          sql`${integrations.config}->>'phone_number_id' = ${phoneNumberId}`
+        )
+      )
+      .limit(1);
+
+    if (!integration) {
+      console.warn(`WhatsApp webhook: Unmapped phone_number_id ${phoneNumberId}`);
+      return;
+    }
+
+    const tenantId = integration.tenantId;
+
+    // 1. Look up the client by phone number SCOPED to the active Tenant
     const phoneCandidates = [cleanPhone, `52${cleanPhone}`];
     let matchedClient: { id: string; tenantId: string } | undefined;
 
@@ -100,7 +149,12 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
       const [found] = await db
         .select({ id: clients.id, tenantId: clients.tenantId })
         .from(clients)
-        .where(eq(clients.phone, phone))
+        .where(
+          and(
+            eq(clients.tenantId, tenantId),
+            eq(clients.phone, phone)
+          )
+        )
         .limit(1);
       if (found) {
         matchedClient = found;
@@ -113,7 +167,12 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
       const [recentQuote] = await db
         .select({ id: quotes.id, tenantId: quotes.tenantId })
         .from(quotes)
-        .where(eq(quotes.clientPhone, cleanPhone))
+        .where(
+          and(
+            eq(quotes.tenantId, tenantId),
+            eq(quotes.clientPhone, cleanPhone)
+          )
+        )
         .orderBy(desc(quotes.createdAt))
         .limit(1);
 
@@ -130,9 +189,9 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
             matchedVia: 'quote_phone_fallback',
           },
         });
-        console.log(`WhatsApp reply logged (fallback) for quote ${recentQuote.id}`);
+
       } else {
-        console.log(`WhatsApp message from unknown number: ${cleanPhone}`);
+
       }
       return;
     }
@@ -151,7 +210,7 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
       .limit(1);
 
     if (!recentQuote) {
-      console.log(`Client found (${matchedClient.id}) but no quotes found`);
+
       return;
     }
 
@@ -170,7 +229,7 @@ async function handleIncomingMessage(message: Record<string, unknown>) {
       },
     });
 
-    console.log(`WhatsApp client_replied event logged for quote ${recentQuote.id} (client ${matchedClient.id})`);
+
   } catch (err) {
     console.error('WhatsApp event logging error:', err);
   }

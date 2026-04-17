@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, decimal, timestamp, serial } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, decimal, timestamp, serial, integer } from 'drizzle-orm/pg-core';
 import { tenants } from './tenants';
 import { products } from './products';
 
@@ -6,6 +6,7 @@ export const quotes = pgTable('quotes', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   quoteNumber: serial('quote_number'),
+  tenantSeq: integer('tenant_seq'),
   trackingToken: varchar('tracking_token', { length: 32 }).unique(),
   // Client info
   clientName: varchar('client_name', { length: 255 }).notNull(),

@@ -5,6 +5,7 @@ import { eq, ilike, or, desc } from 'drizzle-orm'
 import { db } from '@quote-engine/db'
 import { patients } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
+import { z } from 'zod';
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthTenant()

@@ -2,22 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db, users } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
-import { createServerClient } from '@/lib/supabase-server';
+import { createClient } from '@supabase/supabase-js';
 import { rateLimit } from '@/lib/rate-limit';
-
-// TODO: Add rate limiting (e.g., upstash/ratelimit) — max 5 magic links per email per hour
-// to prevent abuse. Check IP + email combination before calling Supabase.
+import { buildPortalUrl } from '@/lib/hosts';
 
 const magicLinkSchema = z.object({
-  email: z.string().email('Correo electrónico inválido').max(255),
+  email: z.string().email('Correo electronico invalido').max(255),
 });
 
-// POST /api/auth/magic-link
-// Validates the email, checks that a user record exists in the DB,
-// and sends a Supabase magic link to the given address.
 export async function POST(request: NextRequest) {
   try {
-    // Rate limiting: 5 req/min per IP
     const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
     const { success: rateLimitOk } = rateLimit(`magic-link:${ip}`, 5, 60_000);
     if (!rateLimitOk) {
@@ -36,8 +30,12 @@ export async function POST(request: NextRequest) {
 
     const { email } = parsed.data;
 
-    // Verify the user exists in our users table before sending a magic link.
-    // This prevents login attempts for emails that were never registered.
+    // Rate limit by email: 3/minute per email address
+    const { success: emailRlOk } = rateLimit(`magic-link-email:${email.toLowerCase()}`, 3, 60_000);
+    if (!emailRlOk) {
+      return NextResponse.json({ error: 'Demasiados intentos para este correo. Espera un minuto.' }, { status: 429 });
+    }
+
     const [existingUser] = await db
       .select({ id: users.id, email: users.email })
       .from(users)
@@ -45,17 +43,23 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (!existingUser) {
-      // Return generic success to avoid leaking whether an email is registered.
       return NextResponse.json({ success: true });
     }
 
-    const supabase = createServerClient();
-    const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://auctorum.com.mx'}/api/auth/callback`;
+    // Use plain createClient (implicit flow) — NOT the SSR client which forces
+    // PKCE and depends on code_verifier cookies surviving across the email click.
+    // The callback route's implicit handler processes #access_token fragments.
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
+    );
 
-    const { error } = await supabase.auth.admin.generateLink({
-      type: 'magiclink',
+    const redirectTo = buildPortalUrl('/api/auth/callback');
+
+    const { error } = await supabase.auth.signInWithOtp({
       email,
-      options: { redirectTo },
+      options: { emailRedirectTo: redirectTo },
     });
 
     if (error) {

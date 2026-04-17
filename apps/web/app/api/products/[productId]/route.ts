@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { db, products, users } from '@quote-engine/db';
+import { db, products } from '@quote-engine/db';
 import { eq, and, isNull } from 'drizzle-orm';
 import { validateOrigin } from '@/lib/csrf';
-import { createSupabaseServer } from '@/lib/supabase-ssr';
+import { getAuthTenant } from '@/lib/auth';
 
 const updateProductSchema = z.object({
   name: z.string().min(1, 'Nombre requerido').max(255).optional(),
@@ -25,18 +25,8 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     }
 
     // Auth check
-    const supabase = createSupabaseServer();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, session.user.id))
-      .limit(1);
-    if (!user) {
+    const auth = await getAuthTenant();
+    if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
@@ -48,7 +38,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
       .from(products)
       .where(and(
         eq(products.id, productId),
-        eq(products.tenantId, user.tenantId),
+        eq(products.tenantId, auth.tenant.id),
         isNull(products.deletedAt),
       ))
       .limit(1);
@@ -99,18 +89,8 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     }
 
     // Auth check
-    const supabase = createSupabaseServer();
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, session.user.id))
-      .limit(1);
-    if (!user) {
+    const auth = await getAuthTenant();
+    if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
@@ -122,7 +102,7 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
       .from(products)
       .where(and(
         eq(products.id, productId),
-        eq(products.tenantId, user.tenantId),
+        eq(products.tenantId, auth.tenant.id),
         isNull(products.deletedAt),
       ))
       .limit(1);

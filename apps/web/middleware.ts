@@ -1,17 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSupabaseMiddleware } from '@/lib/supabase-ssr';
+import { APP_DOMAIN, isMedicalPublicHost, isPortalHost } from '@/lib/hosts';
 
 // Static routes — NOT tenants, skip middleware rewrite
-const STATIC_ROUTES = ['/systems', '/platform', '/login', '/api', '/_next', '/favicon.ico', '/logo.png', '/logo1.png', '/robots.txt'];
-
-const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'auctorum.com.mx';
+const STATIC_ROUTES = ['/systems', '/platform', '/login', '/signup', '/api', '/_next', '/favicon.ico', '/logo.png', '/logo1.png', '/robots.txt'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const hostname = request.headers.get('host') || '';
+  // Public-facing origin for redirects (always https in prod)
+  const realOrigin = hostname.includes('localhost') ? `http://${hostname}` : `https://${hostname || 'auctorum.com.mx'}`;
 
   // Skip static routes
   if (STATIC_ROUTES.some(route => pathname.startsWith(route))) {
     return NextResponse.next();
+  }
+
+  if (isPortalHost(hostname) && pathname === '/') {
+    return NextResponse.redirect(new URL('/dashboard', realOrigin))
   }
 
   // Protect dashboard routes — require valid Supabase session
@@ -21,14 +27,23 @@ export async function middleware(request: NextRequest) {
     const { data: { session } } = await supabase.auth.getSession()
 
     if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url))
+      return NextResponse.redirect(new URL('/login', realOrigin))
     }
 
     return response
   }
 
-  const hostname = request.headers.get('host') || '';
   const url = request.nextUrl.clone();
+  const hostWithoutPort = hostname.split(':')[0];
+
+  if (
+    isMedicalPublicHost(hostname) ||
+    isPortalHost(hostname) ||
+    hostWithoutPort === APP_DOMAIN ||
+    hostWithoutPort === `www.${APP_DOMAIN}`
+  ) {
+    return NextResponse.next();
+  }
 
   // Extract subdomain: toolroom.auctorum.com.mx → toolroom
   // Handle localhost for dev: toolroom.localhost:3000 → toolroom
@@ -61,7 +76,11 @@ export async function middleware(request: NextRequest) {
     }
 
     // Rewrite public routes to /[tenant]/...
+    // Fix EPROTO: the listener is HTTP-only; without forcing protocol here,
+    // Next treats the rewrite as an external proxy to https://localhost:3000
+    // and fails the TLS handshake ("wrong version number") on every request.
     url.pathname = `/${tenant}${url.pathname}`;
+    url.protocol = 'http:';
     const response = NextResponse.rewrite(url);
     response.headers.set('x-tenant-slug', tenant);
     return response;

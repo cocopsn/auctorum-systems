@@ -13,12 +13,12 @@ export function DayTimeline({
 }) {
   if (appointments.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
-        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-          <CalendarX className="w-8 h-8 text-gray-300" />
+      <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-12 text-center">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center">
+          <CalendarX className="w-8 h-8 text-[var(--text-tertiary)] opacity-50" />
         </div>
-        <p className="text-lg font-semibold text-gray-400 mb-1">Sin citas hoy</p>
-        <p className="text-sm text-gray-400">No hay citas agendadas para hoy.</p>
+        <p className="text-lg font-semibold text-[var(--text-tertiary)] mb-1">Sin citas hoy</p>
+        <p className="text-sm text-[var(--text-tertiary)]">No hay citas agendadas para hoy.</p>
       </div>
     )
   }
@@ -26,7 +26,7 @@ export function DayTimeline({
   return (
     <div className="relative">
       {/* Vertical timeline line */}
-      <div className="absolute left-[30px] top-4 bottom-4 w-0.5 bg-gray-200 rounded-full" />
+      <div className="absolute left-[30px] top-4 bottom-4 w-0.5 bg-[var(--border)] rounded-full" />
 
       <div className="space-y-4">
         {appointments.map((appt) => {
@@ -41,12 +41,12 @@ export function DayTimeline({
                   className={`
                     w-4 h-4 rounded-full border-2 mt-5
                     ${isNext
-                      ? 'bg-tenant-primary border-tenant-primary shadow-md shadow-tenant-primary/30'
+                      ? 'bg-[var(--accent)] border-[var(--accent)] shadow-md shadow-[var(--accent)]/30'
                       : isPast && appt.status === 'completed'
-                        ? 'bg-green-400 border-green-400'
+                        ? 'bg-[var(--success)] border-[var(--success)]'
                         : isPast && appt.status === 'cancelled'
-                          ? 'bg-red-400 border-red-400'
-                          : 'bg-white border-gray-300'
+                          ? 'bg-[var(--error)] border-[var(--error)]'
+                          : 'bg-[var(--bg-secondary)] border-[var(--border)]'
                     }
                   `}
                 />
@@ -55,10 +55,10 @@ export function DayTimeline({
               {/* Appointment card */}
               <div
                 className={`
-                  flex-1 bg-white rounded-xl border p-4 transition-all duration-200 hover:shadow-md
+                  flex-1 bg-[var(--bg-secondary)] rounded-xl border p-4 transition-all duration-200 hover:border-[var(--border-hover)]
                   ${isNext
-                    ? 'border-tenant-primary/30 shadow-md ring-2 ring-tenant-primary/20'
-                    : 'border-gray-200 shadow-sm'
+                    ? 'border-[var(--accent)]/30 shadow-md ring-2 ring-[var(--accent)]/20'
+                    : 'border-[var(--border)]'
                   }
                   ${isPast && appt.status !== 'completed' ? 'opacity-50' : ''}
                 `}
@@ -67,28 +67,28 @@ export function DayTimeline({
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     {/* Time */}
                     <div className="text-center min-w-[60px] shrink-0">
-                      <p className="text-lg font-bold text-gray-900 font-mono tracking-tight">
+                      <p className="text-lg font-bold text-[var(--text-primary)] font-mono tracking-tight">
                         {appt.startTime.slice(0, 5)}
                       </p>
-                      <p className="text-xs text-gray-400 font-mono">
+                      <p className="text-xs text-[var(--text-tertiary)] font-mono">
                         {appt.endTime.slice(0, 5)}
                       </p>
                     </div>
                     {/* Details */}
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-gray-400 shrink-0" />
-                        <span className="font-semibold text-gray-900 truncate">{appt.patient.name}</span>
+                        <User className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
+                        <span className="font-semibold text-[var(--text-primary)] truncate">{appt.patient.name}</span>
                       </div>
                       {appt.reason && (
                         <div className="flex items-center gap-2 mt-1.5">
-                          <FileText className="w-4 h-4 text-gray-400 shrink-0" />
-                          <span className="text-sm text-gray-500 truncate">{appt.reason}</span>
+                          <FileText className="w-4 h-4 text-[var(--text-tertiary)] shrink-0" />
+                          <span className="text-sm text-[var(--text-secondary)] truncate">{appt.reason}</span>
                         </div>
                       )}
                       {isNext && (
-                        <span className="inline-flex items-center gap-1.5 mt-2.5 px-2.5 py-0.5 text-xs font-semibold text-tenant-primary bg-tenant-primary/10 rounded-full">
-                          <span className="w-1.5 h-1.5 rounded-full bg-tenant-primary animate-pulse" />
+                        <span className="inline-flex items-center gap-1.5 mt-2.5 px-2.5 py-0.5 text-xs font-semibold text-[var(--accent)] bg-[var(--accent-muted)] rounded-full">
+                          <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-pulse" />
                           Próxima cita
                         </span>
                       )}
