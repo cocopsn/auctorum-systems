@@ -98,7 +98,9 @@ async function handleRequest(request: NextRequest) {
 
   // 5. Landing page: root path on subdomain shows the public landing
   if (slug && pathname === '/') {
-    return NextResponse.next()
+    const response = NextResponse.next()
+    response.headers.set('x-tenant-slug', slug)
+    return response
   }
 
   // 5b. Portal routes: subdomain + non-dashboard path -> rewrite with marker

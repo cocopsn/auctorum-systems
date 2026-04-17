@@ -4,12 +4,31 @@ import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import { Calendar, Star, Users, Clock } from 'lucide-react';
 
-const stats = [
-  { label: 'Años de experiencia', value: 15, suffix: '', icon: Calendar },
-  { label: 'Google Maps', value: 4.8, suffix: '\u2605', icon: Star, isDecimal: true },
-  { label: 'Pacientes atendidos', value: 5000, suffix: '+', icon: Users },
-  { label: 'Horario', value: 0, suffix: 'L-V 9-14h', icon: Clock },
-];
+type Props = {
+  yearsExperience: number
+  rating: number
+  patientCount: string
+  schedule: Record<string, { enabled: boolean; start: string; end: string }>
+}
+
+function buildScheduleLabel(schedule: Props['schedule']): string {
+  const dayAbbr: Record<string, string> = {
+    monday: 'L', tuesday: 'Ma', wednesday: 'Mi',
+    thursday: 'J', friday: 'V', saturday: 'S', sunday: 'D',
+  }
+  const order = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+  const enabled = order.filter(d => schedule[d]?.enabled)
+  if (enabled.length === 0) return ''
+
+  const firstTime = schedule[enabled[0]]
+  const timeStr = `${firstTime.start}-${firstTime.end?.replace(':00', 'h')}`
+
+  if (enabled.length <= 2) {
+    return `${enabled.map(d => dayAbbr[d]).join(',')} ${timeStr}`
+  }
+
+  return `${dayAbbr[enabled[0]]}-${dayAbbr[enabled[enabled.length - 1]]} ${timeStr}`
+}
 
 function AnimatedNumber({ value, suffix, isDecimal }: { value: number; suffix: string; isDecimal?: boolean }) {
   const [count, setCount] = useState(0);
@@ -31,7 +50,20 @@ function AnimatedNumber({ value, suffix, isDecimal }: { value: number; suffix: s
   return (<span ref={ref} className="font-bold text-4xl md:text-5xl">{value === 0 ? suffix : `${isDecimal ? count.toFixed(1) : count.toLocaleString()}${suffix}`}</span>);
 }
 
-export default function Stats() {
+export default function Stats({ yearsExperience, rating, patientCount, schedule }: Props) {
+  const scheduleLabel = buildScheduleLabel(schedule)
+
+  // Parse patientCount string like "5,000+" into numeric value
+  const patientNum = parseInt(patientCount.replace(/[^0-9]/g, '')) || 0
+  const patientSuffix = patientCount.includes('+') ? '+' : ''
+
+  const stats = [
+    { label: 'A\u00f1os de experiencia', value: yearsExperience, suffix: '', icon: Calendar },
+    { label: 'Google Maps', value: rating, suffix: '\u2605', icon: Star, isDecimal: true },
+    { label: 'Pacientes atendidos', value: patientNum, suffix: patientSuffix, icon: Users },
+    { label: 'Horario', value: 0, suffix: scheduleLabel || 'Consultar', icon: Clock },
+  ]
+
   return (
     <section className="relative -mt-12 z-30 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto">
