@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import { Loader2, User, Phone, Mail, Calendar } from 'lucide-react'
 import { StatusBadge } from '@/components/dashboard/status-badge'
 import PatientDetailClient from '@/components/patients/PatientDetailClient'
+import PatientNotesSection from '@/components/patients/PatientNotesSection'
 
 export default function PatientDetailPage() {
   const params = useParams()
@@ -45,7 +46,7 @@ export default function PatientDetailPage() {
     )
   }
 
-  const { patient, files, appointments: patientAppointments, notes } = data
+  const { patient, files, appointments: patientAppointments } = data
 
   return (
     <div>
@@ -101,6 +102,9 @@ export default function PatientDetailPage() {
       {/* Editable clinical records + file attachments */}
       <PatientDetailClient patient={patient} files={files} />
 
+      {/* Patient Notes (Expedientes Clínicos) */}
+      <PatientNotesSection patientId={id} />
+
       {/* Appointment History */}
       <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-6 mb-6">
         <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4 flex items-center gap-2">
@@ -124,24 +128,6 @@ export default function PatientDetailPage() {
           </div>
         )}
       </div>
-
-      {/* Per-appointment Clinical Notes */}
-      {notes.length > 0 && (
-        <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-6">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Notas de consulta</h2>
-          <div className="space-y-3">
-            {notes.map((note: any) => (
-              <div key={note.id} className="p-3 bg-[var(--bg-tertiary)] rounded-lg">
-                <p className="text-xs text-[var(--text-tertiary)] mb-1">
-                  {note.createdAt ? new Date(note.createdAt).toLocaleDateString('es-MX') : ''}
-                </p>
-                {note.assessment && <p className="text-sm text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">Assessment:</strong> {note.assessment}</p>}
-                {note.plan && <p className="text-sm text-[var(--text-secondary)]"><strong className="text-[var(--text-primary)]">Plan:</strong> {note.plan}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   )
 }
