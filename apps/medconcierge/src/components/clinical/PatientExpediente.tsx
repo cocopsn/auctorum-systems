@@ -38,11 +38,10 @@ export default function PatientExpediente({ patientId }: Props) {
   const fetchRecord = useCallback(async (id: string) => {
     if (!id) { setSelectedRecord(null); return }
     try {
-      const res = await fetch(`/api/dashboard/patients/${patientId}/records?type=all`)
+      const res = await fetch(`/api/dashboard/patients/${patientId}/records/${id}`)
       if (!res.ok) return
       const data = await res.json()
-      const found = (data.records ?? []).find((r: ClinicalRecord) => r.id === id)
-      setSelectedRecord(found ?? null)
+      setSelectedRecord(data.record ?? null)
     } catch { /* ignore */ }
   }, [patientId])
 
@@ -70,7 +69,7 @@ export default function PatientExpediente({ patientId }: Props) {
       {/* Right panel */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Tabs */}
-        <div className="flex items-center gap-1 px-4 py-2 border-b border-slate-200 bg-white">
+        <div className="flex items-center gap-1 px-4 py-2 border-b border-slate-200 bg-white print:hidden">
           {tabs.map(tab => {
             const Icon = tab.icon
             return (
@@ -103,7 +102,7 @@ export default function PatientExpediente({ patientId }: Props) {
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center px-8">
                 <FileText className="w-16 h-16 text-slate-200 mb-4" />
-                <h3 className="text-lg font-semibold text-slate-500 mb-1">Sin expedientes cl\u00ednicos</h3>
+                <h3 className="text-lg font-semibold text-slate-500 mb-1">Sin expedientes cl&iacute;nicos</h3>
                 <p className="text-sm text-slate-400 max-w-sm">
                   Selecciona un expediente de la lista o crea uno nuevo para comenzar.
                 </p>
@@ -117,7 +116,7 @@ export default function PatientExpediente({ patientId }: Props) {
           )}
           {rightTab === "files" && (
             <div className="h-full overflow-y-auto">
-              <ClinicalFileGallery patientId={patientId} />
+              <ClinicalFileGallery patientId={patientId} recordId={selectedId || undefined} />
             </div>
           )}
         </div>

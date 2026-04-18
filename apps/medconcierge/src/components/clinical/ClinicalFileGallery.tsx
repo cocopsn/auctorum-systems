@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import {
-  Upload, Download, Trash2, FileText, Image as ImageIcon, AlertCircle,
+  Upload, Download, Trash2, FileText, AlertCircle, X,
 } from "lucide-react"
 
 type FileItem = {
@@ -32,12 +32,39 @@ function formatDate(date: string): string {
   }).format(new Date(date))
 }
 
+function ImageThumbnail({ fileId, patientId, filename, onClick }: {
+  fileId: string; patientId: string; filename: string; onClick: (url: string) => void
+}) {
+  const [url, setUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/dashboard/patients/${patientId}/files/${fileId}`)
+      .then(r => r.json())
+      .then(d => setUrl(d.url ?? null))
+      .catch(() => {})
+  }, [fileId, patientId])
+
+  return (
+    <div
+      className="aspect-square bg-slate-50 flex items-center justify-center cursor-pointer overflow-hidden"
+      onClick={() => url && onClick(url)}
+    >
+      {url ? (
+        <img src={url} alt={filename} className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-8 h-8 rounded-full bg-slate-100 animate-pulse" />
+      )}
+    </div>
+  )
+}
+
 export default function ClinicalFileGallery({ patientId, recordId }: Props) {
   const [files, setFiles] = useState<FileItem[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -94,6 +121,15 @@ export default function ClinicalFileGallery({ patientId, recordId }: Props) {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+      {lightboxSrc && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={() => setLightboxSrc(null)}>
+          <button onClick={() => setLightboxSrc(null)} className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white hover:bg-white/40 transition-colors">
+            <X className="w-6 h-6" />
+          </button>
+          <img src={lightboxSrc} alt="" className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg shadow-2xl" onClick={e => e.stopPropagation()} />
+        </div>
+      )}
+
       <div
         onDragOver={e => { e.preventDefault(); setDragOver(true) }}
         onDragLeave={() => setDragOver(false)}
@@ -108,7 +144,7 @@ export default function ClinicalFileGallery({ patientId, recordId }: Props) {
       >
         <Upload className="w-8 h-8 mx-auto text-slate-400 mb-2" />
         <p className="text-sm text-slate-600 mb-1">Arrastra un archivo o haz click para seleccionar</p>
-        <p className="text-xs text-slate-400 mb-3">PDF, JPG, PNG, WEBP, HEIC \u2014 m\u00e1x 10 MB</p>
+        <p className="text-xs text-slate-400 mb-3">PDF, JPG, PNG, WEBP, HEIC &mdash; m&aacute;x 10 MB</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -140,16 +176,16 @@ export default function ClinicalFileGallery({ patientId, recordId }: Props) {
         <>
           {images.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Im\u00e1genes</h3>
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Im&aacute;genes</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {images.map(img => (
                   <div key={img.id} className="group relative bg-white rounded-lg border border-slate-200 overflow-hidden">
-                    <div
-                      className="aspect-square bg-slate-50 flex items-center justify-center cursor-pointer"
-                      onClick={() => handleDownload(img.id)}
-                    >
-                      <ImageIcon className="w-8 h-8 text-slate-300" />
-                    </div>
+                    <ImageThumbnail
+                      fileId={img.id}
+                      patientId={patientId}
+                      filename={img.filename}
+                      onClick={url => setLightboxSrc(url)}
+                    />
                     <div className="p-2">
                       <p className="text-xs text-slate-700 font-medium truncate">{img.filename}</p>
                       <p className="text-[10px] text-slate-400">{formatSize(img.sizeBytes)}</p>
@@ -179,7 +215,7 @@ export default function ClinicalFileGallery({ patientId, recordId }: Props) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-slate-700 truncate">{doc.filename}</p>
-                      <p className="text-xs text-slate-400">{formatSize(doc.sizeBytes)} \u00b7 {formatDate(doc.createdAt)}</p>
+                      <p className="text-xs text-slate-400">{formatSize(doc.sizeBytes)} &middot; {formatDate(doc.createdAt)}</p>
                     </div>
                     <button onClick={() => handleDownload(doc.id)} className="p-2 text-slate-400 hover:text-teal-600 transition-colors">
                       <Download className="w-4 h-4" />

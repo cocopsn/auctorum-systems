@@ -7,12 +7,23 @@ import Placeholder from "@tiptap/extension-placeholder"
 import Highlight from "@tiptap/extension-highlight"
 import Underline from "@tiptap/extension-underline"
 import TextAlign from "@tiptap/extension-text-align"
+import Image from "@tiptap/extension-image"
 import { useDebounce } from "use-debounce"
 import {
   Bold, Italic, Underline as UnderlineIcon, Highlighter,
   List, ListOrdered, AlignLeft, AlignCenter, Heading2, Heading3,
-  Check, Loader2, AlertCircle, ImagePlus,
+  Check, Loader2, AlertCircle, ImagePlus, Printer, Download, X,
 } from "lucide-react"
+
+type FileWithUrl = {
+  id: string
+  filename: string
+  mimeType: string
+  sizeBytes: number
+  storagePath: string
+  signedUrl: string | null
+  createdAt: string
+}
 
 type ClinicalRecord = {
   id: string
@@ -56,6 +67,17 @@ function ToolbarButton({
     >
       {children}
     </button>
+  )
+}
+
+function Lightbox({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70" onClick={onClose}>
+      <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-white/20 rounded-full text-white hover:bg-white/40 transition-colors">
+        <X className="w-6 h-6" />
+      </button>
+      <img src={src} alt={alt} className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg shadow-2xl" onClick={e => e.stopPropagation()} />
+    </div>
   )
 }
 
@@ -128,6 +150,15 @@ export default function ClinicalEditor({ record, patientId, onSave }: Props) {
   const isFirstTitle = useRef(true)
   const isFirstContent = useRef(true)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [files, setFiles] = useState<FileWithUrl[]>([])
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/dashboard/patients/${patientId}/records/${record.id}`)
+      .then(r => r.json())
+      .then(d => setFiles(d.files ?? []))
+      .catch(() => {})
+  }, [patientId, record.id])
 
   useEffect(() => {
     if (isFirstTitle.current) { isFirstTitle.current = false; return }
@@ -149,13 +180,37 @@ export default function ClinicalEditor({ record, patientId, onSave }: Props) {
       Highlight,
       Underline,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
+      Image.configure({ inline: true, allowBase64: false }),
     ],
     content: record.content && typeof record.content === "object" && Object.keys(record.content).length > 0
       ? record.content
       : "<p></p>",
     editorProps: {
       attributes: {
-        class: "prose prose-sm max-w-none focus:outline-none min-h-[300px] px-8 py-6 text-[15px] leading-[1.8]",
+        class: "prose prose-sm max-w-none focus:outline-none min-h-[300px] px-8 py-6 text-[15px] leading-[1.8] [&_img]:rounded-lg [&_img]:shadow-md [&_img]:max-w-full [&_img]:h-auto [&_img]:cursor-pointer [&_img]:my-4",
+      },
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved || !event.dataTransfer?.files?.length) return false
+        const file = event.dataTransfer.files[0]
+        if (file && file.type.startsWith("image/")) {
+          handleImageUpload(file)
+          return true
+        }
+        return false
+      },
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items
+        if (!items) return false
+        for (const item of Array.from(items)) {
+          if (item.type.startsWith("image/")) {
+            const file = item.getAsFile()
+            if (file) {
+              handleImageUpload(file)
+              return true
+            }
+          }
+        }
+        return false
       },
     },
     onUpdate: () => {
@@ -193,15 +248,29 @@ export default function ClinicalEditor({ record, patientId, onSave }: Props) {
       if (!res.ok) return
       const data = await res.json()
       if (editor && data.file) {
-        editor.chain().focus().insertContent(`[Archivo: ${data.file.filename}]`).run()
+        const urlRes = await fetch(`/api/dashboard/patients/${patientId}/files/${data.file.id}`)
+        const urlData = await urlRes.json()
+        if (urlData.url) {
+          editor.chain().focus().setImage({ src: urlData.url, alt: data.file.filename }).run()
+        }
+        const recRes = await fetch(`/api/dashboard/patients/${patientId}/records/${record.id}`)
+        const recData = await recRes.json()
+        setFiles(recData.files ?? [])
       }
     } catch { /* swallow */ }
   }
 
+  function handlePrint() {
+    window.print()
+  }
+
   const isSOAP = record.recordType === "soap"
+  const imageFiles = files.filter(f => f.mimeType.startsWith("image/") && f.signedUrl)
 
   return (
     <div className="flex flex-col h-full bg-white">
+      {lightboxSrc && <Lightbox src={lightboxSrc} alt="" onClose={() => setLightboxSrc(null)} />}
+
       <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-200">
         <input
           type="text"
@@ -230,6 +299,18 @@ export default function ClinicalEditor({ record, patientId, onSave }: Props) {
             </span>
           )}
         </div>
+        <button onClick={handlePrint} title="Imprimir" className="p-1.5 rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors print:hidden">
+          <Printer className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => {
+            window.open(`/api/dashboard/patients/${patientId}/records/${record.id}/pdf`, "_blank")
+          }}
+          title="Exportar PDF"
+          className="p-1.5 rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors print:hidden"
+        >
+          <Download className="w-4 h-4" />
+        </button>
       </div>
 
       {isSOAP ? (
@@ -239,7 +320,7 @@ export default function ClinicalEditor({ record, patientId, onSave }: Props) {
       ) : (
         <>
           {editor && (
-            <div className="flex items-center gap-0.5 px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex-wrap">
+            <div className="flex items-center gap-0.5 px-4 py-2 border-b border-slate-100 bg-slate-50/50 flex-wrap print:hidden">
               <ToolbarButton active={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} title="Negrita">
                 <Bold className="w-4 h-4" />
               </ToolbarButton>
@@ -297,6 +378,23 @@ export default function ClinicalEditor({ record, patientId, onSave }: Props) {
             </div>
           </div>
         </>
+      )}
+
+      {imageFiles.length > 0 && (
+        <div className="border-t border-slate-200 px-4 py-3 bg-slate-50/50 print:hidden">
+          <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2">Archivos adjuntos</p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {imageFiles.map(f => (
+              <button
+                key={f.id}
+                onClick={() => f.signedUrl && setLightboxSrc(f.signedUrl)}
+                className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border border-slate-200 hover:border-teal-400 transition-colors"
+              >
+                <img src={f.signedUrl!} alt={f.filename} className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        </div>
       )}
     </div>
   )

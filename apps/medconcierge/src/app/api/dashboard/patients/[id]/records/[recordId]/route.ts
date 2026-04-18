@@ -5,7 +5,7 @@ import { eq, and } from "drizzle-orm"
 import { db, clinicalRecords, patients, patientFiles } from "@quote-engine/db"
 import { getAuthTenant } from "@/lib/auth"
 import { validateOrigin } from "@/lib/csrf"
-import { deletePatientFile } from "@/lib/storage"
+import { deletePatientFile, getPatientFileSignedUrl } from "@/lib/storage"
 import { z } from "zod"
 
 const updateSchema = z.object({
@@ -22,6 +22,55 @@ const updateSchema = z.object({
 }).strict()
 
 type RouteCtx = { params: { id: string; recordId: string } }
+
+export async function GET(_request: NextRequest, { params }: RouteCtx) {
+  try {
+    const auth = await getAuthTenant()
+    if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+
+    const [patient] = await db
+      .select({ id: patients.id })
+      .from(patients)
+      .where(and(eq(patients.id, params.id), eq(patients.tenantId, auth.tenant.id)))
+      .limit(1)
+    if (!patient) return NextResponse.json({ error: "Paciente no encontrado" }, { status: 404 })
+
+    const [record] = await db
+      .select()
+      .from(clinicalRecords)
+      .where(and(
+        eq(clinicalRecords.id, params.recordId),
+        eq(clinicalRecords.tenantId, auth.tenant.id),
+        eq(clinicalRecords.patientId, params.id),
+      ))
+      .limit(1)
+    if (!record) return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 })
+
+    const files = await db
+      .select()
+      .from(patientFiles)
+      .where(and(
+        eq(patientFiles.clinicalRecordId, params.recordId),
+        eq(patientFiles.tenantId, auth.tenant.id),
+      ))
+
+    const filesWithUrls = await Promise.all(
+      files.map(async (f) => {
+        try {
+          const signedUrl = await getPatientFileSignedUrl(f.storagePath, 3600)
+          return { ...f, signedUrl }
+        } catch {
+          return { ...f, signedUrl: null }
+        }
+      })
+    )
+
+    return NextResponse.json({ record, files: filesWithUrls })
+  } catch (err) {
+    console.error("Record GET error:", err)
+    return NextResponse.json({ error: "Error interno" }, { status: 500 })
+  }
+}
 
 export async function PATCH(request: NextRequest, { params }: RouteCtx) {
   try {
@@ -41,7 +90,7 @@ export async function PATCH(request: NextRequest, { params }: RouteCtx) {
     const body = await request.json()
     const parsed = updateSchema.safeParse(body)
     if (!parsed.success) {
-      return NextResponse.json({ error: parsed.error.errors[0]?.message ?? "Datos inválidos" }, { status: 400 })
+      return NextResponse.json({ error: parsed.error.errors[0]?.message ?? "Datos invalidos" }, { status: 400 })
     }
 
     const updates: Record<string, unknown> = {
@@ -86,7 +135,6 @@ export async function DELETE(request: NextRequest, { params }: RouteCtx) {
       .limit(1)
     if (!patient) return NextResponse.json({ error: "Paciente no encontrado" }, { status: 404 })
 
-    // Delete associated files from storage
     const files = await db
       .select({ storagePath: patientFiles.storagePath })
       .from(patientFiles)
