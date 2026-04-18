@@ -104,7 +104,7 @@ module.exports = {
       cwd: '/opt/auctorum-systems/repo',
       script: 'npx',
       args: 'tsx scripts/cron-appointment-reminders.ts',
-      cron_restart: '*/30 * * * *',
+      cron_restart: '*/15 * * * *',
       autorestart: false,
       watch: false,
       env: cronEnv,

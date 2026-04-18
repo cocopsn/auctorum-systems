@@ -126,13 +126,65 @@ export const WHATSAPP_TOOLS = [
       },
     },
   },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'confirm_appointment',
+      description:
+        'Confirma una cita existente del paciente. Usar cuando el paciente dice "confirmo", "si", "si confirmo", "ahi estare" o similar en respuesta a un recordatorio de cita.',
+      parameters: {
+        type: 'object',
+        properties: {
+          appointment_id: {
+            type: 'string',
+            description:
+              'UUID de la cita a confirmar. Si no se conoce, omitir y el sistema buscara la proxima cita del paciente.',
+          },
+          patient_phone: {
+            type: 'string',
+            description: 'Numero de telefono del paciente (del contexto de WhatsApp)',
+          },
+        },
+        required: ['patient_phone'],
+      },
+    },
+  },
+  {
+    type: 'function' as const,
+    function: {
+      name: 'cancel_appointment',
+      description:
+        'Cancela una cita existente del paciente. Usar cuando el paciente dice "cancelo", "no puedo", "no voy a poder", "cancelo la cita" o similar.',
+      parameters: {
+        type: 'object',
+        properties: {
+          appointment_id: {
+            type: 'string',
+            description:
+              'UUID de la cita a cancelar. Si no se conoce, omitir y el sistema buscara la proxima cita del paciente.',
+          },
+          patient_phone: {
+            type: 'string',
+            description: 'Numero de telefono del paciente (del contexto de WhatsApp)',
+          },
+          reason: {
+            type: 'string',
+            description: 'Motivo de cancelacion proporcionado por el paciente',
+          },
+        },
+        required: ['patient_phone'],
+      },
+    },
+  },
 ];
 
 export type ToolName =
   | 'check_availability'
   | 'create_appointment'
   | 'get_consultation_info'
-  | 'escalate_to_human';
+  | 'escalate_to_human'
+  | 'confirm_appointment'
+  | 'cancel_appointment';
 
 export type ToolCallResult = {
   tool: ToolName;

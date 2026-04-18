@@ -529,6 +529,184 @@ export async function executeEscalateToHuman(
   }
 }
 
+
+// ============================================================
+// Tool: confirm_appointment
+// ============================================================
+export async function executeConfirmAppointment(
+  tenant: Tenant,
+  args: { appointment_id?: string; patient_phone: string }
+): Promise<ToolCallResult> {
+  const { appointment_id, patient_phone } = args;
+  const phoneNormalized = patient_phone.replace(/\D/g, '');
+
+  try {
+    let apptId = appointment_id;
+
+    if (!apptId) {
+      const result = await withTenant(tenant.id, async () => {
+        return await db.execute(sql`
+          SELECT a.id
+          FROM appointments a
+          JOIN patients p ON p.id = a.patient_id
+          WHERE a.tenant_id = ${tenant.id}::uuid
+            AND REGEXP_REPLACE(p.phone, '[^0-9]', '', 'g') LIKE '%' || ${phoneNormalized}
+            AND a.status IN ('scheduled', 'confirmed')
+            AND (a.date > CURRENT_DATE OR (a.date = CURRENT_DATE AND a.start_time > CURRENT_TIME))
+          ORDER BY a.date, a.start_time
+          LIMIT 1
+        `);
+      });
+      const rows: any[] = Array.isArray(result) ? result : (result as any)?.rows ?? [];
+      if (rows.length === 0) {
+        return {
+          tool: 'confirm_appointment',
+          success: false,
+          result: {},
+          error: 'No se encontro una cita proxima para este paciente.',
+        };
+      }
+      apptId = rows[0].id;
+    }
+
+    await withTenant(tenant.id, async () => {
+      await db.execute(sql`
+        UPDATE appointments
+        SET status = 'confirmed',
+            confirmed_by_patient = true,
+            confirmed_at = NOW()
+        WHERE id = ${apptId}::uuid
+          AND tenant_id = ${tenant.id}::uuid
+      `);
+
+      await db.execute(sql`
+        INSERT INTO appointment_events (appointment_id, tenant_id, event_type, metadata)
+        VALUES (
+          ${apptId}::uuid, ${tenant.id}::uuid,
+          'confirmed_by_patient',
+          ${JSON.stringify({ source: 'whatsapp_reply', phone: phoneNormalized })}::jsonb
+        )
+      `);
+    });
+
+    try {
+      await db.execute(sql`
+        INSERT INTO notifications (tenant_id, type, title, message)
+        VALUES (
+          ${tenant.id}::uuid, 'appointment_confirmed',
+          'Cita confirmada por paciente',
+          ${'Paciente ' + phoneNormalized + ' confirmo su cita'}
+        )
+      `);
+    } catch { /* ignore */ }
+
+    return {
+      tool: 'confirm_appointment',
+      success: true,
+      result: {
+        appointment_id: apptId,
+        status: 'confirmed',
+        message: 'Cita confirmada exitosamente',
+      },
+    };
+  } catch (err) {
+    return {
+      tool: 'confirm_appointment',
+      success: false,
+      result: {},
+      error: (err as Error).message,
+    };
+  }
+}
+
+// ============================================================
+// Tool: cancel_appointment
+// ============================================================
+export async function executeCancelAppointment(
+  tenant: Tenant,
+  args: { appointment_id?: string; patient_phone: string; reason?: string }
+): Promise<ToolCallResult> {
+  const { appointment_id, patient_phone, reason } = args;
+  const phoneNormalized = patient_phone.replace(/\D/g, '');
+
+  try {
+    let apptId = appointment_id;
+
+    if (!apptId) {
+      const result = await withTenant(tenant.id, async () => {
+        return await db.execute(sql`
+          SELECT a.id
+          FROM appointments a
+          JOIN patients p ON p.id = a.patient_id
+          WHERE a.tenant_id = ${tenant.id}::uuid
+            AND REGEXP_REPLACE(p.phone, '[^0-9]', '', 'g') LIKE '%' || ${phoneNormalized}
+            AND a.status IN ('scheduled', 'confirmed')
+            AND (a.date > CURRENT_DATE OR (a.date = CURRENT_DATE AND a.start_time > CURRENT_TIME))
+          ORDER BY a.date, a.start_time
+          LIMIT 1
+        `);
+      });
+      const rows: any[] = Array.isArray(result) ? result : (result as any)?.rows ?? [];
+      if (rows.length === 0) {
+        return {
+          tool: 'cancel_appointment',
+          success: false,
+          result: {},
+          error: 'No se encontro una cita proxima para este paciente.',
+        };
+      }
+      apptId = rows[0].id;
+    }
+
+    await withTenant(tenant.id, async () => {
+      await db.execute(sql`
+        UPDATE appointments
+        SET status = 'cancelled',
+            cancelled_at = NOW()
+        WHERE id = ${apptId}::uuid
+          AND tenant_id = ${tenant.id}::uuid
+      `);
+
+      await db.execute(sql`
+        INSERT INTO appointment_events (appointment_id, tenant_id, event_type, metadata)
+        VALUES (
+          ${apptId}::uuid, ${tenant.id}::uuid,
+          'cancelled_by_patient',
+          ${JSON.stringify({ source: 'whatsapp_reply', phone: phoneNormalized, reason: reason || '' })}::jsonb
+        )
+      `);
+    });
+
+    try {
+      await db.execute(sql`
+        INSERT INTO notifications (tenant_id, type, title, message)
+        VALUES (
+          ${tenant.id}::uuid, 'appointment_cancelled',
+          'Cita cancelada por paciente',
+          ${'Paciente ' + phoneNormalized + ' cancelo su cita' + (reason ? '. Motivo: ' + reason : '')}
+        )
+      `);
+    } catch { /* ignore */ }
+
+    return {
+      tool: 'cancel_appointment',
+      success: true,
+      result: {
+        appointment_id: apptId,
+        status: 'cancelled',
+        message: 'Cita cancelada. El horario ha sido liberado.',
+      },
+    };
+  } catch (err) {
+    return {
+      tool: 'cancel_appointment',
+      success: false,
+      result: {},
+      error: (err as Error).message,
+    };
+  }
+}
+
 // ============================================================
 // Dispatcher
 // ============================================================
@@ -546,6 +724,10 @@ export async function executeToolCall(
       return executeGetConsultationInfo(tenant, args as any);
     case 'escalate_to_human':
       return executeEscalateToHuman(tenant, args as any);
+    case 'confirm_appointment':
+      return executeConfirmAppointment(tenant, args as any);
+    case 'cancel_appointment':
+      return executeCancelAppointment(tenant, args as any);
     default:
       return {
         tool: toolName as any,
