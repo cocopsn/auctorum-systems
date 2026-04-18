@@ -1,9 +1,57 @@
+export const dynamic = "force-dynamic"
+
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { db, patients } from '@quote-engine/db';
-import { eq, and } from 'drizzle-orm';
+import { db, patients, patientFiles, appointments } from '@quote-engine/db';
+import { eq, and, desc } from 'drizzle-orm';
 import { getAuthTenant } from '@/lib/auth';
 import { validateOrigin } from '@/lib/csrf';
+
+// ============================================================
+// GET /api/dashboard/patients/[id]
+// Fetch patient detail with files and appointments.
+// ============================================================
+
+type RouteCtx = { params: { id: string } };
+
+export async function GET(request: NextRequest, { params }: RouteCtx) {
+  try {
+    const auth = await getAuthTenant();
+    if (!auth) {
+      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+    }
+
+    const { id } = params;
+
+    const [patient] = await db
+      .select()
+      .from(patients)
+      .where(and(eq(patients.id, id), eq(patients.tenantId, auth.tenant.id)))
+      .limit(1);
+
+    if (!patient) {
+      return NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 });
+    }
+
+    const files = await db
+      .select()
+      .from(patientFiles)
+      .where(eq(patientFiles.patientId, id))
+      .orderBy(desc(patientFiles.createdAt));
+
+    const patientAppointments = await db
+      .select()
+      .from(appointments)
+      .where(eq(appointments.patientId, id))
+      .orderBy(desc(appointments.date))
+      .limit(20);
+
+    return NextResponse.json({ patient, files, appointments: patientAppointments });
+  } catch (error) {
+    console.error('GET /api/dashboard/patients/[id] error:', error);
+    return NextResponse.json({ error: 'Error al cargar paciente' }, { status: 500 });
+  }
+}
 
 // ============================================================
 // PATCH /api/dashboard/patients/[id]
@@ -26,8 +74,6 @@ const updateSchema = z
     emergencyContactPhone: z.string().max(50).nullable().optional(),
   })
   .strict();
-
-type RouteCtx = { params: { id: string } };
 
 export async function PATCH(request: NextRequest, { params }: RouteCtx) {
   try {

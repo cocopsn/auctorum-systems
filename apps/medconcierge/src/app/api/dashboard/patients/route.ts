@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, ilike, or, desc, sql } from 'drizzle-orm'
-import { db, patients, patientNotes } from '@quote-engine/db'
+import { db, patients, clinicalRecords } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
 
 export async function GET(request: NextRequest) {
@@ -39,12 +39,12 @@ export async function GET(request: NextRequest) {
     if (patientIds.length > 0) {
       const counts = await db
         .select({
-          patientId: patientNotes.patientId,
+          patientId: clinicalRecords.patientId,
           count: sql<number>`count(*)::int`,
         })
-        .from(patientNotes)
-        .where(eq(patientNotes.tenantId, tenantId))
-        .groupBy(patientNotes.patientId)
+        .from(clinicalRecords)
+        .where(eq(clinicalRecords.tenantId, tenantId))
+        .groupBy(clinicalRecords.patientId)
 
       for (const row of counts) {
         notesCounts[row.patientId] = row.count

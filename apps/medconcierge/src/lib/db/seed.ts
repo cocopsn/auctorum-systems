@@ -60,7 +60,7 @@ async function seed() {
     },
     features: {
       intake_forms: true,
-      clinical_notes: true,
+      clinical_records: true,
       ai_scribe: false,
       telehealth: false,
       online_payment: false,

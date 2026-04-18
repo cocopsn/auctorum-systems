@@ -121,7 +121,7 @@ export interface TenantConfig {
     client_directory?: boolean;
     // MedConcierge
     intake_forms?: boolean;
-    clinical_notes?: boolean;
+    clinical_records?: boolean;
     ai_scribe?: boolean;
     telehealth?: boolean;
     online_payment?: boolean;

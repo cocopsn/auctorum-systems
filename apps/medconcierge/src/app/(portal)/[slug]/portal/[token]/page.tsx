@@ -1,16 +1,10 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
-import { notFound } from 'next/navigation'
-import { eq, and, desc, gte, lt } from 'drizzle-orm'
-import { db, appointments, clinicalNotes, patientFiles } from '@quote-engine/db'
-import { getPortalPatient } from '@/lib/portal'
-import { PatientPortalView } from '@/components/portal/patient-portal-view'
-
-// ============================================================
-// Patient portal — main page (server component).
-// Validates the portal token, loads all patient data in
-// parallel, and renders the read-only portal overview.
-// ============================================================
+import { notFound } from "next/navigation"
+import { eq, and, desc, gte, lt } from "drizzle-orm"
+import { db, appointments, clinicalRecords, patientFiles } from "@quote-engine/db"
+import { getPortalPatient } from "@/lib/portal"
+import { PatientPortalView } from "@/components/portal/patient-portal-view"
 
 export default async function PatientPortalPage({
   params,
@@ -21,9 +15,9 @@ export default async function PatientPortalPage({
   if (!result) notFound()
 
   const { patient, tenant } = result
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toISOString().split("T")[0]
 
-  const [upcoming, past, notes, files] = await Promise.all([
+  const [upcoming, past, records, files] = await Promise.all([
     db
       .select()
       .from(appointments)
@@ -46,12 +40,12 @@ export default async function PatientPortalPage({
       .limit(50),
     db
       .select()
-      .from(clinicalNotes)
+      .from(clinicalRecords)
       .where(and(
-        eq(clinicalNotes.patientId, patient.id),
-        eq(clinicalNotes.tenantId, tenant.id),
+        eq(clinicalRecords.patientId, patient.id),
+        eq(clinicalRecords.tenantId, tenant.id),
       ))
-      .orderBy(desc(clinicalNotes.createdAt))
+      .orderBy(desc(clinicalRecords.createdAt))
       .limit(50),
     db
       .select()
@@ -63,9 +57,8 @@ export default async function PatientPortalPage({
       .orderBy(desc(patientFiles.createdAt)),
   ])
 
-  // Prescriptions from completed past appointments
   const prescriptions = past
-    .filter(a => a.prescription && a.status === 'completed')
+    .filter(a => a.prescription && a.status === "completed")
     .map(a => ({
       id: a.id,
       date: a.date,
@@ -73,16 +66,15 @@ export default async function PatientPortalPage({
       diagnosis: a.diagnosis,
     }))
 
-  // Treatment plans from clinical notes (assessment + plan only)
-  const notePlans = notes
-    .filter(n => n.plan)
+  const notePlans = records
+    .filter(n => n.soapPlan)
     .map(n => ({
       id: n.id,
       date: n.createdAt
-        ? new Date(n.createdAt).toISOString().split('T')[0]
-        : '',
-      plan: n.plan!,
-      assessment: n.assessment,
+        ? new Date(n.createdAt).toISOString().split("T")[0]
+        : "",
+      plan: n.soapPlan!,
+      assessment: n.soapAssessment,
     }))
 
   return (

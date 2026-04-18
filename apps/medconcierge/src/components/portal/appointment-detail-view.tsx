@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { Appointment, ClinicalNote } from '@quote-engine/db'
+import type { Appointment, ClinicalRecord } from '@quote-engine/db'
 import { ArrowLeft, CalendarCheck, Clock, Stethoscope, Pill, ClipboardList } from 'lucide-react'
 
 // ============================================================
@@ -11,7 +11,7 @@ import { ArrowLeft, CalendarCheck, Clock, Stethoscope, Pill, ClipboardList } fro
 
 type Props = {
   appointment: Appointment
-  note: ClinicalNote | null
+  note: ClinicalRecord | null
   tenantName: string
   slug: string
   token: string
@@ -104,23 +104,23 @@ export function AppointmentDetailView({
       )}
 
       {/* Clinical note — assessment + plan only (NOT subjective/objective) */}
-      {note && (note.assessment || note.plan) && (
+      {note && (note.soapAssessment || note.soapPlan) && (
         <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-6">
           <div className="flex items-center gap-2 mb-3">
             <ClipboardList className="w-5 h-5 text-[var(--accent)]" />
             <h2 className="text-base font-semibold text-[var(--text-primary)]">Plan de tratamiento</h2>
           </div>
           <div className="space-y-3">
-            {note.assessment && (
+            {note.soapAssessment && (
               <div>
                 <p className="text-xs text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Evaluación</p>
-                <p className="text-sm text-[var(--text-primary)] whitespace-pre-line">{note.assessment}</p>
+                <p className="text-sm text-[var(--text-primary)] whitespace-pre-line">{note.soapAssessment}</p>
               </div>
             )}
-            {note.plan && (
+            {note.soapPlan && (
               <div>
                 <p className="text-xs text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Plan</p>
-                <p className="text-sm text-[var(--text-primary)] whitespace-pre-line">{note.plan}</p>
+                <p className="text-sm text-[var(--text-primary)] whitespace-pre-line">{note.soapPlan}</p>
               </div>
             )}
           </div>

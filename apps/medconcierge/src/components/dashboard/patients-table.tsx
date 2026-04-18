@@ -77,7 +77,7 @@ export function PatientsTable() {
                 patients.map((p) => (
                   <tr key={p.id} className="border-b border-[var(--border)] hover:bg-[var(--bg-elevated)] transition-colors">
                     <td className="px-4 py-3">
-                      <Link href={`/dashboard/pacientes/${p.id}`} className="font-medium text-[var(--text-primary)] hover:text-[var(--accent)]">
+                      <Link href={`/pacientes/${p.id}`} className="font-medium text-[var(--text-primary)] hover:text-[var(--accent)]">
                         {p.name}
                       </Link>
                     </td>
