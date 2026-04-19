@@ -29,6 +29,8 @@ import {
   checkTenantBudget,
 } from '../packages/ai/index';
 
+const DEFAULT_TIMEZONE = process.env.DEFAULT_TIMEZONE || DEFAULT_TIMEZONE
+
 // --------------- WhatsApp send (inlined to avoid Next.js path aliases) ---------------
 
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v19.0';
@@ -260,13 +262,13 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
   // Inject current date/time (America/Monterrey), patient's WhatsApp phone,
   // and explicit next-weekday mapping so the LLM never does date arithmetic wrong.
   const nowInMonterrey = new Date().toLocaleString('sv-SE', {
-    timeZone: 'America/Monterrey',
+    timeZone: DEFAULT_TIMEZONE,
   });
   const todayISO = new Date().toLocaleDateString('en-CA', {
-    timeZone: 'America/Monterrey',
+    timeZone: DEFAULT_TIMEZONE,
   });
   const dayOfWeekSpanish = new Date().toLocaleDateString('es-MX', {
-    timeZone: 'America/Monterrey',
+    timeZone: DEFAULT_TIMEZONE,
     weekday: 'long',
   });
   const patientPhoneFull = (from || '').replace(/\D/g, '') || normalized;
@@ -283,13 +285,13 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
   }
 
   const weekdayMap = {
-    lunes: getNextWeekdayDate(1, 'America/Monterrey'),
-    martes: getNextWeekdayDate(2, 'America/Monterrey'),
-    miercoles: getNextWeekdayDate(3, 'America/Monterrey'),
-    jueves: getNextWeekdayDate(4, 'America/Monterrey'),
-    viernes: getNextWeekdayDate(5, 'America/Monterrey'),
-    sabado: getNextWeekdayDate(6, 'America/Monterrey'),
-    domingo: getNextWeekdayDate(0, 'America/Monterrey'),
+    lunes: getNextWeekdayDate(1, DEFAULT_TIMEZONE),
+    martes: getNextWeekdayDate(2, DEFAULT_TIMEZONE),
+    miercoles: getNextWeekdayDate(3, DEFAULT_TIMEZONE),
+    jueves: getNextWeekdayDate(4, DEFAULT_TIMEZONE),
+    viernes: getNextWeekdayDate(5, DEFAULT_TIMEZONE),
+    sabado: getNextWeekdayDate(6, DEFAULT_TIMEZONE),
+    domingo: getNextWeekdayDate(0, DEFAULT_TIMEZONE),
   };
 
   const contextInjection = `

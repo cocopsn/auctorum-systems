@@ -6,7 +6,7 @@ import { db, withTenant, type Tenant } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import type { ToolCallResult } from './tools';
 
-const TZ = 'America/Monterrey';
+const TZ = process.env.DEFAULT_TIMEZONE || 'America/Monterrey';
 // ============================================================
 // Input Sanitization (H-4)
 // ============================================================
