@@ -29,7 +29,7 @@ import {
   checkTenantBudget,
 } from '../packages/ai/index';
 
-const DEFAULT_TIMEZONE = process.env.DEFAULT_TIMEZONE || DEFAULT_TIMEZONE
+const DEFAULT_TIMEZONE = process.env.DEFAULT_TIMEZONE || 'America/Monterrey'
 
 // --------------- WhatsApp send (inlined to avoid Next.js path aliases) ---------------
 
