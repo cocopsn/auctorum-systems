@@ -111,7 +111,7 @@ async function getOrCreateConversation(tenantId: string, phone: string, normaliz
   let [client] = await db
     .select()
     .from(clients)
-    .where(and(eq(clients.tenantId, tenantId), sql`REGEXP_REPLACE(${clients.phone}, '[^0-9]', '', 'g') LIKE ${'%' + normalized}`))
+    .where(and(eq(clients.tenantId, tenantId), sql`LENGTH(${normalized}) >= 7 AND RIGHT(REGEXP_REPLACE(${clients.phone}, '[^0-9]', '', 'g'), 10) = RIGHT(${normalized}, 10)`))
     .limit(1);
 
   if (!client) {

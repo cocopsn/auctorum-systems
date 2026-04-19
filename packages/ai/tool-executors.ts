@@ -588,7 +588,7 @@ export async function executeConfirmAppointment(
           FROM appointments a
           JOIN patients p ON p.id = a.patient_id
           WHERE a.tenant_id = ${tenant.id}::uuid
-            AND REGEXP_REPLACE(p.phone, '[^0-9]', '', 'g') LIKE '%' || ${phoneNormalized}
+            AND LENGTH(${phoneNormalized}) >= 7 AND RIGHT(REGEXP_REPLACE(p.phone, '[^0-9]', '', 'g'), 10) = RIGHT(${phoneNormalized}, 10)
             AND a.status IN ('scheduled', 'confirmed')
             AND (a.date > CURRENT_DATE OR (a.date = CURRENT_DATE AND a.start_time > CURRENT_TIME))
           ORDER BY a.date, a.start_time
@@ -679,7 +679,7 @@ export async function executeCancelAppointment(
           FROM appointments a
           JOIN patients p ON p.id = a.patient_id
           WHERE a.tenant_id = ${tenant.id}::uuid
-            AND REGEXP_REPLACE(p.phone, '[^0-9]', '', 'g') LIKE '%' || ${phoneNormalized}
+            AND LENGTH(${phoneNormalized}) >= 7 AND RIGHT(REGEXP_REPLACE(p.phone, '[^0-9]', '', 'g'), 10) = RIGHT(${phoneNormalized}, 10)
             AND a.status IN ('scheduled', 'confirmed')
             AND (a.date > CURRENT_DATE OR (a.date = CURRENT_DATE AND a.start_time > CURRENT_TIME))
           ORDER BY a.date, a.start_time
