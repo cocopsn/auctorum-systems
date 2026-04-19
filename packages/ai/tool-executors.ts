@@ -367,21 +367,20 @@ export async function executeCreateAppointment(
         )
       `);
 
+      // C-4: Notification inside withTenant transaction
+      try {
+        await tx.execute(sql`
+          INSERT INTO notifications (tenant_id, type, title, message)
+          VALUES (
+            ${tenant.id}::uuid, 'new_appointment',
+            'Nueva cita agendada',
+            ${`${patient_name} agendó cita el ${date} a las ${time} — Motivo: ${reason.slice(0, 100)}`}
+          )
+        `);
+      } catch { /* notification errors are non-fatal */ }
+
       return apptId;
     });
-
-    try {
-      await db.execute(sql`
-        INSERT INTO notifications (tenant_id, type, title, message)
-        VALUES (
-          ${tenant.id}::uuid, 'new_appointment',
-          'Nueva cita agendada',
-          ${`${patient_name} agendó cita el ${date} a las ${time} — Motivo: ${reason.slice(0, 100)}`}
-        )
-      `);
-    } catch {
-      /* ignore notification errors */
-    }
 
     return {
       tool: 'create_appointment',
@@ -487,15 +486,18 @@ export async function executeEscalateToHuman(
   const { reason, urgency, patient_message = '' } = args;
 
   try {
-    await db.execute(sql`
-      INSERT INTO notifications (tenant_id, type, title, message)
-      VALUES (
-        ${tenant.id}::uuid,
-        ${urgency === 'emergency' ? 'urgent_escalation' : 'human_escalation'},
-        ${urgency === 'emergency' ? '🚨 Escalación URGENTE' : 'Escalación a humano'},
-        ${`Urgencia: ${urgency}. Motivo: ${reason}${patient_message ? `. Mensaje original: ${patient_message.slice(0, 200)}` : ''}`}
-      )
-    `);
+    // C-4: Notification inside withTenant transaction
+    await withTenant(tenant.id, async (tx) => {
+      await tx.execute(sql`
+        INSERT INTO notifications (tenant_id, type, title, message)
+        VALUES (
+          ${tenant.id}::uuid,
+          ${urgency === 'emergency' ? 'urgent_escalation' : 'human_escalation'},
+          ${urgency === 'emergency' ? '🚨 Escalación URGENTE' : 'Escalación a humano'},
+          ${`Urgencia: ${urgency}. Motivo: ${reason}${patient_message ? `. Mensaje original: ${patient_message.slice(0, 200)}` : ''}`}
+        )
+      `);
+    });
 
     let messageToPatient = '';
     if (urgency === 'emergency') {
@@ -587,18 +589,19 @@ export async function executeConfirmAppointment(
           ${JSON.stringify({ source: 'whatsapp_reply', phone: phoneNormalized })}::jsonb
         )
       `);
-    });
 
-    try {
-      await db.execute(sql`
-        INSERT INTO notifications (tenant_id, type, title, message)
-        VALUES (
-          ${tenant.id}::uuid, 'appointment_confirmed',
-          'Cita confirmada por paciente',
-          ${'Paciente ' + phoneNormalized + ' confirmo su cita'}
-        )
-      `);
-    } catch { /* ignore */ }
+      // C-4: Notification inside withTenant transaction
+      try {
+        await tx.execute(sql`
+          INSERT INTO notifications (tenant_id, type, title, message)
+          VALUES (
+            ${tenant.id}::uuid, 'appointment_confirmed',
+            'Cita confirmada por paciente',
+            ${'Paciente ' + phoneNormalized + ' confirmo su cita'}
+          )
+        `);
+      } catch { /* notification errors are non-fatal */ }
+    });
 
     return {
       tool: 'confirm_appointment',
@@ -675,18 +678,19 @@ export async function executeCancelAppointment(
           ${JSON.stringify({ source: 'whatsapp_reply', phone: phoneNormalized, reason: reason || '' })}::jsonb
         )
       `);
-    });
 
-    try {
-      await db.execute(sql`
-        INSERT INTO notifications (tenant_id, type, title, message)
-        VALUES (
-          ${tenant.id}::uuid, 'appointment_cancelled',
-          'Cita cancelada por paciente',
-          ${'Paciente ' + phoneNormalized + ' cancelo su cita' + (reason ? '. Motivo: ' + reason : '')}
-        )
-      `);
-    } catch { /* ignore */ }
+      // C-4: Notification inside withTenant transaction
+      try {
+        await tx.execute(sql`
+          INSERT INTO notifications (tenant_id, type, title, message)
+          VALUES (
+            ${tenant.id}::uuid, 'appointment_cancelled',
+            'Cita cancelada por paciente',
+            ${'Paciente ' + phoneNormalized + ' cancelo su cita' + (reason ? '. Motivo: ' + reason : '')}
+          )
+        `);
+      } catch { /* notification errors are non-fatal */ }
+    });
 
     return {
       tool: 'cancel_appointment',
