@@ -68,7 +68,7 @@ export async function runWhatsAppReplyWithTools(
     };
 
     totalOpenAICalls++;
-    if (totalOpenAICalls > MAX_TOTAL_OPENAI_CALLS) { console.warn([ai/tools] max total OpenAI calls reached); break; }
+    if (totalOpenAICalls > MAX_TOTAL_OPENAI_CALLS) { console.warn('[ai/tools] max total OpenAI calls reached'); break; }
     const res = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -219,7 +219,7 @@ Responde correctamente llamando check_availability.`;
       });
 
       totalOpenAICalls++;
-      if (totalOpenAICalls > MAX_TOTAL_OPENAI_CALLS) { console.warn([ai/tools] max total OpenAI calls reached); break; }
+      if (totalOpenAICalls > MAX_TOTAL_OPENAI_CALLS) { console.warn('[ai/tools] max total OpenAI calls reached'); break; }
       const correctiveRes = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -266,7 +266,7 @@ Responde correctamente llamando check_availability.`;
 
         // Get final answer after corrective tools (allow chained tool calls)
         totalOpenAICalls++;
-        if (totalOpenAICalls > MAX_TOTAL_OPENAI_CALLS) { console.warn([ai/tools] max total OpenAI calls reached); break; }
+        if (totalOpenAICalls > MAX_TOTAL_OPENAI_CALLS) { console.warn('[ai/tools] max total OpenAI calls reached'); break; }
         const finalRes = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
           method: 'POST',
           headers: {
@@ -308,7 +308,7 @@ Responde correctamente llamando check_availability.`;
           }
           // Final answer after chained tools
           totalOpenAICalls++;
-          if (totalOpenAICalls > MAX_TOTAL_OPENAI_CALLS) { console.warn([ai/tools] max total OpenAI calls reached); break; }
+          if (totalOpenAICalls > MAX_TOTAL_OPENAI_CALLS) { console.warn('[ai/tools] max total OpenAI calls reached'); break; }
           const lastRes = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
             method: 'POST',
             headers: {
