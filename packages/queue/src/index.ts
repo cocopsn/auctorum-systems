@@ -7,7 +7,7 @@ const REDIS_PORT = parseInt(process.env.REDIS_PORT || '6379', 10);
 /** Shared Redis connection for queues (reused across createQueue calls). */
 let sharedConnection: IORedis | null = null;
 
-function getConnection(): IORedis {
+export function getConnection(): IORedis {
   if (!sharedConnection) {
     sharedConnection = new IORedis(REDIS_PORT, REDIS_HOST, {
       maxRetriesPerRequest: null,

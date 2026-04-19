@@ -7,7 +7,7 @@
 
 // Use relative imports since scripts/ is at repo root and pnpm strict mode
 // does not hoist workspace packages to root node_modules.
-import { createWorker, closeAll, type Job, type AuctorumJobPayload } from '../packages/queue/src/index';
+import { createWorker, closeAll, getConnection, type Job, type AuctorumJobPayload } from '../packages/queue/src/index';
 import {
   db,
   conversations,
@@ -190,6 +190,17 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
       from,
       'Hemos alcanzado el limite diario de consultas automatizadas. Un asesor te contactara pronto.',
     );
+    return;
+  }
+
+  // H-3: Per-phone rate limiting (20 messages per hour)
+  const redis = getConnection();
+  const rateLimitKey = `ratelimit:phone:${normalized}:${Math.floor(Date.now() / 3600000)}`;
+  const msgCount = await redis.incr(rateLimitKey);
+  if (msgCount === 1) await redis.expire(rateLimitKey, 3600);
+  if (msgCount > 20) {
+    console.warn(`[worker] Rate limited phone ${normalized}: ${msgCount} msgs in current hour`);
+    await sendWhatsAppMessage(from, 'Has enviado muchos mensajes. Por favor espera unos minutos antes de continuar.');
     return;
   }
 
