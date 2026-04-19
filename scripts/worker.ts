@@ -388,7 +388,7 @@ tool execution exitosa.
     type: 'new_message',
     title: 'Nuevo mensaje WhatsApp',
     message: `${from}: ${text.slice(0, 100)}${text.length > 100 ? '...' : ''}`,
-  }).catch(() => {});
+  }).catch((err) => { console.error('Notification insert failed:', err) });
 
   // Send via WhatsApp (H-6: use per-tenant phone_number_id)
   const perTenantPhoneId = await getPhoneNumberIdForTenant(tenantId);

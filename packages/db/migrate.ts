@@ -87,7 +87,7 @@ async function migrate() {
     await client.end();
     process.exit(0);
   } catch (err) {
-    await client.end({ timeout: 5 }).catch(() => {});
+    await client.end({ timeout: 5 }).catch((err) => { console.error('Notification insert failed:', err) });
     throw err;
   }
 }

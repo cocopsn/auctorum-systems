@@ -200,7 +200,7 @@ export async function handleBookAppointment(
           sql`${clients.name} LIKE 'WhatsApp %'`,
         )
       )
-      .catch(() => {})
+      .catch((err) => { console.error('Notification insert failed:', err) })
 
     // Calculate end time (30 min slots)
     const [h, m] = args.time.split(":").map(Number)

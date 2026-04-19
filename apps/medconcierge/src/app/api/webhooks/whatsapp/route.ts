@@ -380,7 +380,7 @@ async function handleAppointmentKeyword(from: string, normalized: string, text: 
       type: 'confirmed_appointment',
       title: 'Cita confirmada',
       message: `${row.patient.name} confirmo su cita del ${row.appt.date} a las ${row.appt.startTime.slice(0, 5)}`,
-    }).catch(() => {})
+    }).catch((err) => { console.error('Notification insert failed:', err) })
 
     await sendWhatsAppMessage(from, 'Gracias, su cita queda confirmada.')
     return true
@@ -409,7 +409,7 @@ async function handleAppointmentKeyword(from: string, normalized: string, text: 
       type: 'cancelled_appointment',
       title: 'Cita cancelada',
       message: `${row.patient.name} cancelo su cita del ${row.appt.date} a las ${row.appt.startTime.slice(0, 5)}`,
-    }).catch(() => {})
+    }).catch((err) => { console.error('Notification insert failed:', err) })
 
     notifyAppointmentCancelled(
       row.appt,
