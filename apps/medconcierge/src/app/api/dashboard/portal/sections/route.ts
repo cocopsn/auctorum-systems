@@ -15,7 +15,7 @@ const sectionSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
-  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+  if (!validateOrigin(req)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
 
   try {
     const auth = await getAuthTenant()

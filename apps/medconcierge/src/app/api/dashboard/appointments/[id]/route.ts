@@ -19,7 +19,7 @@ const updateSchema = z.object({
 })
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
-  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+  if (!validateOrigin(req)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
 
   try {
     const auth = await getAuthTenant()

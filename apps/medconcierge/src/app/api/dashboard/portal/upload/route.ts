@@ -12,7 +12,7 @@ const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"])
 
 export async function POST(req: NextRequest) {
-  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+  if (!validateOrigin(req)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
 
   try {
     const auth = await getAuthTenant()
