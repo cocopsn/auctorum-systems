@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
   try {
     // H-2: CSRF protection — validate Origin matches Host
     const origin = request.headers.get('origin')
-    const host = request.headers.get('host') || ''
+    const host = request.headers.get('host') || 'auctorum.com.mx'
     if (origin) {
       try {
         const originHost = new URL(origin).host
@@ -114,7 +114,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing tokens' }, { status: 400 })
     }
 
-    const host = request.headers.get('host') || 'auctorum.com.mx'
     const response = NextResponse.json({ ok: true })
     const supabase = makeSupabaseClient(request, response, host)
 
