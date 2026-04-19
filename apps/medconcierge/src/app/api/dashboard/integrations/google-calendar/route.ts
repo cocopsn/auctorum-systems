@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
 }
 
 // DELETE — disconnect Google Calendar
-export async function DELETE() {
+export async function DELETE(request: Request) {
   if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
 
   try {

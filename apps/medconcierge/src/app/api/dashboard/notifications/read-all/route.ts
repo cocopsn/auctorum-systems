@@ -6,7 +6,7 @@ import { db, notifications } from "@quote-engine/db"
 import { getAuthTenant } from "@/lib/auth"
 import { validateOrigin } from '@/lib/csrf'
 
-export async function PUT() {
+export async function PUT(request: Request) {
   if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
 
   try {

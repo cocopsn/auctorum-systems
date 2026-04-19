@@ -6,7 +6,7 @@ import { getAuthTenant } from '@/lib/auth';
 import { getPaymentProvider } from '@quote-engine/payments';
 import { validateOrigin } from '@/lib/csrf'
 
-export async function POST() {
+export async function POST(request: Request) {
   if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
 
   try {
