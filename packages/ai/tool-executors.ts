@@ -119,7 +119,7 @@ async function getAvailableSlotsForDay(
       ORDER BY start_time
     `);
   });
-  const busyRows: unknown[] = Array.isArray(busy) ? busy : (busy as any)?.rows ?? [];
+  const busyRows: any[] = Array.isArray(busy) ? busy : (busy as any)?.rows ?? [];
   const busySlots = busyRows.map((r) => ({
     start: String(r.start_time).slice(0, 5),
     end: String(r.end_time).slice(0, 5),
@@ -197,7 +197,7 @@ export async function executeCheckAvailability(
         `);
       });
 
-      const conflicts: unknown[] = Array.isArray(rows) ? rows : (rows as any)?.rows ?? [];
+      const conflicts: any[] = Array.isArray(rows) ? rows : (rows as any)?.rows ?? [];
 
       if (conflicts.length > 0) {
         const alternatives = await getAvailableSlotsForDay(tenant, date, duration_min);
@@ -305,7 +305,7 @@ export async function executeCreateAppointment(
         LIMIT 1
       `);
     });
-    const existingRows: unknown[] = Array.isArray(existing) ? existing : (existing as any)?.rows ?? [];
+    const existingRows: any[] = Array.isArray(existing) ? existing : (existing as any)?.rows ?? [];
     if (existingRows.length > 0) {
       return {
         tool: 'create_appointment',
@@ -345,7 +345,7 @@ export async function executeCreateAppointment(
         LIMIT 1
       `);
     });
-    const conflictRows: unknown[] = Array.isArray(conflicts) ? conflicts : (conflicts as any)?.rows ?? [];
+    const conflictRows: any[] = Array.isArray(conflicts) ? conflicts : (conflicts as any)?.rows ?? [];
     if (conflictRows.length > 0) {
       return {
         tool: 'create_appointment',
@@ -366,7 +366,7 @@ export async function executeCreateAppointment(
           updated_at = now()
         RETURNING id
       `);
-      const patientRows: unknown[] = Array.isArray(upsertPatient) ? upsertPatient : upsertPatient?.rows ?? [];
+      const patientRows: any[] = Array.isArray(upsertPatient) ? upsertPatient : upsertPatient?.rows ?? [];
       const patientId = patientRows[0]?.id;
       if (!patientId) throw new Error('Patient upsert failed');
 
@@ -382,7 +382,7 @@ export async function executeCreateAppointment(
         )
         RETURNING id
       `);
-      const apptRows: unknown[] = Array.isArray(insertAppt) ? insertAppt : insertAppt?.rows ?? [];
+      const apptRows: any[] = Array.isArray(insertAppt) ? insertAppt : insertAppt?.rows ?? [];
       const apptId = apptRows[0]?.id;
       if (!apptId) throw new Error('Appointment insert failed');
 
@@ -595,7 +595,7 @@ export async function executeConfirmAppointment(
           LIMIT 1
         `);
       });
-      const rows: unknown[] = Array.isArray(result) ? result : (result as any)?.rows ?? [];
+      const rows: any[] = Array.isArray(result) ? result : (result as any)?.rows ?? [];
       if (rows.length === 0) {
         return {
           tool: 'confirm_appointment',
@@ -686,7 +686,7 @@ export async function executeCancelAppointment(
           LIMIT 1
         `);
       });
-      const rows: unknown[] = Array.isArray(result) ? result : (result as any)?.rows ?? [];
+      const rows: any[] = Array.isArray(result) ? result : (result as any)?.rows ?? [];
       if (rows.length === 0) {
         return {
           tool: 'cancel_appointment',
