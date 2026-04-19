@@ -17,6 +17,7 @@ import {
   patients,
   notifications,
   type Tenant,
+  botInstances,
 } from '../packages/db/index';
 import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 import {
@@ -67,6 +68,17 @@ async function sendWhatsAppMessage(to: string, body: string): Promise<boolean> {
     console.error('[worker] WhatsApp send error:', err);
     return false;
   }
+}
+
+
+// H-6: Per-tenant WhatsApp send — reads phone_number_id from bot_instances
+async function getPhoneNumberIdForTenant(tenantId: string): Promise<string | null> {
+  const [bot] = await db
+    .select({ config: botInstances.config })
+    .from(botInstances)
+    .where(and(eq(botInstances.tenantId, tenantId), eq(botInstances.channel, 'whatsapp'), eq(botInstances.status, 'active')))
+    .limit(1);
+  return (bot?.config as any)?.phone_number_id || process.env.WHATSAPP_PHONE_NUMBER_ID || null;
 }
 
 // --------------- Tenant resolution ---------------
@@ -378,8 +390,25 @@ tool execution exitosa.
     message: `${from}: ${text.slice(0, 100)}${text.length > 100 ? '...' : ''}`,
   }).catch(() => {});
 
-  // Send via WhatsApp
-  const sent = await sendWhatsAppMessage(from, answer);
+  // Send via WhatsApp (H-6: use per-tenant phone_number_id)
+  const perTenantPhoneId = await getPhoneNumberIdForTenant(tenantId);
+  let sent = false;
+  if (perTenantPhoneId) {
+    const token = process.env.WHATSAPP_TOKEN;
+    if (token) {
+      try {
+        const res = await fetch(`${WHATSAPP_API_URL}/${perTenantPhoneId}/messages`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messaging_product: 'whatsapp', to: normalizePhone(from), type: 'text', text: { body: answer } }),
+        });
+        sent = res.ok;
+        if (!sent) console.error('[worker] WhatsApp API error:', await res.text());
+      } catch (err) { console.error('[worker] WhatsApp send error:', err); }
+    }
+  } else {
+    sent = await sendWhatsAppMessage(from, answer);
+  }
   if (!sent) {
     console.error(`[worker] failed to send WhatsApp to ${from}`);
   }

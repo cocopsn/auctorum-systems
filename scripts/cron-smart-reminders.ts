@@ -5,7 +5,8 @@
  */
 
 import { eq, and, gte, lte, sql, isNull } from "drizzle-orm"
-import { db, tenants, appointments, patients, notifications } from "@quote-engine/db"
+import { db, tenants, appointments, patients, notifications, botInstances } from "@quote-engine/db"
+import type { TenantConfig } from "@quote-engine/db"
 
 const WHATSAPP_API_URL = "https://graph.facebook.com/v19.0"
 
@@ -85,7 +86,7 @@ async function main() {
       appt.date === today ? "hoy" : "manana"
     } ${displayDate} a las ${displayTime}. Responda CONFIRMO para confirmar o CANCELO para cancelar.`
 
-    const sent = await sendWhatsApp(patient.phone, message)
+    const sent = await sendWhatsAppForTenant(tenantId, patient.phone, message)
     console.log(`[smart-reminders] ${sent ? "Sent" : "Failed"} reminder to ${patient.phone} for ${appt.date} ${displayTime}`)
 
     // Mark as sent regardless (to avoid spam on retry)
