@@ -48,15 +48,27 @@ export async function middleware(request: NextRequest) {
     return await handleRequest(request)
   } catch (err) {
     console.error(
-      'Middleware uncaught error (recovering):',
+      '[middleware] ERROR — fail-closed:',
       err instanceof Error ? err.message : err,
     )
-    // On any unexpected error, let the request through rather than crashing.
-    // Clear any Supabase cookies that might be corrupted to prevent loops.
-    const response = NextResponse.next()
+    // H-1: Fail-closed — deny access to private routes on error.
+    // Public routes (landing, login, agendar, webhooks, health) still pass through.
+    const path = request.nextUrl.pathname
+    const isPublicRoute = path === '/' || path === '/login' || path.startsWith('/agendar')
+      || path.startsWith('/api/wa/') || path.startsWith('/api/health')
+      || path.startsWith('/_next') || /\.(ico|png|jpg|svg|css|js|woff2?)$/.test(path)
+    if (isPublicRoute) {
+      const response = NextResponse.next()
+      const host = request.headers.get('host') ?? ''
+      clearSupabaseCookies(request, response, host)
+      return response
+    }
+    // Private routes: redirect to login
     const host = request.headers.get('host') ?? ''
-    clearSupabaseCookies(request, response, host)
-    return response
+    const realOrigin = host.includes('localhost') ? `http://${host}` : `https://${host || 'auctorum.com.mx'}`
+    const loginRedirect = NextResponse.redirect(new URL('/login', realOrigin))
+    clearSupabaseCookies(request, loginRedirect, host)
+    return loginRedirect
   }
 }
 
