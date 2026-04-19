@@ -76,8 +76,8 @@ async function getAvailableSlotsForDay(
   const dayConfig = schedule?.[dow];
   if (!dayConfig?.enabled || !dayConfig.start || !dayConfig.end) return [];
 
-  const busy = await withTenant(tenant.id, async () => {
-    return await db.execute(sql`
+  const busy = await withTenant(tenant.id, async (tx) => {
+    return await tx.execute(sql`
       SELECT start_time::text as start_time, end_time::text as end_time
       FROM appointments
       WHERE tenant_id = ${tenant.id}::uuid
@@ -149,8 +149,8 @@ export async function executeCheckAvailability(
         };
       }
 
-      const rows = await withTenant(tenant.id, async () => {
-        return await db.execute(sql`
+      const rows = await withTenant(tenant.id, async (tx) => {
+        return await tx.execute(sql`
           SELECT id, start_time, end_time
           FROM appointments
           WHERE tenant_id = ${tenant.id}::uuid
@@ -258,8 +258,8 @@ export async function executeCreateAppointment(
     const consultationFee = config.medical?.consultation_fee ?? null;
 
     // Idempotency check
-    const existing = await withTenant(tenant.id, async () => {
-      return await db.execute(sql`
+    const existing = await withTenant(tenant.id, async (tx) => {
+      return await tx.execute(sql`
         SELECT a.id, a.date, a.start_time::text, a.status
         FROM appointments a
         JOIN patients p ON p.id = a.patient_id
@@ -297,8 +297,8 @@ export async function executeCreateAppointment(
       };
     }
 
-    const conflicts = await withTenant(tenant.id, async () => {
-      return await db.execute(sql`
+    const conflicts = await withTenant(tenant.id, async (tx) => {
+      return await tx.execute(sql`
         SELECT id FROM appointments
         WHERE tenant_id = ${tenant.id}::uuid
           AND date = ${date}::date
@@ -321,8 +321,8 @@ export async function executeCreateAppointment(
       };
     }
 
-    const appointmentId = await withTenant(tenant.id, async () => {
-      const upsertPatient: any = await db.execute(sql`
+    const appointmentId = await withTenant(tenant.id, async (tx) => {
+      const upsertPatient: any = await tx.execute(sql`
         INSERT INTO patients (tenant_id, name, phone, email)
         VALUES (${tenant.id}::uuid, ${patient_name}, ${patient_phone}, ${patient_email ?? null})
         ON CONFLICT (tenant_id, phone)
@@ -336,7 +336,7 @@ export async function executeCreateAppointment(
       const patientId = patientRows[0]?.id;
       if (!patientId) throw new Error('Patient upsert failed');
 
-      const insertAppt: any = await db.execute(sql`
+      const insertAppt: any = await tx.execute(sql`
         INSERT INTO appointments (
           tenant_id, patient_id, date, start_time, end_time,
           status, reason, consultation_fee
@@ -352,7 +352,7 @@ export async function executeCreateAppointment(
       const apptId = apptRows[0]?.id;
       if (!apptId) throw new Error('Appointment insert failed');
 
-      await db.execute(sql`
+      await tx.execute(sql`
         INSERT INTO appointment_events (
           appointment_id, tenant_id, event_type, metadata
         )
@@ -544,8 +544,8 @@ export async function executeConfirmAppointment(
     let apptId = appointment_id;
 
     if (!apptId) {
-      const result = await withTenant(tenant.id, async () => {
-        return await db.execute(sql`
+      const result = await withTenant(tenant.id, async (tx) => {
+        return await tx.execute(sql`
           SELECT a.id
           FROM appointments a
           JOIN patients p ON p.id = a.patient_id
@@ -569,8 +569,8 @@ export async function executeConfirmAppointment(
       apptId = rows[0].id;
     }
 
-    await withTenant(tenant.id, async () => {
-      await db.execute(sql`
+    await withTenant(tenant.id, async (tx) => {
+      await tx.execute(sql`
         UPDATE appointments
         SET status = 'confirmed',
             confirmed_by_patient = true,
@@ -579,7 +579,7 @@ export async function executeConfirmAppointment(
           AND tenant_id = ${tenant.id}::uuid
       `);
 
-      await db.execute(sql`
+      await tx.execute(sql`
         INSERT INTO appointment_events (appointment_id, tenant_id, event_type, metadata)
         VALUES (
           ${apptId}::uuid, ${tenant.id}::uuid,
@@ -633,8 +633,8 @@ export async function executeCancelAppointment(
     let apptId = appointment_id;
 
     if (!apptId) {
-      const result = await withTenant(tenant.id, async () => {
-        return await db.execute(sql`
+      const result = await withTenant(tenant.id, async (tx) => {
+        return await tx.execute(sql`
           SELECT a.id
           FROM appointments a
           JOIN patients p ON p.id = a.patient_id
@@ -658,8 +658,8 @@ export async function executeCancelAppointment(
       apptId = rows[0].id;
     }
 
-    await withTenant(tenant.id, async () => {
-      await db.execute(sql`
+    await withTenant(tenant.id, async (tx) => {
+      await tx.execute(sql`
         UPDATE appointments
         SET status = 'cancelled',
             cancelled_at = NOW()
@@ -667,7 +667,7 @@ export async function executeCancelAppointment(
           AND tenant_id = ${tenant.id}::uuid
       `);
 
-      await db.execute(sql`
+      await tx.execute(sql`
         INSERT INTO appointment_events (appointment_id, tenant_id, event_type, metadata)
         VALUES (
           ${apptId}::uuid, ${tenant.id}::uuid,

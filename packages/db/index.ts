@@ -34,11 +34,11 @@ import { sql } from 'drizzle-orm';
 /**
  * Enforce Tenant Isolation Wrapper (RLS / Application Level Middleware)
  * Wrap all tenant-specific database interactions here to prevent data leakage.
+ * Sets app.tenant_id via set_config so Postgres RLS policies can enforce isolation.
  */
 export async function withTenant<T>(tenantId: string, callback: (tx: any) => Promise<T>): Promise<T> {
   return await db.transaction(async (tx) => {
-    // Escala futura para RLS nativo en Postgres
-    // await tx.execute(sql`set local app.tenant_id = ${tenantId}`);
+    await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
     return await callback(tx);
   });
 }
