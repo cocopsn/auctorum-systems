@@ -10,6 +10,8 @@ import type { TenantConfig } from '@quote-engine/db'
 import { eq, and, sql } from 'drizzle-orm'
 import { sendWhatsAppMessage } from '@quote-engine/notifications/whatsapp'
 
+const MAX_REMINDER_RETRIES = 3  // L-5: Max retries before giving up
+
 async function sendReminders() {
   const now = new Date()
   console.log(`[appointment-reminders] Starting at ${now.toISOString()}`)
@@ -86,6 +88,8 @@ async function sendReminders() {
       }
     } catch (err) {
       console.error(`[appointment-reminders] Error sending 24h reminder for appointment ${appointment.id}:`, err)
+      // L-5: Failed sends are retried on next cron run (L-3). Consider adding
+      // a reminder_retry_count column to cap retries at MAX_REMINDER_RETRIES.
     }
   }
 
