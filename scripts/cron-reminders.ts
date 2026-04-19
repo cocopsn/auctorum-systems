@@ -30,12 +30,14 @@ async function markExpiredQuotes() {
         inArray(quotes.status, ['generated', 'sent', 'viewed'])
       )
     )
-    .returning({ id: quotes.id });
+    .returning({ id: quotes.id, tenantId: quotes.tenantId });
 
+  const tenantIds = [...new Set(result.map(r => r.tenantId))];
   console.log(JSON.stringify({
     timestamp: now.toISOString(),
     action: 'mark_expired_quotes',
     count: result.length,
+    tenants: tenantIds,
     expiredIds: result.map(r => r.id),
   }));
 
