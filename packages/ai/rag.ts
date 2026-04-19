@@ -6,7 +6,7 @@
  * - topK = 5
  * - minSimilarity = 0.45
  */
-import { db } from '@quote-engine/db';
+import { db, withTenant } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
@@ -50,7 +50,7 @@ export async function searchKnowledgeBase(params: {
     const embedding = await embed(query);
     const embeddingStr = `[${embedding.join(',')}]`;
 
-    const result: any = await db.execute(sql`
+    const result: any = await withTenant(tenantId, (tx) => tx.execute(sql`
       SELECT id, content, metadata,
         1 - (embedding <=> ${embeddingStr}::vector) AS similarity
       FROM knowledge_base
@@ -58,7 +58,7 @@ export async function searchKnowledgeBase(params: {
         AND 1 - (embedding <=> ${embeddingStr}::vector) > ${minSimilarity}
       ORDER BY embedding <=> ${embeddingStr}::vector
       LIMIT ${topK}
-    `);
+    `));
 
     const rows: any[] = Array.isArray(result) ? result : (result?.rows ?? []);
 
