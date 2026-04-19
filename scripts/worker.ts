@@ -425,6 +425,7 @@ console.log('[worker] Starting WhatsApp message worker...');
 const worker = createWorker('whatsapp_messages', processWhatsAppMessage, 2);
 
 worker.on('completed', (job) => {
+  processedJobCount++;
   console.log(`[worker] Job ${job.id} completed`);
 });
 
@@ -467,5 +468,20 @@ process.on('SIGINT', async () => {
   await closeAll();
   process.exit(0);
 });
+
+
+// L-4: Worker heartbeat logging
+let processedJobCount = 0;
+setInterval(() => {
+  const mem = process.memoryUsage();
+  console.log(JSON.stringify({
+    type: 'heartbeat',
+    uptime: Math.floor(process.uptime()),
+    rss: Math.round(mem.rss / 1024 / 1024) + 'MB',
+    heap: Math.round(mem.heapUsed / 1024 / 1024) + 'MB',
+    processed: processedJobCount,
+    timestamp: new Date().toISOString(),
+  }));
+}, 5 * 60 * 1000); // every 5 minutes
 
 console.log('[worker] Ready, waiting for jobs on queue: whatsapp_messages');
