@@ -94,6 +94,20 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    // H-2: CSRF protection — validate Origin matches Host
+    const origin = request.headers.get('origin')
+    const host = request.headers.get('host') || ''
+    if (origin) {
+      try {
+        const originHost = new URL(origin).host
+        if (originHost !== host) {
+          return NextResponse.json({ error: 'Origin mismatch' }, { status: 403 })
+        }
+      } catch {
+        return NextResponse.json({ error: 'Invalid origin' }, { status: 403 })
+      }
+    }
+
     const { access_token, refresh_token } = await request.json()
 
     if (!access_token || !refresh_token) {
