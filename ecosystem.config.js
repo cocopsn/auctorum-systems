@@ -34,7 +34,7 @@ const cronEnv = {
   SUPABASE_SERVICE_ROLE_KEY: webEnv.SUPABASE_SERVICE_ROLE_KEY || '',
   NEXT_PUBLIC_APP_DOMAIN: webEnv.NEXT_PUBLIC_APP_DOMAIN || 'auctorum.com.mx',
   WHATSAPP_TOKEN: medEnv.WHATSAPP_TOKEN || webEnv.WHATSAPP_TOKEN || '',
-  WHATSAPP_PHONE_NUMBER_ID: medEnv.WHATSAPP_PHONE_NUMBER_ID || webEnv.WHATSAPP_PHONE_NUMBER_ID || '',
+  WHATSAPP_PHONE_NUMBER_ID: medEnv.WHATSAPP_PHONE_NUMBER_ID || webEnv.WHATSAPP_PHONE_NUMBER_ID || ''
 };
 
 module.exports = {
@@ -50,7 +50,7 @@ module.exports = {
       node_args: '--max-old-space-size=600',
       env: {
         NODE_ENV: 'production',
-        PORT: 3000,
+        PORT: 3000
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: '/var/log/auctorum/quote-engine-error.log',
@@ -60,7 +60,7 @@ module.exports = {
       max_restarts: 10,
       restart_delay: 5000,
       kill_timeout: 5000,
-      listen_timeout: 10000,
+      listen_timeout: 10000
     },
     {
       name: 'auctorum-medconcierge',
@@ -73,7 +73,7 @@ module.exports = {
       node_args: '--max-old-space-size=600',
       env: {
         NODE_ENV: 'production',
-        PORT: 3001,
+        PORT: 3001
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: '/var/log/auctorum/medconcierge-error.log',
@@ -83,7 +83,7 @@ module.exports = {
       max_restarts: 10,
       restart_delay: 5000,
       kill_timeout: 5000,
-      listen_timeout: 10000,
+      listen_timeout: 10000
     },
     {
       name: 'cron-reminders',
@@ -97,7 +97,7 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: '/var/log/auctorum/cron-reminders-error.log',
       out_file: '/var/log/auctorum/cron-reminders-out.log',
-      merge_logs: true,
+      merge_logs: true
     },
     {
       name: 'cron-appointment-reminders',
@@ -111,7 +111,7 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: '/var/log/auctorum/cron-appointment-reminders-error.log',
       out_file: '/var/log/auctorum/cron-appointment-reminders-out.log',
-      merge_logs: true,
+      merge_logs: true
     },
     {
       name: "cron-calendar-sync",
@@ -125,21 +125,7 @@ module.exports = {
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       error_file: "/var/log/auctorum/cron-calendar-sync-error.log",
       out_file: "/var/log/auctorum/cron-calendar-sync-out.log",
-      merge_logs: true,
-    },
-    {
-      name: "cron-smart-reminders",
-      cwd: "/opt/auctorum-systems/repo",
-      script: "npx",
-      args: "tsx scripts/cron-smart-reminders.ts",
-      cron_restart: "0 * * * *",
-      autorestart: false,
-      watch: false,
-      env: cronEnv,
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      error_file: "/var/log/auctorum/cron-smart-reminders-error.log",
-      out_file: "/var/log/auctorum/cron-smart-reminders-out.log",
-      merge_logs: true,
+      merge_logs: true
     },
     {
       name: 'auctorum-worker',
@@ -153,12 +139,12 @@ module.exports = {
       env: {
         ...medEnv,
         NODE_ENV: 'production',
-        NODE_OPTIONS: '--max-old-space-size=384',
+        NODE_OPTIONS: '--max-old-space-size=384'
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: '/var/log/auctorum/worker-error.log',
       out_file: '/var/log/auctorum/worker-out.log',
-      merge_logs: true,
+      merge_logs: true
     }
-  ],
+  ]
 };
