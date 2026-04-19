@@ -5,6 +5,7 @@ import { getAuthTenant } from '@/lib/auth';
 import { db, tenants } from '@quote-engine/db';
 import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { validateOrigin } from '@/lib/csrf'
 
 // ---------------------------------------------------------------------------
 // GET /api/dashboard/invoices/config
@@ -39,6 +40,8 @@ const invoiceConfigSchema = z.object({
 });
 
 export async function PATCH(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   const auth = await getAuthTenant();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

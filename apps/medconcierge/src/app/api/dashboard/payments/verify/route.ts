@@ -4,8 +4,11 @@ export const dynamic = 'force-dynamic';
 import { NextResponse } from 'next/server';
 import { getAuthTenant } from '@/lib/auth';
 import { getPaymentProvider } from '@quote-engine/payments';
+import { validateOrigin } from '@/lib/csrf'
 
 export async function POST() {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

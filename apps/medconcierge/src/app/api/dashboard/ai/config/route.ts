@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getAuthTenant } from "@/lib/auth"
 import { getAiSettings, saveAiSettings } from "@quote-engine/ai"
 import { z } from "zod"
+import { validateOrigin } from '@/lib/csrf'
 
 export async function GET() {
   try {
@@ -30,6 +31,8 @@ const updateSchema = z.object({
 })
 
 export async function PUT(req: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 })

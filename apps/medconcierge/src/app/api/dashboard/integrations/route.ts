@@ -5,6 +5,7 @@ import { getAuthTenant } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { validateOrigin } from '@/lib/csrf'
 
 // GET /api/dashboard/integrations
 // List all integrations for the authenticated tenant
@@ -37,6 +38,8 @@ const CreateIntegrationSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) {

@@ -4,12 +4,15 @@ import { NextRequest, NextResponse } from "next/server"
 import { getAuthTenant } from "@/lib/auth"
 import { runPlayground } from "@quote-engine/ai"
 import { z } from "zod"
+import { validateOrigin } from '@/lib/csrf'
 
 const testSchema = z.object({
   message: z.string().min(1).max(1000),
 })
 
 export async function POST(req: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 })

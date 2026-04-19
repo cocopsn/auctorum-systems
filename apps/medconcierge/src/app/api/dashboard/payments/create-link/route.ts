@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { db, payments } from '@quote-engine/db';
 import { getAuthTenant } from '@/lib/auth';
 import { getPaymentProvider } from '@quote-engine/payments';
+import { validateOrigin } from '@/lib/csrf'
 
 const schema = z.object({
   amount: z.number().positive().max(999999),
@@ -16,6 +17,8 @@ const schema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

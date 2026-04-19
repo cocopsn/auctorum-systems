@@ -5,6 +5,7 @@ import { getAuthTenant } from '@/lib/auth';
 import { db, tenants } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { validateOrigin } from '@/lib/csrf'
 
 // GET /api/dashboard/settings/subscription
 // Returns the current subscription for the tenant
@@ -44,6 +45,8 @@ const patchSchema = z.object({
 });
 
 export async function PATCH(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) {

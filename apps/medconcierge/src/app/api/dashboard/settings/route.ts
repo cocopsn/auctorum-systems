@@ -7,6 +7,7 @@ import { tenants, doctors } from '@quote-engine/db'
 import type { TenantConfig } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
 import { z } from 'zod';
+import { validateOrigin } from '@/lib/csrf'
 
 export async function GET() {
   const auth = await getAuthTenant()
@@ -20,6 +21,8 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   const auth = await getAuthTenant()
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const tenantId = auth.tenant.id
