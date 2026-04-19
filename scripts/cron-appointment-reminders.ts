@@ -56,8 +56,9 @@ async function sendReminders() {
       const displayTime = appointment.startTime.slice(0, 5)
       const address = config.contact?.address || 'Consultar con el consultorio'
 
+      let sent = false
       if (patient.phone) {
-        const sent = await sendWhatsAppMessage({
+        sent = await sendWhatsAppMessage({
           to: patient.phone,
           message: [
             `Hola ${patient.name}, le recordamos que tiene cita manana ${displayDate} a las ${displayTime} con ${tenant.name}.`,
@@ -76,11 +77,13 @@ async function sendReminders() {
         }
       }
 
-      // Mark as sent regardless to prevent spam on retry
-      await db
-        .update(appointments)
-        .set({ reminder24hSent: true, reminder24hSentAt: new Date() })
-        .where(eq(appointments.id, appointment.id))
+      // Mark as sent only when delivery succeeded or patient has no phone
+      if (!patient.phone || sent) {
+        await db
+          .update(appointments)
+          .set({ reminder24hSent: true, reminder24hSentAt: new Date() })
+          .where(eq(appointments.id, appointment.id))
+      }
     } catch (err) {
       console.error(`[appointment-reminders] Error sending 24h reminder for appointment ${appointment.id}:`, err)
     }
@@ -123,8 +126,9 @@ async function sendReminders() {
       const displayTime = appointment.startTime.slice(0, 5)
       const address = config.contact?.address || 'Consultar con el consultorio'
 
+      let sent = false
       if (patient.phone) {
-        const sent = await sendWhatsAppMessage({
+        sent = await sendWhatsAppMessage({
           to: patient.phone,
           message: [
             `Hola ${patient.name}, su cita es en 1 hora (${displayTime}) con ${tenant.name}.`,
@@ -143,10 +147,13 @@ async function sendReminders() {
         }
       }
 
-      await db
-        .update(appointments)
-        .set({ reminder2hSent: true, reminder2hSentAt: new Date() })
-        .where(eq(appointments.id, appointment.id))
+      // Mark as sent only when delivery succeeded or patient has no phone
+      if (!patient.phone || sent) {
+        await db
+          .update(appointments)
+          .set({ reminder2hSent: true, reminder2hSentAt: new Date() })
+          .where(eq(appointments.id, appointment.id))
+      }
     } catch (err) {
       console.error(`[appointment-reminders] Error sending 1h reminder for appointment ${appointment.id}:`, err)
     }
