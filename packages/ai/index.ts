@@ -1,3 +1,21 @@
+/**
+ * AI package public API.
+ *
+ * NOTE (L-7): This file contains duplicate implementations of functions
+ * that also exist in src/. The src/ directory is the canonical source.
+ * Migration plan:
+ * 1. Verify all callers import from '@quote-engine/ai' (this file)
+ * 2. Replace duplicate function bodies with re-exports from src/
+ * 3. Remove dead code from this file
+ *
+ * Functions duplicated in src/:
+ * - getAiSettings (src/settings.ts)
+ * - saveAiSettings (src/settings.ts)
+ * - runPlayground (src/chat.ts)
+ * - runWhatsAppReply (src/chat.ts)
+ * - DEFAULT_AI_SETTINGS (src/types.ts)
+ * - FALLBACK_ERROR_MESSAGE (src/types.ts)
+ */
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import {
   aiKnowledgeFiles,
