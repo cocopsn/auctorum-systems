@@ -72,25 +72,22 @@ async function sendWhatsAppMessage(to: string, body: string): Promise<boolean> {
 // --------------- Tenant resolution ---------------
 
 async function resolveTenant(normalized: string): Promise<{ tenant: Tenant; tenantId: string } | null> {
+  // Match patient by phone number (exact last-10-digits match)
   const [matchedPatient] = await db
     .select({ tenantId: patients.tenantId })
     .from(patients)
-    .where(sql`REGEXP_REPLACE(${patients.phone}, '[^0-9]', '', 'g') LIKE ${'%' + normalized}`)
+    .where(
+      sql`LENGTH(${normalized}) >= 10 AND RIGHT(REGEXP_REPLACE(${patients.phone}, '[^0-9]', '', 'g'), 10) = RIGHT(${normalized}, 10)`
+    )
     .limit(1);
 
-  let tenantId: string;
-  if (matchedPatient) {
-    tenantId = matchedPatient.tenantId;
-  } else {
-    const [medTenant] = await db
-      .select({ id: tenants.id })
-      .from(tenants)
-      .where(and(eq(tenants.isActive, true), isNull(tenants.deletedAt), sql`(${tenants.config}::jsonb)->'medical' IS NOT NULL`))
-      .limit(1);
-    if (!medTenant) return null;
-    tenantId = medTenant.id;
+  if (!matchedPatient) {
+    // C-3: Do NOT fall back to arbitrary tenant. Reject unknown numbers.
+    console.warn(`[worker] REJECTED: No patient match for phone ${normalized}. No fallback.`);
+    return null;
   }
 
+  const tenantId = matchedPatient.tenantId;
   const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
   if (!tenant) return null;
   return { tenant, tenantId };
