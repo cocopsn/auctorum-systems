@@ -7,7 +7,7 @@
 
 // Use relative imports since scripts/ is at repo root and pnpm strict mode
 // does not hoist workspace packages to root node_modules.
-import { createWorker, closeAll, getConnection, type Job, type AuctorumJobPayload } from '../packages/queue/src/index';
+import { createWorker, createQueue, closeAll, getConnection, type Job, type AuctorumJobPayload } from '../packages/queue/src/index';
 import {
   db,
   conversations,
@@ -429,6 +429,27 @@ worker.on('completed', (job) => {
 worker.on('failed', (job, err) => {
   console.error(`[worker] Job ${job?.id} failed:`, err.message);
 });
+// M-10: Periodically clean failed BullMQ jobs (older than 24h)
+const cleanupQueue = createQueue('whatsapp_messages');
+setInterval(async () => {
+  try {
+    const failedJobs = await cleanupQueue.getFailed(0, 100);
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    let cleaned = 0;
+    for (const job of failedJobs) {
+      if (job.timestamp < oneDayAgo) {
+        await job.remove();
+        cleaned++;
+      }
+    }
+    if (cleaned > 0) {
+      console.log(`[worker] Cleaned ${cleaned} failed BullMQ jobs older than 24h`);
+    }
+  } catch (err) {
+    console.error('[worker] Failed to clean BullMQ jobs:', err);
+  }
+}, 60 * 60 * 1000); // Run every hour
+
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
