@@ -10,6 +10,7 @@
 import { eq, and, sql, isNull, isNotNull } from "drizzle-orm"
 import { db, tenants, appointments, patients, appointmentEvents } from "@quote-engine/db"
 import {
+import Redis from 'ioredis'
   getCalendarConfig,
   listCalendarEvents,
   type CalendarEvent,
@@ -242,18 +243,31 @@ async function createAppointmentFromEvent(
 // --------------- Main ---------------
 
 async function main() {
-  console.log("[calendar-sync] Starting bidirectional sync...")
-
-  const activeTenants = await db
-    .select()
-    .from(tenants)
-    .where(and(eq(tenants.isActive, true), isNull(tenants.deletedAt)))
-
-  for (const tenant of activeTenants) {
-    await syncTenantCalendar(tenant)
+  const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379')
+  const LOCK_KEY = 'lock:calendar-sync'
+  const acquired = await redis.set(LOCK_KEY, Date.now().toString(), 'EX', 300, 'NX')
+  if (!acquired) {
+    console.log("[calendar-sync] Already running, skipping.")
+    await redis.quit()
+    process.exit(0)
   }
+  try {
+    console.log("[calendar-sync] Starting bidirectional sync...")
 
-  console.log("[calendar-sync] Sync complete")
+    const activeTenants = await db
+      .select()
+      .from(tenants)
+      .where(and(eq(tenants.isActive, true), isNull(tenants.deletedAt)))
+
+    for (const tenant of activeTenants) {
+      await syncTenantCalendar(tenant)
+    }
+
+    console.log("[calendar-sync] Sync complete")
+  } finally {
+    await redis.del(LOCK_KEY)
+    await redis.quit()
+  }
   process.exit(0)
 }
 
