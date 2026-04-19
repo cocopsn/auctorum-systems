@@ -7,6 +7,39 @@ import { sql } from 'drizzle-orm';
 import type { ToolCallResult } from './tools';
 
 const TZ = 'America/Monterrey';
+// ============================================================
+// Input Sanitization (H-4)
+// ============================================================
+function sanitizeString(s: unknown, maxLen = 500): string {
+  if (typeof s !== 'string') return '';
+  return s.slice(0, maxLen).replace(/<[^>]*>/g, '').trim();
+}
+
+function isValidDate(s: unknown): s is string {
+  return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
+}
+
+function isValidTime(s: unknown): s is string {
+  return typeof s === 'string' && /^\d{2}:\d{2}(:\d{2})?$/.test(s);
+}
+
+function isValidUUID(s: unknown): s is string {
+  return typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+}
+
+function sanitizePhone(s: unknown): string {
+  if (typeof s !== 'string') return '';
+  const digits = s.replace(/\D/g, '');
+  if (digits.length < 7 || digits.length > 15) return '';
+  return digits;
+}
+
+function clampDuration(n: unknown, min = 5, max = 480): number {
+  const val = typeof n === 'number' ? n : parseInt(String(n), 10);
+  if (isNaN(val) || val < min) return 30; // default
+  return Math.min(val, max);
+}
+
 
 // ============================================================
 // Helpers
@@ -223,18 +256,19 @@ export async function executeCreateAppointment(
     reason: string;
   }
 ): Promise<ToolCallResult> {
-  const {
-    patient_name,
-    patient_phone,
-    patient_email,
-    date,
-    time,
-    duration_min = 30,
-    reason,
-  } = args;
+  const patient_name = sanitizeString(args.patient_name, 200);
+  const patient_phone = sanitizePhone(args.patient_phone);
+  const patient_email = args.patient_email ? sanitizeString(args.patient_email, 254) : undefined;
+  const date = String(args.date || '');
+  const time = String(args.time || '');
+  const duration_min = clampDuration(args.duration_min);
+  const reason = sanitizeString(args.reason, 500);
 
   try {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    if (!patient_phone) {
+      return { tool: 'create_appointment', success: false, result: {}, error: 'Teléfono inválido.' };
+    }
+    if (!isValidDate(date)) {
       return {
         tool: 'create_appointment',
         success: false,
@@ -483,7 +517,9 @@ export async function executeEscalateToHuman(
     patient_message?: string;
   }
 ): Promise<ToolCallResult> {
-  const { reason, urgency, patient_message = '' } = args;
+  const reason = sanitizeString(args.reason, 500);
+  const urgency = ['low', 'medium', 'high', 'emergency'].includes(args.urgency) ? args.urgency : 'low';
+  const patient_message = sanitizeString(args.patient_message || '', 200);
 
   try {
     // C-4: Notification inside withTenant transaction
@@ -539,8 +575,8 @@ export async function executeConfirmAppointment(
   tenant: Tenant,
   args: { appointment_id?: string; patient_phone: string }
 ): Promise<ToolCallResult> {
-  const { appointment_id, patient_phone } = args;
-  const phoneNormalized = patient_phone.replace(/\D/g, '');
+  const appointment_id = args.appointment_id && isValidUUID(args.appointment_id) ? args.appointment_id : undefined;
+  const phoneNormalized = sanitizePhone(args.patient_phone);
 
   try {
     let apptId = appointment_id;
@@ -629,8 +665,9 @@ export async function executeCancelAppointment(
   tenant: Tenant,
   args: { appointment_id?: string; patient_phone: string; reason?: string }
 ): Promise<ToolCallResult> {
-  const { appointment_id, patient_phone, reason } = args;
-  const phoneNormalized = patient_phone.replace(/\D/g, '');
+  const appointment_id = args.appointment_id && isValidUUID(args.appointment_id) ? args.appointment_id : undefined;
+  const reason = args.reason ? sanitizeString(args.reason, 500) : undefined;
+  const phoneNormalized = sanitizePhone(args.patient_phone);
 
   try {
     let apptId = appointment_id;
