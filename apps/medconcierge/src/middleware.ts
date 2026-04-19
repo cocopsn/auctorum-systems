@@ -82,13 +82,7 @@ async function handleRequest(request: NextRequest) {
   // 1. Skip static assets and API routes
   if (isStaticOrApi(pathname)) return NextResponse.next()
 
-  // 2. Portal rewrite pass-through: if this is an internal rewritten request, let it through
-  if (request.nextUrl.searchParams.get('_portal') === '1') {
-    const response = NextResponse.next()
-    const slugFromPath = pathname.split('/')[1]
-    if (slugFromPath) response.headers.set('x-tenant-slug', slugFromPath)
-    return response
-  }
+  // 2. (Removed: _portal bypass was a security vulnerability)
 
   // 3. Extract subdomain slug
   let slug: string | null = null
