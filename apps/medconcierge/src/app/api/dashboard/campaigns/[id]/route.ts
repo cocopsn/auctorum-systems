@@ -18,10 +18,10 @@ const UpdateCampaignSchema = z.object({
 
 export async function PATCH(
   request: NextRequest,
-  {
-  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
- params }: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) {
@@ -113,10 +113,10 @@ export async function PATCH(
 // Hard delete a draft campaign
 export async function DELETE(
   request: NextRequest,
-  {
-  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
- params }: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) {

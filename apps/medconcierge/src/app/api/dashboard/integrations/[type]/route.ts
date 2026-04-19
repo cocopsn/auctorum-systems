@@ -17,10 +17,10 @@ const ActionSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  {
-  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
- params }: { params: { type: string } }
+  { params }: { params: { type: string } }
 ) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) {

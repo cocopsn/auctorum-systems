@@ -11,10 +11,10 @@ import { validateOrigin } from '@/lib/csrf'
 // "Send" a campaign — MVP: count matching clients, mark as completed immediately
 export async function POST(
   request: NextRequest,
-  {
-  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
- params }: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) {

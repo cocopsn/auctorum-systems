@@ -7,9 +7,9 @@ import { getAuthTenant } from "@/lib/auth"
 import { z } from "zod"
 import { validateOrigin } from '@/lib/csrf'
 
-export async function PUT(req: NextRequest, {
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
- params }: { params: { id: string } }) {
+
   try {
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
@@ -43,9 +43,9 @@ export async function PUT(req: NextRequest, {
   }
 }
 
-export async function DELETE(req: NextRequest, {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
- params }: { params: { id: string } }) {
+
   try {
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
