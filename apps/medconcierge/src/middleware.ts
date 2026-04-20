@@ -7,7 +7,7 @@ const DASHBOARD_ROUTES = [
   '/citas', '/pacientes', '/horarios', '/notas', '/settings',
   '/agenda', '/ai-settings', '/portal', '/integrations', '/conversaciones',
   '/recordatorios', '/funnel', '/reports', '/follow-ups', '/budgets',
-  '/payments', '/invoices', '/campaigns', '/dashboard',
+  '/payments', '/invoices', '/campaigns', '/dashboard', '/admin',
 ]
 
 function isDashboardRoute(pathname: string): boolean {
