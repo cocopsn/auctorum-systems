@@ -102,7 +102,7 @@ export const WHATSAPP_TOOLS = [
     function: {
       name: 'escalate_to_human',
       description:
-        'Escala la conversación a un humano (la doctora o staff). Úsalo cuando: (1) el paciente menciona síntomas graves (dolor intenso, sangrado activo, dificultad respiratoria, desmayo, accidente, emergencia), (2) el paciente pide explícitamente hablar con la doctora o un humano, (3) la conversación excede tu capacidad (preguntas médicas complejas, quejas formales).',
+        "Escala la conversación a un humano (la doctora o staff). Úsalo cuando: (1) EMERGENCIA REAL: dolor torácico combinado con dificultad respiratoria, pérdida de conciencia, sangrado incontrolable, reacción alérgica severa, ideación suicida (urgency=emergency). (2) El paciente pide explícitamente hablar con la doctora (urgency=medium). (3) Preguntas médicas complejas que exceden tu capacidad (urgency=low). IMPORTANTE: Dolor simple y localizado (muela, cabeza, espalda, rodilla, estómago) NO es emergencia, es motivo de consulta, ofrece agendar cita.",
       parameters: {
         type: 'object',
         properties: {
