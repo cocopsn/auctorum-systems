@@ -11,10 +11,34 @@ import { eq, and, sql } from 'drizzle-orm'
 import { sendWhatsAppMessage } from '@quote-engine/notifications/whatsapp'
 
 const MAX_REMINDER_RETRIES = 3  // L-5: Max retries before giving up
+const DEFAULT_TIMEZONE = 'America/Monterrey'
+
+/**
+ * Format a Date as 'YYYY-MM-DD HH:MM:SS' in a given timezone.
+ * This is critical because appointments.date + appointments.start_time
+ * are stored as naive local time (no timezone info), so comparisons
+ * must use the same local time, NOT UTC.
+ */
+function formatLocalTimestamp(date: Date, tz: string = DEFAULT_TIMEZONE): string {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: tz,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date)
+
+  const get = (type: string) => parts.find(p => p.type === type)?.value || ''
+  return `${get('year')}-${get('month')}-${get('day')} ${get('hour')}:${get('minute')}:${get('second')}`
+}
 
 async function sendReminders() {
   const now = new Date()
-  console.log(`[appointment-reminders] Starting at ${now.toISOString()}`)
+  const nowLocal = formatLocalTimestamp(now)
+  console.log(`[appointment-reminders] Starting at ${now.toISOString()} (local: ${nowLocal} ${DEFAULT_TIMEZONE})`)
 
   // ============================================================
   // 24-hour reminders
@@ -22,6 +46,12 @@ async function sendReminders() {
   // ============================================================
   const in23h = new Date(now.getTime() + 23 * 60 * 60 * 1000)
   const in25h = new Date(now.getTime() + 25 * 60 * 60 * 1000)
+
+  // Format in local timezone to match naive DB timestamps
+  const in23hLocal = formatLocalTimestamp(in23h)
+  const in25hLocal = formatLocalTimestamp(in25h)
+
+  console.log(`[appointment-reminders] 24h window: ${in23hLocal} to ${in25hLocal}`)
 
   const upcoming24h = await db
     .select({
@@ -34,7 +64,7 @@ async function sendReminders() {
       and(
         sql`${appointments.status} IN ('scheduled', 'confirmed')`,
         eq(appointments.reminder24hSent, false),
-        sql`(${appointments.date}::date + ${appointments.startTime}::time) BETWEEN ${in23h.toISOString()}::timestamp AND ${in25h.toISOString()}::timestamp`
+        sql`(${appointments.date}::date + ${appointments.startTime}::time) BETWEEN ${in23hLocal}::timestamp AND ${in25hLocal}::timestamp`
       )
     )
 
@@ -88,8 +118,6 @@ async function sendReminders() {
       }
     } catch (err) {
       console.error(`[appointment-reminders] Error sending 24h reminder for appointment ${appointment.id}:`, err)
-      // L-5: Failed sends are retried on next cron run (L-3). Consider adding
-      // a reminder_retry_count column to cap retries at MAX_REMINDER_RETRIES.
     }
   }
 
@@ -99,6 +127,12 @@ async function sendReminders() {
   // ============================================================
   const in45m = new Date(now.getTime() + 45 * 60 * 1000)
   const in75m = new Date(now.getTime() + 75 * 60 * 1000)
+
+  // Format in local timezone to match naive DB timestamps
+  const in45mLocal = formatLocalTimestamp(in45m)
+  const in75mLocal = formatLocalTimestamp(in75m)
+
+  console.log(`[appointment-reminders] 1h window: ${in45mLocal} to ${in75mLocal}`)
 
   const upcoming1h = await db
     .select({
@@ -111,7 +145,7 @@ async function sendReminders() {
       and(
         sql`${appointments.status} IN ('scheduled', 'confirmed')`,
         eq(appointments.reminder2hSent, false),
-        sql`(${appointments.date}::date + ${appointments.startTime}::time) BETWEEN ${in45m.toISOString()}::timestamp AND ${in75m.toISOString()}::timestamp`
+        sql`(${appointments.date}::date + ${appointments.startTime}::time) BETWEEN ${in45mLocal}::timestamp AND ${in75mLocal}::timestamp`
       )
     )
 
@@ -165,12 +199,13 @@ async function sendReminders() {
 
   console.log(JSON.stringify({
     timestamp: new Date().toISOString(),
+    localTime: formatLocalTimestamp(new Date()),
     action: 'appointment_reminders',
     reminders24h: { found: upcoming24h.length, sent: reminders24hSent },
     reminders1h: { found: upcoming1h.length, sent: reminders1hSent },
   }))
 
-  console.log(`[appointment-reminders] Done at ${new Date().toISOString()}`)
+  console.log(`[appointment-reminders] Done at ${new Date().toISOString()} (local: ${formatLocalTimestamp(new Date())})`)
 }
 
 sendReminders()
