@@ -10,11 +10,11 @@
 import { eq, and, sql, isNull, isNotNull } from "drizzle-orm"
 import { db, tenants, appointments, patients, appointmentEvents } from "@quote-engine/db"
 import {
-import Redis from 'ioredis'
   getCalendarConfig,
   listCalendarEvents,
   type CalendarEvent,
 } from "../apps/medconcierge/src/lib/google-calendar"
+import Redis from 'ioredis'
 
 // --------------- Helpers ---------------
 
@@ -41,7 +41,7 @@ function extractPatientName(summary: string): string | null {
 
 async function syncTenantCalendar(tenant: any) {
   const config = (tenant.config as Record<string, any>) || {}
-  const calConfig = getCalendarConfig(config)
+  const calConfig = getCalendarConfig(config, tenant.id)
   if (!calConfig) return
 
   const now = new Date()
@@ -51,7 +51,8 @@ async function syncTenantCalendar(tenant: any) {
     const events = await listCalendarEvents(
       now.toISOString(),
       twoWeeksLater.toISOString(),
-      config
+      config,
+      tenant.id,
     )
 
     console.log(`[calendar-sync] ${tenant.slug}: ${events.length} events from GCal`)
@@ -194,8 +195,19 @@ async function syncTenantCalendar(tenant: any) {
         console.log(`[calendar-sync] ${tenant.slug}: cancelled appointment ${appt.id} (GCal event ${appt.googleEventId} no longer exists)`)
       }
     }
-  } catch (e) {
-    console.error(`[calendar-sync] ${tenant.slug} error:`, e)
+  } catch (e: any) {
+    // If OAuth token is invalid, mark calendar as disconnected
+    if (e?.message?.includes('invalid_grant') || e?.message?.includes('Token has been expired or revoked')) {
+      console.error(`[calendar-sync] ${tenant.slug}: OAuth token revoked, marking disconnected`)
+      const tenantConfig = (tenant.config as Record<string, any>) || {}
+      if (tenantConfig.googleCalendar?.oauth) {
+        delete tenantConfig.googleCalendar.oauth
+        delete tenantConfig.googleCalendar.mode
+        await db.update(tenants).set({ config: tenantConfig, updatedAt: new Date() }).where(eq(tenants.id, tenant.id))
+      }
+    } else {
+      console.error(`[calendar-sync] ${tenant.slug} error:`, e)
+    }
   }
 }
 
