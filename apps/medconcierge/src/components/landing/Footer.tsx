@@ -78,6 +78,7 @@ export default function Footer({ doctorName, specialty, address, phone, schedule
             <a href="/privacy" className="hover:text-white/70 transition-colors">Aviso de Privacidad</a>
             <a href="/terms" className="hover:text-white/70 transition-colors">Términos y Condiciones</a>
             <a href="/cookies" className="hover:text-white/70 transition-colors">Política de Cookies</a>
+            <a href="/ai-policy" className="hover:text-white/70 transition-colors">Política de IA</a>
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between gap-2">
             <p className="text-xs text-white/40">&copy; {new Date().getFullYear()} {doctorName} &mdash; {specialty}. Todos los derechos reservados.</p>

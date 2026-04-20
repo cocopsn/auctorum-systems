@@ -17,15 +17,17 @@ export function Footer() {
           <div>
             <h4 className="text-sm font-semibold text-white mb-4">Empresa</h4>
             <div className="space-y-3">
-              <span className="block text-sm text-slate-400">Sobre nosotros</span>
-              <span className="block text-sm text-slate-400">Blog</span>
+              <Link href="/about" className="block text-sm text-slate-400 hover:text-white transition-colors">Sobre nosotros</Link>
+              <a href="mailto:sistema@auctorum.com.mx" className="block text-sm text-slate-400 hover:text-white transition-colors">Contacto</a>
             </div>
           </div>
           <div>
             <h4 className="text-sm font-semibold text-white mb-4">Legal</h4>
             <div className="space-y-3">
-              <span className="block text-sm text-slate-400">Aviso de Privacidad</span>
-              <span className="block text-sm text-slate-400">Términos de Servicio</span>
+              <a href="https://dra-martinez.auctorum.com.mx/privacy" className="block text-sm text-slate-400 hover:text-white transition-colors">Aviso de Privacidad</a>
+              <a href="https://dra-martinez.auctorum.com.mx/terms" className="block text-sm text-slate-400 hover:text-white transition-colors">Términos y Condiciones</a>
+              <a href="https://dra-martinez.auctorum.com.mx/cookies" className="block text-sm text-slate-400 hover:text-white transition-colors">Política de Cookies</a>
+              <a href="https://dra-martinez.auctorum.com.mx/ai-policy" className="block text-sm text-slate-400 hover:text-white transition-colors">Política de IA</a>
             </div>
           </div>
           <div>

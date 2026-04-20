@@ -28,6 +28,7 @@ export function PortalFooter({ contact }: { contact: ContactInfo }) {
           <a href="/privacy" className="hover:text-[var(--text-secondary)] transition-colors">Aviso de Privacidad</a>
           <a href="/terms" className="hover:text-[var(--text-secondary)] transition-colors">Términos y Condiciones</a>
           <a href="/cookies" className="hover:text-[var(--text-secondary)] transition-colors">Política de Cookies</a>
+          <a href="/ai-policy" className="hover:text-[var(--text-secondary)] transition-colors">Política de IA</a>
         </div>
         <p className="mt-2 text-[11px] text-[var(--text-tertiary)]/50">
           Powered by{' '}

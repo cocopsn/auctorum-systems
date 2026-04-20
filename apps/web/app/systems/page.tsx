@@ -577,14 +577,24 @@ export default function SystemsPage() {
               </h4>
               <ul className="mt-4 space-y-2">
                 <li>
-                  <Link href="/privacy" className="text-sm text-slate-400 hover:text-white transition-colors">
+                  <a href="https://dra-martinez.auctorum.com.mx/privacy" className="text-sm text-slate-400 hover:text-white transition-colors">
                     Aviso de Privacidad
-                  </Link>
+                  </a>
                 </li>
                 <li>
-                  <Link href="/terms" className="text-sm text-slate-400 hover:text-white transition-colors">
-                    Términos de Servicio
-                  </Link>
+                  <a href="https://dra-martinez.auctorum.com.mx/terms" className="text-sm text-slate-400 hover:text-white transition-colors">
+                    Términos y Condiciones
+                  </a>
+                </li>
+                <li>
+                  <a href="https://dra-martinez.auctorum.com.mx/cookies" className="text-sm text-slate-400 hover:text-white transition-colors">
+                    Política de Cookies
+                  </a>
+                </li>
+                <li>
+                  <a href="https://dra-martinez.auctorum.com.mx/ai-policy" className="text-sm text-slate-400 hover:text-white transition-colors">
+                    Política de IA
+                  </a>
                 </li>
               </ul>
             </div>
