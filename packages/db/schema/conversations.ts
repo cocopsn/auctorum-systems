@@ -2,6 +2,7 @@ import { pgTable, uuid, varchar, boolean, integer, timestamp, index } from 'driz
 import { tenants } from './tenants'
 import { clients } from './clients'
 import { users } from './users'
+import { doctors } from './doctors'
 
 /**
  * Conversations — top-level threads between a tenant and a client across any channel.
@@ -14,6 +15,7 @@ export const conversations = pgTable('conversations', {
   channel: varchar('channel', { length: 30 }).notNull().default('whatsapp'), // whatsapp|web|telegram|facebook|instagram|sms|phone
   status: varchar('status', { length: 20 }).notNull().default('open'), // open|closed|archived
   assignedTo: uuid('assigned_to').references(() => users.id, { onDelete: 'set null' }),
+  doctorId: uuid('doctor_id').references(() => doctors.id, { onDelete: 'set null' }),
   botPaused: boolean('bot_paused').notNull().default(false),
   lastMessageAt: timestamp('last_message_at', { withTimezone: true }),
   unreadCount: integer('unread_count').notNull().default(0),

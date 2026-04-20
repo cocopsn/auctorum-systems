@@ -18,6 +18,7 @@ import {
   notifications,
   type Tenant,
   botInstances,
+  doctors,
 } from '../packages/db/index';
 import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 import {
@@ -27,6 +28,7 @@ import {
   searchKnowledgeBase,
   buildTenantSystemPrompt,
   checkTenantBudget,
+  setDoctorContext,
 } from '../packages/ai/index';
 
 const DEFAULT_TIMEZONE = process.env.DEFAULT_TIMEZONE || 'America/Monterrey'
@@ -345,10 +347,54 @@ NUNCA asumas que "tienes todo" y respondas confirmando. La confirmación requier
 tool execution exitosa.
 `;
 
+
+  // ============ MULTI-DOCTOR CONTEXT ============
+  const tenantDoctors = await db.select().from(doctors).where(and(eq(doctors.tenantId, tenantId), eq(doctors.isActive, true)));
+
+  // Detect previously selected doctor from conversation
+  let selectedDoctor = null;
+  if (tenantDoctors.length > 1 && (conversation as any).doctorId) {
+    selectedDoctor = tenantDoctors.find(d => d.id === (conversation as any).doctorId) || null;
+  }
+
+  // Set context for tool executors
+  setDoctorContext({
+    doctors: tenantDoctors,
+    selectedDoctor,
+    conversationId: conversation.id,
+  });
+
+  // Multi-doctor prompt injection
+  let multiDoctorPrompt = '';
+  if (tenantDoctors.length > 1) {
+    const doctorList = tenantDoctors.map((d, i) => `${i + 1}. ${d.name}${d.specialty ? ' - ' + d.specialty : ''}`).join('\n');
+    const selectedInfo = selectedDoctor ? `DOCTOR SELECCIONADO PARA ESTA CONVERSACION: ${selectedDoctor.name} (ID: ${selectedDoctor.id})` : 'DOCTOR SELECCIONADO: Ninguno aun';
+    multiDoctorPrompt = `
+
+===== CONSULTORIO MULTI-DOCTOR =====
+
+Este consultorio tiene ${tenantDoctors.length} doctores:
+${doctorList}
+
+FLUJO MULTI-DOCTOR OBLIGATORIO:
+1. Si el paciente NO ha elegido doctor aun, PREGUNTA: "Tenemos ${tenantDoctors.length} doctores disponibles. Con cual desea agendar?" y lista los nombres.
+2. Cuando el paciente diga un nombre, llama select_doctor(doctor_name) INMEDIATAMENTE.
+3. Una vez seleccionado, usa SOLO el calendario de ese doctor para check_availability y create_appointment.
+4. Pasa doctor_id en check_availability y create_appointment.
+5. Si el paciente pregunta algo general (horarios, direccion, costos), responde SIN requerir seleccion de doctor.
+6. Si el paciente dice "quiero cambiar de doctor", permite cambiar llamando select_doctor con el nuevo nombre.
+
+${selectedInfo}
+`;
+  } else if (tenantDoctors.length === 1) {
+    // Single doctor - auto-select silently
+    setDoctorContext({ doctors: tenantDoctors, selectedDoctor: tenantDoctors[0], conversationId: conversation.id });
+  }
+
   const systemPromptOverride = buildTenantSystemPrompt({
     tenant,
     ragChunks: ragChunks.map((c) => c.content),
-    customInstructions: (settings.systemPrompt ?? '') + contextInjection,
+    customInstructions: (settings.systemPrompt ?? '') + contextInjection + multiDoctorPrompt,
   });
 
   // Call OpenAI with function calling tools

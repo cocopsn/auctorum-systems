@@ -1,11 +1,13 @@
 import { pgTable, uuid, varchar, text, date, time, decimal, boolean, timestamp, index } from 'drizzle-orm/pg-core'
 import { tenants } from './tenants'
 import { patients } from './patients'
+import { doctors } from './doctors'
 
 export const appointments = pgTable('appointments', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
   patientId: uuid('patient_id').notNull().references(() => patients.id),
+  doctorId: uuid('doctor_id').references(() => doctors.id),
   date: date('date').notNull(),
   startTime: time('start_time').notNull(),
   endTime: time('end_time').notNull(),
@@ -32,6 +34,7 @@ export const appointments = pgTable('appointments', {
   tenantDateIdx: index('idx_appointments_tenant_date').on(table.tenantId, table.date),
   patientIdx: index('idx_appointments_patient').on(table.patientId),
   tenantStatusIdx: index('idx_appointments_status').on(table.tenantId, table.status),
+  doctorIdx: index('idx_appointments_doctor').on(table.doctorId),
 }))
 
 export type Appointment = typeof appointments.$inferSelect
