@@ -24,7 +24,12 @@ export function PortalFooter({ contact }: { contact: ContactInfo }) {
             <span>{contact.address}</span>
           )}
         </div>
-        <p className="mt-4 text-[11px] text-[var(--text-tertiary)]/50">
+        <div className="flex flex-wrap gap-4 mt-4 text-[11px] text-[var(--text-tertiary)]">
+          <a href="/privacy" className="hover:text-[var(--text-secondary)] transition-colors">Aviso de Privacidad</a>
+          <a href="/terms" className="hover:text-[var(--text-secondary)] transition-colors">Términos y Condiciones</a>
+          <a href="/cookies" className="hover:text-[var(--text-secondary)] transition-colors">Política de Cookies</a>
+        </div>
+        <p className="mt-2 text-[11px] text-[var(--text-tertiary)]/50">
           Powered by{' '}
           <a href="https://auctorum.com.mx" className="hover:text-[var(--text-secondary)] transition-colors">
             Auctorum Systems

@@ -11,11 +11,13 @@
   "dependencies": {
     "@quote-engine/ai": "workspace:*",
     "@quote-engine/db": "workspace:*",
+    "@quote-engine/events": "workspace:*",
     "@quote-engine/notifications": "workspace:*",
+    "@quote-engine/payments": "workspace:*",
     "@quote-engine/pdf": "workspace:*",
     "@quote-engine/ui": "workspace:*",
-    "@quote-engine/events": "workspace:*",
     "@react-pdf/renderer": "^3.4.0",
+    "@stripe/stripe-js": "^9.2.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
     "clsx": "^2.1.1",
@@ -28,8 +30,7 @@
     "react-dom": "^18.3.0",
     "resend": "^3.2.0",
     "tailwind-merge": "^3.5.0",
-    "zod": "^3.23.0",
-    "@quote-engine/payments": "workspace:*"
+    "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",

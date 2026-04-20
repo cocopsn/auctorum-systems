@@ -380,9 +380,9 @@ export default function SystemsPage() {
           </h2>
 
           <div className="grid md:grid-cols-3 gap-8 mt-12 max-w-5xl mx-auto">
-            {/* Free Plan */}
+            {/* Plan Básico */}
             <div className="bg-white rounded-2xl p-8 border border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900">Free</h3>
+              <h3 className="text-lg font-semibold text-slate-900">Básico</h3>
               <div className="mt-4">
                 <span className="text-4xl font-bold text-slate-900">$1,400</span>
                 <span className="text-slate-500 ml-1">/mes</span>

@@ -45,7 +45,7 @@ module.exports = {
       script: 'node_modules/next/dist/bin/next',
       args: 'start -H 127.0.0.1 -p 3000',
       instances: 1,
-      exec_mode: 'cluster',
+      exec_mode: 'fork',
       max_memory_restart: '512M',
       node_args: '--max-old-space-size=600',
       env: {
@@ -68,7 +68,7 @@ module.exports = {
       script: 'node_modules/next/dist/bin/next',
       args: 'start -H 127.0.0.1 -p 3001',
       instances: 1,
-      exec_mode: 'cluster',
+      exec_mode: 'fork',
       max_memory_restart: '512M',
       node_args: '--max-old-space-size=600',
       env: {

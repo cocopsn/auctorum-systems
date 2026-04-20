@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await db.execute(
-      sql`SELECT id, tenant_id, plan, status, amount, currency, billing_cycle, current_period_start, current_period_end, payment_method, processor_subscription_id, grace_period_days, cancelled_at, created_at, updated_at FROM subscriptions WHERE tenant_id = ${auth.tenant.id}`
+      sql`SELECT id, tenant_id, plan, status, amount, currency, billing_cycle, current_period_start, current_period_end, payment_method, processor_subscription_id, stripe_customer_id, grace_period_days, cancelled_at, created_at, updated_at FROM subscriptions WHERE tenant_id = ${auth.tenant.id}`
     ) as any[];
 
     const row = result[0] ?? null;
@@ -89,7 +89,7 @@ export async function PATCH(request: NextRequest) {
 
     // Fetch updated subscription
     const result = await db.execute(
-      sql`SELECT id, tenant_id, plan, status, amount, currency, billing_cycle, current_period_start, current_period_end, payment_method, processor_subscription_id, grace_period_days, cancelled_at, created_at, updated_at FROM subscriptions WHERE tenant_id = ${auth.tenant.id}`
+      sql`SELECT id, tenant_id, plan, status, amount, currency, billing_cycle, current_period_start, current_period_end, payment_method, processor_subscription_id, stripe_customer_id, grace_period_days, cancelled_at, created_at, updated_at FROM subscriptions WHERE tenant_id = ${auth.tenant.id}`
     ) as any[];
 
     return NextResponse.json({ subscription: result[0] ?? null });

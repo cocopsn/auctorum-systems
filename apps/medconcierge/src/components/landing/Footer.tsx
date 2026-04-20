@@ -73,9 +73,16 @@ export default function Footer({ doctorName, specialty, address, phone, schedule
             )}
           </div>
         </div>
-        <div className="border-t border-white/10 mt-10 pt-6 flex flex-col md:flex-row items-center justify-between gap-2">
-          <p className="text-xs text-white/40">&copy; {new Date().getFullYear()} {doctorName} &mdash; {specialty}. Todos los derechos reservados.</p>
-          <p className="text-xs text-white/30">Powered by <span className="text-teal-400">AUCTORUM</span> Systems</p>
+        <div className="border-t border-white/10 mt-10 pt-6 space-y-3">
+          <div className="flex flex-wrap justify-center gap-4 text-xs text-white/40">
+            <a href="/privacy" className="hover:text-white/70 transition-colors">Aviso de Privacidad</a>
+            <a href="/terms" className="hover:text-white/70 transition-colors">Términos y Condiciones</a>
+            <a href="/cookies" className="hover:text-white/70 transition-colors">Política de Cookies</a>
+          </div>
+          <div className="flex flex-col md:flex-row items-center justify-between gap-2">
+            <p className="text-xs text-white/40">&copy; {new Date().getFullYear()} {doctorName} &mdash; {specialty}. Todos los derechos reservados.</p>
+            <p className="text-xs text-white/30">Powered by <span className="text-teal-400">AUCTORUM</span> Systems</p>
+          </div>
         </div>
       </div>
     </footer>

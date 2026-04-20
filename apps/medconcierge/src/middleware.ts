@@ -14,6 +14,8 @@ function isDashboardRoute(pathname: string): boolean {
   return DASHBOARD_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))
 }
 
+const LEGAL_ROUTES = ['/privacy', '/terms', '/ai-policy', '/cookies', '/data-deletion']
+
 function isStaticOrApi(pathname: string): boolean {
   if (pathname.startsWith('/_next')) return true
   if (pathname.startsWith('/api/')) return true
@@ -55,6 +57,7 @@ export async function middleware(request: NextRequest) {
     // Public routes (landing, login, agendar, webhooks, health) still pass through.
     const path = request.nextUrl.pathname
     const isPublicRoute = path === '/' || path === '/login' || path.startsWith('/agendar')
+      || LEGAL_ROUTES.includes(path)
       || path.startsWith('/api/wa/') || path.startsWith('/api/health')
       || path.startsWith('/_next') || /\.(ico|png|jpg|svg|css|js|woff2?)$/.test(path)
     if (isPublicRoute) {
@@ -101,6 +104,9 @@ async function handleRequest(request: NextRequest) {
 
   // 4. /login always public
   if (pathname === '/login') return NextResponse.next()
+
+  // 4b. Legal pages — always public (no auth required)
+  if (LEGAL_ROUTES.includes(pathname)) return NextResponse.next()
 
   // 5. Landing page: root path on subdomain shows the public landing
   if (slug && pathname === '/') {
