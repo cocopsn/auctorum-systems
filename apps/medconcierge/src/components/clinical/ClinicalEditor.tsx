@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { useEditor, EditorContent } from "@tiptap/react"
+import { useEditor, EditorContent, ReactNodeViewRenderer } from "@tiptap/react"
 import StarterKit from "@tiptap/starter-kit"
 import Placeholder from "@tiptap/extension-placeholder"
 import Highlight from "@tiptap/extension-highlight"
@@ -14,6 +14,22 @@ import {
   List, ListOrdered, AlignLeft, AlignCenter, Heading2, Heading3,
   Check, Loader2, AlertCircle, ImagePlus, Printer, Download, X,
 } from "lucide-react"
+import { ResizableImage } from "./ResizableImage"
+
+// Custom Image extension with resize attributes + NodeView
+const ResizableImageExtension = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: { default: null, parseHTML: (el) => el.getAttribute("width") || el.style.width?.replace("px","") || null, renderHTML: (attrs) => attrs.width ? { width: attrs.width } : {} },
+      height: { default: null, parseHTML: (el) => el.getAttribute("height") || null, renderHTML: (attrs) => attrs.height ? { height: attrs.height } : {} },
+      align: { default: "center", parseHTML: (el) => el.getAttribute("data-align") || "center", renderHTML: (attrs) => ({ "data-align": attrs.align }) },
+    }
+  },
+  addNodeView() {
+    return ReactNodeViewRenderer(ResizableImage)
+  },
+})
 
 type FileWithUrl = {
   id: string
@@ -44,6 +60,8 @@ type ClinicalRecord = {
 type Props = {
   record: ClinicalRecord
   patientId: string
+  patientName?: string
+  doctorName?: string
   onSave?: () => void
 }
 
@@ -143,7 +161,72 @@ function SOAPEditor({
   )
 }
 
-export default function ClinicalEditor({ record, patientId, onSave }: Props) {
+/** Print only the clinical note via a hidden iframe */
+function printRecord(htmlContent: string, title: string, patientName: string, doctorName: string, dateStr: string) {
+  const iframe = document.createElement("iframe")
+  iframe.style.cssText = "position:fixed;top:-10000px;left:-10000px;width:0;height:0;"
+  document.body.appendChild(iframe)
+  const doc = iframe.contentDocument
+  if (!doc) { document.body.removeChild(iframe); return }
+  doc.open()
+  doc.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<title>${title} - ${patientName}</title>
+<style>
+  @page { size: letter; margin: 2cm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1e293b; line-height: 1.6; font-size: 12pt; margin: 0; padding: 0; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #0d9488; }
+  .header-left h1 { margin: 0; font-size: 16pt; color: #0d9488; }
+  .header-left p { margin: 2px 0; font-size: 10pt; color: #64748b; }
+  .header-right { text-align: right; font-size: 10pt; color: #64748b; }
+  .title { font-size: 14pt; font-weight: 700; margin: 16px 0 12px; color: #0f172a; }
+  .content h2 { font-size: 13pt; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+  .content h3 { font-size: 12pt; }
+  .content img { max-width: 100%; height: auto; border-radius: 6px; margin: 8px 0; }
+  .content table { border-collapse: collapse; width: 100%; }
+  .content td, .content th { border: 1px solid #ddd; padding: 6px 8px; }
+  .soap-section { margin-bottom: 14px; border-left: 4px solid #ccc; padding-left: 12px; }
+  .soap-section.s { border-color: #3B82F6; }
+  .soap-section.o { border-color: #22C55E; }
+  .soap-section.a { border-color: #F59E0B; }
+  .soap-section.p { border-color: #8B5CF6; }
+  .soap-label { font-size: 10pt; font-weight: bold; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .footer { margin-top: 32px; padding-top: 8px; border-top: 1px solid #e2e8f0; font-size: 8pt; color: #94a3b8; text-align: center; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-left">
+    <h1>${escapeForPrint(doctorName || "Consultorio")}</h1>
+    <p>Expediente Cl\u00ednico</p>
+  </div>
+  <div class="header-right">
+    <p>Paciente: ${escapeForPrint(patientName)}</p>
+    <p>${dateStr}</p>
+  </div>
+</div>
+<div class="title">${escapeForPrint(title)}</div>
+<div class="content">${htmlContent}</div>
+<div class="footer">Generado por AUCTORUM SYSTEMS &mdash; auctorum.com.mx</div>
+</body>
+</html>`)
+  doc.close()
+  iframe.contentWindow?.focus()
+  // Wait for images to load
+  setTimeout(() => {
+    iframe.contentWindow?.print()
+    setTimeout(() => document.body.removeChild(iframe), 2000)
+  }, 500)
+}
+
+function escapeForPrint(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+}
+
+export default function ClinicalEditor({ record, patientId, patientName, doctorName, onSave }: Props) {
   const [title, setTitle] = useState(record.title)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("saved")
   const [debouncedTitle] = useDebounce(title, 1500)
@@ -180,14 +263,14 @@ export default function ClinicalEditor({ record, patientId, onSave }: Props) {
       Highlight,
       Underline,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
-      Image.configure({ inline: true, allowBase64: false }),
+      ResizableImageExtension.configure({ inline: false, allowBase64: false }),
     ],
     content: record.content && typeof record.content === "object" && Object.keys(record.content).length > 0
       ? record.content
       : "<p></p>",
     editorProps: {
       attributes: {
-        class: "prose prose-sm max-w-none focus:outline-none min-h-[300px] px-8 py-6 text-[15px] leading-[1.8] [&_img]:rounded-lg [&_img]:shadow-md [&_img]:max-w-full [&_img]:h-auto [&_img]:cursor-pointer [&_img]:my-4",
+        class: "prose prose-sm max-w-none focus:outline-none min-h-[300px] px-8 py-6 text-[15px] leading-[1.8] [&_img]:rounded-lg [&_img]:shadow-md [&_img]:max-w-full [&_img]:h-auto [&_img]:my-4",
       },
       handleDrop: (view, event, _slice, moved) => {
         if (moved || !event.dataTransfer?.files?.length) return false
@@ -261,7 +344,12 @@ export default function ClinicalEditor({ record, patientId, onSave }: Props) {
   }
 
   function handlePrint() {
-    window.print()
+    if (!editor) return
+    const dateStr = new Intl.DateTimeFormat("es-MX", {
+      day: "numeric", month: "long", year: "numeric",
+    }).format(new Date(record.createdAt))
+    const htmlContent = editor.getHTML()
+    printRecord(htmlContent, title, patientName || "Paciente", doctorName || "Consultorio", dateStr)
   }
 
   const isSOAP = record.recordType === "soap"
@@ -299,7 +387,7 @@ export default function ClinicalEditor({ record, patientId, onSave }: Props) {
             </span>
           )}
         </div>
-        <button onClick={handlePrint} title="Imprimir" className="p-1.5 rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors print:hidden">
+        <button onClick={handlePrint} title="Imprimir nota" className="p-1.5 rounded text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors print:hidden">
           <Printer className="w-4 h-4" />
         </button>
         <button

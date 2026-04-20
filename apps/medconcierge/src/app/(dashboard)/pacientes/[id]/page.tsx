@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react"
 import { useParams } from "next/navigation"
-import { Loader2, User, Phone, Mail, Calendar, FileText, Stethoscope } from "lucide-react"
+import { Loader2, Phone, Mail, Calendar, FileText, Stethoscope, User } from "lucide-react"
 import { StatusBadge } from "@/components/dashboard/status-badge"
 import PatientDetailClient from "@/components/patients/PatientDetailClient"
 import PatientExpediente from "@/components/clinical/PatientExpediente"
+import { PatientAvatar } from "@/components/patients/PatientAvatar"
 
 type Tab = "expedientes" | "perfil" | "citas"
 
@@ -68,9 +69,14 @@ export default function PatientDetailPage() {
       {/* Patient Header */}
       <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-6 mb-4">
         <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0">
-            <User className="w-7 h-7 text-[var(--text-tertiary)]" />
-          </div>
+          <PatientAvatar
+            patientId={id}
+            currentAvatarUrl={patient.avatarUrl}
+            name={patient.name}
+            size="lg"
+            editable
+            onUpload={() => fetchData()}
+          />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-[var(--text-primary)] tracking-tight">{patient.name}</h1>
             <div className="flex flex-wrap gap-3 mt-1.5 text-sm text-[var(--text-secondary)]">
@@ -119,7 +125,7 @@ export default function PatientDetailPage() {
 
       {/* Tab Content */}
       {activeTab === "expedientes" && (
-        <PatientExpediente patientId={id} />
+        <PatientExpediente patientId={id} patientName={patient.name} />
       )}
 
       {activeTab === "perfil" && (

@@ -25,11 +25,12 @@ type ClinicalRecord = {
 
 type Props = {
   patientId: string
+  patientName?: string
 }
 
 type RightTab = "editor" | "timeline" | "files"
 
-export default function PatientExpediente({ patientId }: Props) {
+export default function PatientExpediente({ patientId, patientName }: Props) {
   const [selectedId, setSelectedId] = useState<string>("")
   const [selectedRecord, setSelectedRecord] = useState<ClinicalRecord | null>(null)
   const [rightTab, setRightTab] = useState<RightTab>("editor")
@@ -97,6 +98,7 @@ export default function PatientExpediente({ patientId }: Props) {
                 key={selectedRecord.id}
                 record={selectedRecord}
                 patientId={patientId}
+                patientName={patientName}
                 onSave={() => setListKey(k => k + 1)}
               />
             ) : (

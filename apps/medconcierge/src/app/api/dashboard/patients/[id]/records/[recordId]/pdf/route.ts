@@ -14,12 +14,23 @@ import Image from "@tiptap/extension-image"
 
 type RouteCtx = { params: { id: string; recordId: string } }
 
+const ResizableImageForHTML = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      width: { default: null, renderHTML: (attrs) => attrs.width ? { width: attrs.width } : {} },
+      height: { default: null, renderHTML: (attrs) => attrs.height ? { height: attrs.height } : {} },
+      align: { default: "center", renderHTML: (attrs) => ({ "data-align": attrs.align || "center" }) },
+    }
+  },
+})
+
 const extensions = [
   StarterKit.configure({ heading: { levels: [2, 3] } }),
   Highlight,
   Underline,
   TextAlign.configure({ types: ["heading", "paragraph"] }),
-  Image.configure({ inline: true }),
+  ResizableImageForHTML.configure({ inline: false }),
 ]
 
 export async function GET(_request: NextRequest, { params }: RouteCtx) {
@@ -141,6 +152,9 @@ export async function GET(_request: NextRequest, { params }: RouteCtx) {
   .content h2 { font-size: 16px; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
   .content h3 { font-size: 14px; }
   .content img { max-width: 100%; border-radius: 8px; margin: 8px 0; }
+  .content img[data-align="left"] { display: block; margin-left: 0; margin-right: auto; }
+  .content img[data-align="center"] { display: block; margin-left: auto; margin-right: auto; }
+  .content img[data-align="right"] { display: block; margin-left: auto; margin-right: 0; }
   .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; text-align: center; }
 </style>
 </head>
@@ -163,7 +177,7 @@ export async function GET(_request: NextRequest, { params }: RouteCtx) {
   <div class="content">${bodyHtml}</div>
   ${attachmentsHtml}
   <div class="footer">
-    Generado por ${escapeHtml(tenantName)} &mdash; Documento confidencial
+    Generado por ${escapeHtml(tenantName)} &mdash; Powered by AUCTORUM SYSTEMS &mdash; Documento confidencial
   </div>
 </body>
 </html>`
