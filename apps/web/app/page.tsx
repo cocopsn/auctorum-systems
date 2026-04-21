@@ -163,8 +163,10 @@ export default function HomePage() {
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Legal</h4>
               <div className="space-y-3">
-                <span className="block text-sm text-slate-500">Aviso de Privacidad</span>
-                <span className="block text-sm text-slate-500">Términos de Servicio</span>
+                <a href="/privacy" className="block text-sm text-slate-400 hover:text-white transition-colors">Aviso de Privacidad</a>
+                <a href="/terms" className="block text-sm text-slate-400 hover:text-white transition-colors">Términos y Condiciones</a>
+                <a href="/cookies" className="block text-sm text-slate-400 hover:text-white transition-colors">Política de Cookies</a>
+                <a href="/ai-policy" className="block text-sm text-slate-400 hover:text-white transition-colors">Política de IA</a>
               </div>
             </div>
             <div>

@@ -24,10 +24,10 @@ export function Footer() {
           <div>
             <h4 className="text-sm font-semibold text-white mb-4">Legal</h4>
             <div className="space-y-3">
-              <a href="https://dra-martinez.auctorum.com.mx/privacy" className="block text-sm text-slate-400 hover:text-white transition-colors">Aviso de Privacidad</a>
-              <a href="https://dra-martinez.auctorum.com.mx/terms" className="block text-sm text-slate-400 hover:text-white transition-colors">Términos y Condiciones</a>
-              <a href="https://dra-martinez.auctorum.com.mx/cookies" className="block text-sm text-slate-400 hover:text-white transition-colors">Política de Cookies</a>
-              <a href="https://dra-martinez.auctorum.com.mx/ai-policy" className="block text-sm text-slate-400 hover:text-white transition-colors">Política de IA</a>
+              <a href="/privacy" className="block text-sm text-slate-400 hover:text-white transition-colors">Aviso de Privacidad</a>
+              <a href="/terms" className="block text-sm text-slate-400 hover:text-white transition-colors">Términos y Condiciones</a>
+              <a href="/cookies" className="block text-sm text-slate-400 hover:text-white transition-colors">Política de Cookies</a>
+              <a href="/ai-policy" className="block text-sm text-slate-400 hover:text-white transition-colors">Política de IA</a>
             </div>
           </div>
           <div>
