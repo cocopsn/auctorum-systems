@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
   // KPIs
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
   const [kpis] = await db
     .select({

@@ -1,5 +1,6 @@
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
 import crypto from "crypto";
+import { timingSafeEqual } from "crypto";
 
 const mpClient = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN!,
@@ -86,5 +87,8 @@ export function verifyMPWebhook(
     .createHmac("sha256", process.env.MERCADOPAGO_CLIENT_SECRET!)
     .update(manifest)
     .digest("hex");
-  return expected === hash;
+  const expectedBuf = Buffer.from(expected, 'hex');
+  const hashBuf = Buffer.from(hash, 'hex');
+  if (expectedBuf.length !== hashBuf.length) return false;
+  return timingSafeEqual(expectedBuf, hashBuf);
 }

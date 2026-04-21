@@ -1,11 +1,18 @@
 export const dynamic = "force-dynamic"
 
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { sql } from "drizzle-orm"
 import { db } from "@quote-engine/db"
 import { requireRole } from "@/lib/auth"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // LOW-12: Optional secret header check
+  const secret = request.headers.get("x-health-secret");
+  const expected = process.env.HEALTH_CHECK_SECRET;
+  if (expected && secret !== expected) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const auth = await requireRole(["super_admin"])
   if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 403 })
 
@@ -20,20 +27,33 @@ export async function GET() {
       dbSizeMB: Math.round(Number(result.db_size) / 1024 / 1024),
     }
   } catch (err: any) {
-    checks.database = { status: "error", error: err.message }
+    console.error("[Health] DB check error:", err)
+    checks.database = { status: "error", error: "Database connection failed" }
   }
 
-  // Table counts
+  // Table counts — MED-16: replaced sql.raw() with parameterized sql`` template literals
   try {
-    const tables = ["tenants", "users", "patients", "appointments", "conversations", "messages", "clinical_records"]
     const counts: Record<string, number> = {}
-    for (const t of tables) {
-      const [r] = await db.execute(sql.raw(`SELECT count(*) as c FROM ${t}`))
-      counts[t] = Number(r.c)
-    }
+
+    const [c1] = await db.execute(sql`SELECT count(*) as c FROM tenants`)
+    counts.tenants = Number(c1.c)
+    const [c2] = await db.execute(sql`SELECT count(*) as c FROM users`)
+    counts.users = Number(c2.c)
+    const [c3] = await db.execute(sql`SELECT count(*) as c FROM patients`)
+    counts.patients = Number(c3.c)
+    const [c4] = await db.execute(sql`SELECT count(*) as c FROM appointments`)
+    counts.appointments = Number(c4.c)
+    const [c5] = await db.execute(sql`SELECT count(*) as c FROM conversations`)
+    counts.conversations = Number(c5.c)
+    const [c6] = await db.execute(sql`SELECT count(*) as c FROM messages`)
+    counts.messages = Number(c6.c)
+    const [c7] = await db.execute(sql`SELECT count(*) as c FROM clinical_records`)
+    counts.clinical_records = Number(c7.c)
+
     checks.tableCounts = counts
   } catch (err: any) {
-    checks.tableCounts = { error: err.message }
+    console.error("[Health] Table counts error:", err)
+    checks.tableCounts = { error: "Failed to retrieve table counts" }
   }
 
   // Redis check

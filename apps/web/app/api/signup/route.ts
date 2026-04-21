@@ -206,6 +206,7 @@ export async function POST(req: NextRequest) {
           tenantId: tenant.id,
           specialty: specialty || 'Medicina general',
           subSpecialty: '',
+          name: doctorName || fullName,
           bio: doctorName || fullName,
         })
 

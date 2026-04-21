@@ -1,3 +1,4 @@
+export { auditLog } from './audit';
 export * from './schema';
 
 // Drizzle client setup — lazy initialization

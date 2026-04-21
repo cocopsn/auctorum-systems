@@ -5,31 +5,59 @@ import { getMPPayment, verifyMPWebhook, STRIPE_PLANS } from "@quote-engine/payme
 import { db } from "@quote-engine/db";
 import { sql } from "drizzle-orm";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
-  // Verify signature
-  const xSignature = req.headers.get("x-signature") || "";
-  const xRequestId = req.headers.get("x-request-id") || "";
+  // CRIT-01 FIX: Signature verification is now MANDATORY
+  const xSignature = req.headers.get("x-signature");
+  const xRequestId = req.headers.get("x-request-id");
+
+  if (!xSignature || !xRequestId) {
+    console.error("[MP Webhook] Missing x-signature or x-request-id header");
+    return NextResponse.json(
+      { error: "Missing required signature headers" },
+      { status: 400 }
+    );
+  }
 
   if (body.type === "payment" && body.data?.id) {
-    if (xSignature && xRequestId) {
-      const valid = verifyMPWebhook(xSignature, xRequestId, String(body.data.id));
-      if (!valid) {
-        console.error("[MP Webhook] Invalid signature");
-        return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
-      }
+    const valid = verifyMPWebhook(xSignature, xRequestId, String(body.data.id));
+    if (!valid) {
+      console.error("[MP Webhook] Invalid signature");
+      return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
     }
 
     try {
       const payment = await getMPPayment(String(body.data.id));
 
       if (payment.status === "approved") {
-        const extRef = JSON.parse(
-          (payment as any).external_reference || "{}"
-        );
-        const tenantId = extRef.tenant_id;
+        // Safe-parse external_reference
+        let extRef: Record<string, unknown>;
+        try {
+          extRef = JSON.parse(
+            (payment as any).external_reference || "{}"
+          );
+        } catch (parseErr) {
+          console.error("[MP Webhook] Malformed external_reference:", parseErr);
+          return NextResponse.json(
+            { error: "Malformed external_reference" },
+            { status: 400 }
+          );
+        }
+
+        const tenantId = extRef.tenant_id as string | undefined;
         const planId = extRef.plan_id as keyof typeof STRIPE_PLANS | undefined;
+
+        // Validate tenant_id is a proper UUID before using in SQL
+        if (tenantId && !UUID_RE.test(tenantId)) {
+          console.error("[MP Webhook] Invalid tenant_id format:", tenantId);
+          return NextResponse.json(
+            { error: "Invalid tenant_id format" },
+            { status: 400 }
+          );
+        }
 
         if (tenantId && planId) {
           const plan = STRIPE_PLANS[planId];

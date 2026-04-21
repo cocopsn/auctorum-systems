@@ -14,7 +14,7 @@ import {
   listCalendarEvents,
   type CalendarEvent,
 } from "../apps/medconcierge/src/lib/google-calendar"
-import Redis from 'ioredis'
+import { Redis } from 'ioredis'
 
 // --------------- Helpers ---------------
 

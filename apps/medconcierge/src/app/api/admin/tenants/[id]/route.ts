@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
+import { z } from "zod"
 import { eq, sql, and, desc } from "drizzle-orm"
 import {
   db, tenants, users, subscriptions, appointments, messages,
@@ -69,18 +70,93 @@ export async function GET(_req: NextRequest, { params }: RouteCtx) {
   })
 }
 
+// ---- Zod schema for PATCH validation ----
+const patchTenantSchema = z.object({
+  plan: z.enum(["basico", "profesional", "premium", "enterprise"]).optional(),
+  provisioningStatus: z.enum(["draft", "pending_plan", "active", "suspended"]).optional(),
+  isActive: z.boolean().optional(),
+  name: z.string().min(1).max(255).optional(),
+  config: z.object({
+    colors: z.object({
+      primary: z.string(),
+      secondary: z.string(),
+      accent: z.string().optional(),
+      background: z.string(),
+    }).optional(),
+    contact: z.object({
+      phone: z.string(),
+      email: z.string(),
+      whatsapp: z.string(),
+      address: z.string(),
+    }).optional(),
+    business: z.object({
+      razon_social: z.string(),
+      rfc: z.string(),
+      giro: z.string(),
+    }).optional(),
+    account: z.object({
+      type: z.enum(["medical", "industrial"]).optional(),
+      plan: z.string().optional(),
+      portalHost: z.string().optional(),
+      publicHost: z.string().optional(),
+    }).optional(),
+    medical: z.object({
+      specialty: z.string(),
+      sub_specialty: z.string(),
+      cedula_profesional: z.string(),
+      cedula_especialidad: z.string(),
+      consultation_fee: z.number(),
+      consultation_duration_min: z.number(),
+      accepts_insurance: z.boolean(),
+      insurance_providers: z.array(z.string()),
+    }).optional(),
+    schedule_settings: z.object({
+      timezone: z.string(),
+      advance_booking_days: z.number(),
+      min_booking_hours_ahead: z.number(),
+      cancellation_hours: z.number(),
+      auto_confirm: z.boolean(),
+      allow_online_payment: z.boolean(),
+      show_fee_on_portal: z.boolean(),
+    }).optional(),
+    notifications: z.record(z.union([z.boolean(), z.number()])).optional(),
+    features: z.record(z.boolean()).optional(),
+    ai: z.object({
+      enabled: z.boolean(),
+      systemPrompt: z.string(),
+      autoSchedule: z.boolean(),
+      answerFaq: z.boolean(),
+      humanHandoff: z.boolean(),
+      model: z.string(),
+      vectorStoreId: z.string().nullable().optional(),
+      temperature: z.number().optional(),
+      maxTokens: z.number().optional(),
+    }).optional(),
+  }).optional(),
+}).strict()
+
 export async function PATCH(req: NextRequest, { params }: RouteCtx) {
   const auth = await requireRole(["super_admin"])
   if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 403 })
 
   const body = await req.json()
+  const parsed = patchTenantSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Datos inválidos", details: parsed.error.flatten() },
+      { status: 400 }
+    )
+  }
+
+  const data = parsed.data
   const allowedFields: Record<string, any> = {}
 
-  if (body.plan !== undefined) allowedFields.plan = body.plan
-  if (body.provisioningStatus !== undefined) allowedFields.provisioningStatus = body.provisioningStatus
-  if (body.isActive !== undefined) allowedFields.isActive = body.isActive
-  if (body.config !== undefined) allowedFields.config = body.config
-  if (body.name !== undefined) allowedFields.name = body.name
+  if (data.plan !== undefined) allowedFields.plan = data.plan
+  if (data.provisioningStatus !== undefined) allowedFields.provisioningStatus = data.provisioningStatus
+  if (data.isActive !== undefined) allowedFields.isActive = data.isActive
+  if (data.config !== undefined) allowedFields.config = data.config
+  if (data.name !== undefined) allowedFields.name = data.name
 
   if (Object.keys(allowedFields).length === 0) {
     return NextResponse.json({ error: "No hay campos para actualizar" }, { status: 400 })

@@ -65,10 +65,10 @@ export async function POST(
       return NextResponse.json({ error: "Error al subir archivo" }, { status: 500 })
     }
 
-    // Get signed URL (long-lived, 1 year)
+    // Get signed URL (short-lived, 1 hour)
     const { data: urlData, error: urlError } = await supabase.storage
       .from(BUCKET)
-      .createSignedUrl(storagePath, 60 * 60 * 24 * 365)
+      .createSignedUrl(storagePath, 3600) // 1 hour — LOW-09: reduced from 365 days
 
     if (urlError || !urlData?.signedUrl) {
       return NextResponse.json({ error: "Error al generar URL" }, { status: 500 })
