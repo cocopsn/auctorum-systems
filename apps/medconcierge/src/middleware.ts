@@ -7,7 +7,7 @@ const DASHBOARD_ROUTES = [
   '/citas', '/pacientes', '/horarios', '/notas', '/settings',
   '/agenda', '/ai-settings', '/portal', '/integrations', '/conversaciones',
   '/recordatorios', '/funnel', '/reports', '/follow-ups', '/budgets',
-  '/payments', '/invoices', '/campaigns', '/dashboard', '/admin',
+  '/payments', '/invoices', '/campaigns', '/dashboard', '/admin', '/onboarding',
 ]
 
 function isDashboardRoute(pathname: string): boolean {
@@ -56,7 +56,7 @@ export async function middleware(request: NextRequest) {
     // H-1: Fail-closed — deny access to private routes on error.
     // Public routes (landing, login, agendar, webhooks, health) still pass through.
     const path = request.nextUrl.pathname
-    const isPublicRoute = path === '/' || path === '/login' || path === '/reset-password' || path.startsWith('/agendar')
+    const isPublicRoute = path === '/' || path === '/login' || path === '/reset-password' || path.startsWith('/signup') || path.startsWith('/agendar')
       || LEGAL_ROUTES.includes(path)
       || path.startsWith('/api/wa/') || path.startsWith('/api/health')
       || path.startsWith('/_next') || /\.(ico|png|jpg|svg|css|js|woff2?)$/.test(path)
@@ -103,7 +103,7 @@ async function handleRequest(request: NextRequest) {
   }
 
   // 4. /login always public
-  if (pathname === '/login' || pathname === '/reset-password') return NextResponse.next()
+  if (pathname === '/login' || pathname === '/reset-password' || pathname.startsWith('/signup')) return NextResponse.next()
 
   // 4b. Legal pages — always public (no auth required)
   if (LEGAL_ROUTES.includes(pathname)) return NextResponse.next()

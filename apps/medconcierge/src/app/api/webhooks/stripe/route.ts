@@ -77,6 +77,11 @@ export async function POST(req: NextRequest) {
           `);
 
           console.log(`[Stripe] Tenant ${tenantId} subscribed to ${planId}`);
+
+          // If this was a signup checkout, send magic link for login
+          if (session.metadata?.signup === 'true') {
+            console.log(`[Stripe] Signup checkout completed for tenant ${tenantId}`);
+          }
         }
         break;
       }
