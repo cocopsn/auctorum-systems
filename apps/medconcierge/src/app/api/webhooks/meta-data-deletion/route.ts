@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto from 'crypto';
+import crypto, { createHmac } from 'crypto';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,7 +16,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid signed_request format' }, { status: 400 });
     }
 
-    const payload = parts[1];
+    const [encodedSig, payload] = [parts[0], parts[1]];
+
+    // Verify HMAC signature
+    const expectedSig = createHmac('sha256', process.env.WHATSAPP_APP_SECRET || '')
+      .update(payload)
+      .digest('base64url');
+    if (encodedSig !== expectedSig) {
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 403 });
+    }
+
     let data: { user_id?: string };
     try {
       data = JSON.parse(Buffer.from(payload, 'base64').toString('utf-8'));

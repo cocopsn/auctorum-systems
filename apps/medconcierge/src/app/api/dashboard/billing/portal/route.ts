@@ -5,8 +5,11 @@ import { getAuthTenant } from "@/lib/auth";
 import { createPortalSession } from "@quote-engine/payments";
 import { db } from "@quote-engine/db";
 import { sql } from "drizzle-orm";
+import { validateOrigin } from "@/lib/csrf";
 
 export async function POST(req: NextRequest) {
+  if (!validateOrigin(req)) return NextResponse.json({ error: "CSRF validation failed" }, { status: 403 });
+
   const auth = await getAuthTenant();
   if (!auth) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });

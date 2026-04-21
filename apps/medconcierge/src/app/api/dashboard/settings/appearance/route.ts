@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthTenant } from '@/lib/auth'
 import { db, tenants } from '@quote-engine/db'
 import { eq } from 'drizzle-orm'
+import { validateOrigin } from '@/lib/csrf'
 
 export async function GET() {
   const auth = await getAuthTenant()
@@ -17,6 +18,8 @@ export async function GET() {
 }
 
 export async function PATCH(req: NextRequest) {
+  if (!validateOrigin(req)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   const auth = await getAuthTenant()
   if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 

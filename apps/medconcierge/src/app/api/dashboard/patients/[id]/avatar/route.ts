@@ -5,6 +5,7 @@ import { eq, and } from "drizzle-orm"
 import { db, patients } from "@quote-engine/db"
 import { getAuthTenant } from "@/lib/auth"
 import { createClient } from "@supabase/supabase-js"
+import { validateOrigin } from "@/lib/csrf"
 
 const BUCKET = "patient-files"
 
@@ -20,6 +21,8 @@ export async function POST(
   { params }: { params: { id: string } },
 ) {
   try {
+    if (!validateOrigin(req)) return NextResponse.json({ error: "CSRF validation failed" }, { status: 403 });
+
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
 
