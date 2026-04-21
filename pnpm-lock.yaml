@@ -101,6 +101,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(postgres@3.4.8)
+      facturapi:
+        specifier: ^4.15.0
+        version: 4.15.0
       framer-motion:
         specifier: ^12.38.0
         version: 12.38.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2736,6 +2739,10 @@ packages:
 
   extend@3.0.2:
     resolution: {integrity: sha512-fjquC59cD7CyW6urNXK0FBufkZcoiGG80wTuPujX590cB5Ttln20E2UB4S/WARVqhXffZl2LNgS+gQdPIIim/g==}
+
+  facturapi@4.15.0:
+    resolution: {integrity: sha512-HTv/8uRRvRQByuPlGuL2YlGYp09ThbRoB4+Q6azRY8+cyH5qYYwgIuQnkAbPTWN/PDa/mFlkBzIg+Wcd4ao/SA==}
+    engines: {node: '>=18.0.0', npm: '>=10.0.0'}
 
   fast-deep-equal@2.0.1:
     resolution: {integrity: sha512-bCK/2Z4zLidyB4ReuIsvALH6w31YfAQDmXMqMx6FyfHqvBxtjC0eRumeSu4Bs3XtXwpyIywtSTrVT99BxY1f9w==}
@@ -6458,6 +6465,8 @@ snapshots:
       type: 2.7.3
 
   extend@3.0.2: {}
+
+  facturapi@4.15.0: {}
 
   fast-deep-equal@2.0.1: {}
 
