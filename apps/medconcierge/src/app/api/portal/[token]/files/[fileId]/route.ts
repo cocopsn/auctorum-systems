@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, patients, patientFiles } from '@quote-engine/db'
 import { eq, and } from 'drizzle-orm'
 import { getPatientFileSignedUrl } from '@/lib/storage'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimit, getClientIP } from '@/lib/rate-limit'
 
 // ============================================================
 // GET /api/portal/[token]/files/[fileId]
@@ -14,7 +14,7 @@ type RouteCtx = { params: { token: string; fileId: string } }
 
 export async function GET(_request: NextRequest, { params }: RouteCtx) {
   try {
-    const { success: rateLimitOk } = rateLimit(`portal-file:${params.token}`, 20, 60_000)
+    const { success: rateLimitOk } = await rateLimit(`portal-file:${params.token}`, 20, 60_000)
     if (!rateLimitOk) {
       return NextResponse.json({ error: 'Demasiadas solicitudes' }, { status: 429 })
     }

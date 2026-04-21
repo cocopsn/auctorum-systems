@@ -5,7 +5,7 @@ import { createServerClient } from "@supabase/ssr"
 import { z } from "zod"
 import { db, users } from "@quote-engine/db"
 import { eq } from "drizzle-orm"
-import { rateLimit } from "@/lib/rate-limit"
+import { rateLimit, getClientIP } from "@/lib/rate-limit"
 import { withAuthCookieDomain } from "@/lib/auth-cookie"
 import { safeGetAuthCookie } from "@/lib/safe-cookie-get"
 
@@ -15,8 +15,8 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const ip = request.headers.get("x-forwarded-for") ?? "unknown"
-    const { success: allowed } = rateLimit(`magic-link:${ip}`, 5, 60_000)
+    const ip = getClientIP(request)
+    const { success: allowed } = await rateLimit(`magic-link:${ip}`, 5, 60_000)
     if (!allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 })
     }
