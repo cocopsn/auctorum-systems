@@ -102,8 +102,19 @@ async function handleRequest(request: NextRequest) {
     }
   }
 
-  // 4. /login always public
-  if (pathname === '/login' || pathname === '/reset-password' || pathname.startsWith('/signup')) return NextResponse.next()
+  // 4. /login always public -- but clear stale auth cookies to prevent
+  // client-side auto-refresh loops from corrupted tokens
+  if (pathname === '/login' || pathname === '/reset-password' || pathname.startsWith('/signup')) {
+    const hasAuthCookies = request.cookies.getAll().some(c =>
+      c.name.startsWith('sb-') || c.name.includes('auth-token')
+    )
+    if (hasAuthCookies) {
+      const resp = NextResponse.next({ request })
+      clearSupabaseCookies(request, resp, host)
+      return resp
+    }
+    return NextResponse.next()
+  }
 
   // 4b. Legal pages — always public (no auth required)
   if (LEGAL_ROUTES.includes(pathname)) return NextResponse.next()
@@ -171,6 +182,14 @@ async function handleRequest(request: NextRequest) {
             }
           },
         },
+        // Disable automatic token refresh — the middleware does a single
+        // getUser() call which refreshes once if needed. Without this flag
+        // the Supabase client retries refresh infinitely on corrupt tokens.
+        auth: {
+          autoRefreshToken: false,
+          persistSession: true,
+          detectSessionInUrl: false,
+        },
       }
     )
     const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -185,7 +204,11 @@ async function handleRequest(request: NextRequest) {
     return clearResponse
   }
 
-  if (!session) return NextResponse.redirect(new URL('/login', realOrigin))
+  if (!session) {
+    const clearRedirect = NextResponse.redirect(new URL('/login', realOrigin))
+    clearSupabaseCookies(request, clearRedirect, host)
+    return clearRedirect
+  }
   if (slug) response.headers.set('x-tenant-slug', slug)
   return response
 }

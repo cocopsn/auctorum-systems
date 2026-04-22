@@ -16,7 +16,14 @@ export default function LoginPage() {
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    }
   )
 
   async function handlePasswordLogin(e: FormEvent) {
@@ -30,7 +37,9 @@ export default function LoginPage() {
     })
 
     if (authError) {
-      if (authError.message.includes('Invalid login credentials')) {
+      if (authError.message.includes('rate limit') || authError.message.includes('429')) {
+        setError('Demasiados intentos. Espere 60 segundos e intente de nuevo.')
+      } else if (authError.message.includes('Invalid login credentials')) {
         setError('Email o contraseña incorrectos')
       } else if (authError.message.includes('Email not confirmed')) {
         setError('Confirma tu email antes de iniciar sesión')
