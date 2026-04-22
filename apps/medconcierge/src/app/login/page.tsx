@@ -20,7 +20,7 @@ export default function LoginPage() {
     {
       auth: {
         autoRefreshToken: false,
-        persistSession: false,
+        persistSession: true,
         detectSessionInUrl: false,
       },
     }

@@ -18,7 +18,7 @@ export default function ResetPasswordPage() {
     {
       auth: {
         autoRefreshToken: false,
-        persistSession: false,
+        persistSession: true,
         detectSessionInUrl: false,
       },
     }
