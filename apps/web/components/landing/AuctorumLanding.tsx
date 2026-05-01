@@ -944,6 +944,38 @@ function motifBuildTree(cx, cy, zoom) {
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       }
 
+      // PLATEAU MAPPING: each hub gets a scroll dwell window where pathT
+      // does not advance. Keeps each floater on screen long enough to read
+      // even on fast trackpad scroll. Anchors: [scrollPos, pathT] pairs.
+      // Plateau widths: ~7% of scroll = ~half a viewport at 800vh.
+      const PATH_ANCHORS: [number, number][] = [
+        [0.00, 0.0],
+        [0.14, 0.0],   // genesis hold ends
+        [0.20, 0.18],  // arrive at MED
+        [0.27, 0.18],  // MED dwell
+        [0.36, 0.34],  // arrive at AI
+        [0.43, 0.34],  // AI dwell
+        [0.54, 0.56],  // arrive at ACOPLE
+        [0.61, 0.56],  // ACOPLE dwell
+        [0.68, 0.70],  // arrive at FUTURO
+        [0.75, 0.70],  // FUTURO dwell
+        [0.82, 0.85],  // arrive at MANIFIESTO
+        [0.89, 0.85],  // MANIFIESTO dwell
+        [0.97, 1.0],   // loop-back
+        [1.00, 1.0],
+      ];
+      function scrollToPathT(s: number): number {
+        for (let ai = 0; ai < PATH_ANCHORS.length - 1; ai++) {
+          const [s0, t0] = PATH_ANCHORS[ai];
+          const [s1, t1] = PATH_ANCHORS[ai + 1];
+          if (s <= s1) {
+            const f = s1 === s0 ? 0 : (s - s0) / (s1 - s0);
+            return t0 + (t1 - t0) * Math.max(0, Math.min(1, f));
+          }
+        }
+        return 1;
+      }
+
       // ==========================================================
       // RENDER LOOP
       // ==========================================================
@@ -982,26 +1014,19 @@ function motifBuildTree(cx, cy, zoom) {
         let camX = 0, camY = 0, zoom = 0.38;
 
         if (settled) {
-          // After bang: scroll drives camera along the path.
-          // Re-map scroll 0..1 with a deliberate genesis dwell:
-          //  s = 0 … 0.14   → pathT = 0  (logo holds, no motifs)
-          //  s = 0.14 … 0.97 → pathT = 0..1 (the journey)
-          //  s = 0.97 … 1.0  → pathT = 1  (loop-back logo holds)
-          const s = scrollProgress;
-          let pathT;
-          if (s < 0.14) pathT = 0;
-          else if (s > 0.97) pathT = 1;
-          else pathT = (s - 0.14) / 0.83;
+          const pathT = scrollToPathT(scrollProgress);
           const p = sampleCurve(pathPoints, pathT);
           camX = p.x;
           camY = p.y;
-          // Zoom in slightly when close to a hub (dramatic reveal)
+          // Zoom in slightly when close to a hub (dramatic reveal).
+          // Widened closeness band 0.08 -> 0.11 so the zoom-in visual
+          // dwells longer alongside the pathT plateau.
           let nearHubT = 1;
           HUB_T.forEach(ht => {
             const d = Math.abs(pathT - ht);
             if (d < nearHubT) nearHubT = d;
           });
-          const closeness = Math.max(0, 1 - nearHubT / 0.08);
+          const closeness = Math.max(0, 1 - nearHubT / 0.11);
           zoom = 0.58 - closeness * 0.12;
         } else {
           // During bang: zoom pulls out as graph grows. End-of-bang zoom
@@ -1012,11 +1037,7 @@ function motifBuildTree(cx, cy, zoom) {
 
         // --------- Determine active hub ---------
         if (settled) {
-          const s = scrollProgress;
-          let pathT;
-          if (s < 0.14) pathT = 0;
-          else if (s > 0.97) pathT = 1;
-          else pathT = (s - 0.14) / 0.83;
+          const pathT = scrollToPathT(scrollProgress);
           let best = 0, bestD = 1e9;
           HUB_T.forEach((ht, i) => {
             const d = Math.abs(pathT - ht);
