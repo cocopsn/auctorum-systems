@@ -94,17 +94,22 @@ export function SettingsForm() {
           </div>
         )}
 
-        {tab === 'notifications' && (
-          <div className="space-y-3">
-            <Toggle label="WhatsApp al agendar" value={config.notifications!.whatsapp_on_new_appointment ?? false} onChange={(v) => setConfig({ ...config, notifications: { ...config.notifications!, whatsapp_on_new_appointment: v } })} />
-            <Toggle label="Recordatorio 24h (WhatsApp)" value={config.notifications!.whatsapp_reminder_24h ?? false} onChange={(v) => setConfig({ ...config, notifications: { ...config.notifications!, whatsapp_reminder_24h: v } })} />
-            <Toggle label="Recordatorio 2h (WhatsApp)" value={config.notifications!.whatsapp_reminder_2h ?? false} onChange={(v) => setConfig({ ...config, notifications: { ...config.notifications!, whatsapp_reminder_2h: v } })} />
-            <Toggle label="Post-consulta (WhatsApp)" value={config.notifications!.whatsapp_post_consultation ?? false} onChange={(v) => setConfig({ ...config, notifications: { ...config.notifications!, whatsapp_post_consultation: v } })} />
-            <Toggle label="Email al agendar" value={config.notifications!.email_on_new_appointment ?? false} onChange={(v) => setConfig({ ...config, notifications: { ...config.notifications!, email_on_new_appointment: v } })} />
-            <Toggle label="Notificar cancelaciones" value={config.notifications!.notify_on_cancellation ?? false} onChange={(v) => setConfig({ ...config, notifications: { ...config.notifications!, notify_on_cancellation: v } })} />
-            <Toggle label="Agenda diaria (email 7am)" value={config.notifications!.daily_agenda_email ?? false} onChange={(v) => setConfig({ ...config, notifications: { ...config.notifications!, daily_agenda_email: v } })} />
-          </div>
-        )}
+        {tab === 'notifications' && (() => {
+          const n = config.notifications ?? {} as NonNullable<TenantConfig['notifications']>
+          const setN = (patch: Partial<NonNullable<TenantConfig['notifications']>>) =>
+            setConfig({ ...config, notifications: { ...n, ...patch } })
+          return (
+            <div className="space-y-3">
+              <Toggle label="WhatsApp al agendar" value={n.whatsapp_on_new_appointment ?? false} onChange={(v) => setN({ whatsapp_on_new_appointment: v })} />
+              <Toggle label="Recordatorio 24h (WhatsApp)" value={n.whatsapp_reminder_24h ?? false} onChange={(v) => setN({ whatsapp_reminder_24h: v })} />
+              <Toggle label="Recordatorio 2h (WhatsApp)" value={n.whatsapp_reminder_2h ?? false} onChange={(v) => setN({ whatsapp_reminder_2h: v })} />
+              <Toggle label="Post-consulta (WhatsApp)" value={n.whatsapp_post_consultation ?? false} onChange={(v) => setN({ whatsapp_post_consultation: v })} />
+              <Toggle label="Email al agendar" value={n.email_on_new_appointment ?? false} onChange={(v) => setN({ email_on_new_appointment: v })} />
+              <Toggle label="Notificar cancelaciones" value={n.notify_on_cancellation ?? false} onChange={(v) => setN({ notify_on_cancellation: v })} />
+              <Toggle label="Agenda diaria (email 7am)" value={n.daily_agenda_email ?? false} onChange={(v) => setN({ daily_agenda_email: v })} />
+            </div>
+          )
+        })()}
       </div>
 
       <div className="mt-6 flex items-center gap-3">
