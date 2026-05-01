@@ -944,36 +944,16 @@ function motifBuildTree(cx, cy, zoom) {
         return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
       }
 
-      // PLATEAU MAPPING: each hub gets a scroll dwell window where pathT
-      // does not advance. Keeps each floater on screen long enough to read
-      // even on fast trackpad scroll. Anchors: [scrollPos, pathT] pairs.
-      // Plateau widths: 10% of scroll = ~80vh ≈ a full viewport at 800vh.
-      const PATH_ANCHORS: [number, number][] = [
-        [0.00, 0.0],
-        [0.14, 0.0],   // genesis hold ends
-        [0.19, 0.18],  // arrive at MED
-        [0.29, 0.18],  // MED dwell (10%)
-        [0.34, 0.34],  // arrive at AI
-        [0.44, 0.34],  // AI dwell (10%)
-        [0.50, 0.56],  // arrive at ACOPLE
-        [0.60, 0.56],  // ACOPLE dwell (10%)
-        [0.66, 0.70],  // arrive at FUTURO
-        [0.76, 0.70],  // FUTURO dwell (10%)
-        [0.81, 0.85],  // arrive at MANIFIESTO
-        [0.91, 0.85],  // MANIFIESTO dwell (10%)
-        [0.97, 1.0],   // loop-back
-        [1.00, 1.0],
-      ];
+      // SOFT MAPPING: linear scroll -> pathT inside the journey window.
+      // Hard plateaus (pathT frozen for chunks of scroll) caused the camera
+      // to fully stop while the user kept scrolling, which felt like
+      // "fragmented" motion. Continuous linear mapping keeps the visual
+      // moving at the same pace as scroll. Floaters stay readable thanks
+      // to activeHub hysteresis (see below) and a slightly-wider zoom band.
       function scrollToPathT(s: number): number {
-        for (let ai = 0; ai < PATH_ANCHORS.length - 1; ai++) {
-          const [s0, t0] = PATH_ANCHORS[ai];
-          const [s1, t1] = PATH_ANCHORS[ai + 1];
-          if (s <= s1) {
-            const f = s1 === s0 ? 0 : (s - s0) / (s1 - s0);
-            return t0 + (t1 - t0) * Math.max(0, Math.min(1, f));
-          }
-        }
-        return 1;
+        if (s <= 0.14) return 0;
+        if (s >= 0.97) return 1;
+        return (s - 0.14) / 0.83;
       }
 
       // ==========================================================
@@ -1036,6 +1016,10 @@ function motifBuildTree(cx, cy, zoom) {
         }
 
         // --------- Determine active hub ---------
+        // HYSTERESIS: stay on the current hub until the candidate is
+        // *significantly* closer (60% of current distance). Stops the
+        // floater from flickering when pathT is exactly between two hubs
+        // and lets each hub stay readable while scroll continues smoothly.
         if (settled) {
           const pathT = scrollToPathT(scrollProgress);
           let best = 0, bestD = 1e9;
@@ -1043,9 +1027,15 @@ function motifBuildTree(cx, cy, zoom) {
             const d = Math.abs(pathT - ht);
             if (d < bestD) { bestD = d; best = i; }
           });
-          if (best !== activeHubRef.current) {
-            activeHubRef.current = best;
-            setActiveHub(best);
+          const cur = activeHubRef.current;
+          if (best !== cur) {
+            const curDist = Math.abs(pathT - HUB_T[cur]);
+            // Switch only when new candidate is much closer (or current
+            // hub is more than 0.18 path-T away — past the comfort zone).
+            if (bestD < curDist * 0.6 || curDist > 0.18) {
+              activeHubRef.current = best;
+              setActiveHub(best);
+            }
           }
         }
 
