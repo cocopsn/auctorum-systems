@@ -338,8 +338,19 @@
   .auc-floater[data-node="6"] .auc-floater-body { margin-left: auto !important; margin-right: auto !important; }
 }
 
+/* Mobile nav: hide secondary links so wordmark + CTA always fit. */
+@media (max-width: 720px) {
+  .auc-nav { padding: 16px 20px; }
+  .auc-nav-right { gap: 14px; }
+  .auc-nav-right .auc-nav-link { display: none; }
+  /* Keep "Iniciar sesión" only if there is room; otherwise hide too */
+  .auc-nav-cta { padding: 7px 14px; font-size: 10px; }
+}
+
 @media (max-width: 560px) {
   .auc-nav { padding: 14px 18px; }
+  .auc-wordmark { font-size: 11px; letter-spacing: 0.28em; }
+  .auc-wordmark-glyph { height: 14px; margin-right: 8px; }
   .auc-hud { font-size: 9px; letter-spacing: 0.18em; }
   .auc-hud-bl { bottom: 26px; left: 18px; }
   .auc-hud-br { bottom: 26px; right: 18px; }
@@ -351,7 +362,7 @@
   .auc-floater-title { font-size: clamp(30px, 10vw, 44px) !important; line-height: 1.0 !important; }
   .auc-floater-body { font-size: 13.5px; line-height: 1.55; }
   .auc-floater-status { font-size: 9px; letter-spacing: 0.22em; }
-  .auc-scroll-hint { font-size: 8.5px; bottom: 18px; }
+  .auc-scroll-hint { font-size: 8.5px; bottom: 18px; right: 18px; }
   .auc-scroll-hint-line { height: 28px; }
 }
 

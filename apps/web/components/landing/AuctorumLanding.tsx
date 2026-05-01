@@ -712,15 +712,20 @@ function motifBuildTree(cx, cy, zoom) {
   function buildGraph() {
     const rng = (() => { let s = 12345; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; })();
     const nodes = [];
+    // PERF: mobile detection — further reduce density on small screens.
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const clusterCount = isMobile ? 16 : 28;
+    const bridgeSteps = isMobile ? 6 : 10;
+    const ambientCount = isMobile ? 20 : 40;
 
     // Hubs
     HUBS.forEach(h => {
       nodes.push({ x: h.x, y: h.y, r: 3.8, hub: h.id, pulse: rng(), brightness: 1.0 });
     });
 
-    // PERF: cluster count reduced 55 → 28 per hub. 4 hubs × 28 = 112 cluster nodes.
+    // PERF: cluster count reduced 55 → 28 (16 on mobile) per hub.
     HUBS.slice(1, 5).forEach(h => {
-      const count = 28;
+      const count = clusterCount;
       for (let i = 0; i < count; i++) {
         const a = rng() * Math.PI * 2;
         const d = 80 + rng() * 540;
@@ -735,13 +740,13 @@ function motifBuildTree(cx, cy, zoom) {
       }
     });
 
-    // PERF: bridge steps reduced 18 → 10 per pair.
+    // PERF: bridge steps reduced 18 → 10 (6 on mobile) per pair.
     for (let i = 1; i < HUBS.length; i++) {
       for (let j = i + 1; j < HUBS.length; j++) {
         const a = HUBS[i], b = HUBS[j];
         const dist = Math.hypot(a.x - b.x, a.y - b.y);
         if (dist > 3200) continue;
-        const steps = 10;
+        const steps = bridgeSteps;
         for (let k = 1; k < steps; k++) {
           const t = k / steps;
           const jx = (rng() - 0.5) * 260;
@@ -758,8 +763,8 @@ function motifBuildTree(cx, cy, zoom) {
       }
     }
 
-    // PERF: ambient field reduced 80 → 40.
-    for (let i = 0; i < 40; i++) {
+    // PERF: ambient field reduced 80 → 40 (20 on mobile).
+    for (let i = 0; i < ambientCount; i++) {
       nodes.push({
         x: (rng() - 0.5) * 4400,
         y: (rng() - 0.5) * 2800,
@@ -928,11 +933,11 @@ function motifBuildTree(cx, cy, zoom) {
 
       // Bang timing. The bang progresses on time, not scroll, because
       // it fires once at load.
-      // PERCEIVED-LATENCY EDIT: shortened from 4600/700 to 2000/200.
-      // Floater + logo can't fade in until "settled" — original 5.3s wait
-      // felt too long.
+      // PERCEIVED-LATENCY EDIT: shortened from 4600/700 -> 2000/0.
+      // Floater + logo can't fully render until "settled". Original 5.3s
+      // wait felt too long; 200ms hold added a visible dead beat.
       const BANG_DURATION = 2000; // ms
-      const BANG_HOLD = 200;      // settle time after bang
+      const BANG_HOLD = 0;        // no dead time between bang end and settled state
 
       function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
       function easeInOutCubic(t) {
@@ -955,12 +960,18 @@ function motifBuildTree(cx, cy, zoom) {
         const bangEase = easeOutCubic(bangT);
         const settled = elapsed > (BANG_DURATION + BANG_HOLD);
 
-        if (settled && !bangCompleteRef.current) {
+        // PERCEIVED-LATENCY EDIT: trigger bangComplete at 85% of bang
+        // (~1.7s in) so the logo + first floater begin fading in while the
+        // graph is still finishing its growth. Eliminates the visible
+        // dead beat between bang end and logo appearance.
+        const earlyReveal = bangT >= 0.85;
+        if (earlyReveal && !bangCompleteRef.current) {
           bangCompleteRef.current = true;
-          // Force the user back to the top so the scroll narrative
-          // begins at INFRAESTRUCTURA (hub 0), not wherever an older
-          // scroll position landed during the bang.
-          window.scrollTo(0, 0);
+          // Only snap back if user actually scrolled meaningfully during
+          // the bang. Avoids a jarring jump when they didn't.
+          if (window.scrollY > 50) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+          }
           scrollProgress = 0;
           setBangComplete(true);
         }
@@ -993,8 +1004,10 @@ function motifBuildTree(cx, cy, zoom) {
           const closeness = Math.max(0, 1 - nearHubT / 0.08);
           zoom = 0.58 - closeness * 0.12;
         } else {
-          // During bang: zoom pulls out slightly as graph grows
-          zoom = 0.24 + bangEase * 0.32;
+          // During bang: zoom pulls out as graph grows. End-of-bang zoom
+          // matches post-bang hub-0 closeness zoom (0.46) so the handoff
+          // between bang and settled state has no visible jump.
+          zoom = 0.24 + bangEase * 0.22;
         }
 
         // --------- Determine active hub ---------
@@ -1239,7 +1252,10 @@ function motifBuildTree(cx, cy, zoom) {
       // requestAnimationFrame to zero. We use setInterval as the
       // primary clock so the scene runs even when the iframe is
       // not the active document.
-      const FRAME_MS = 1000 / 60;
+      // PERF: 30fps on mobile (saves battery + headroom for slower GPUs),
+      // 60fps on desktop. The animation reads fine at 30fps.
+      const isMobileViewport = window.innerWidth < 768;
+      const FRAME_MS = isMobileViewport ? 1000 / 30 : 1000 / 60;
       const intervalId = setInterval(() => tick(performance.now()), FRAME_MS);
 
       return () => {
