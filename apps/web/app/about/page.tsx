@@ -106,18 +106,18 @@ export default function AboutPage() {
         }}
       />
 
-      {/* NAV BAR */}
-      <nav className="sticky top-0 z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl">
+      {/* NAV BAR — matches the landing's auc-nav aesthetic */}
+      <nav className="sticky top-0 z-50 border-b border-obsidian-700/40 bg-obsidian-1000/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Auctorum" width={36} height={36} className="h-9 w-auto" />
-            <span className="text-sm font-bold tracking-widest text-white uppercase">Auctorum</span>
+            <Image src="/auctorum-mark-azul.png" alt="Auctorum" width={28} height={28} className="h-7 w-auto" />
+            <span className="text-sm font-semibold tracking-[0.34em] text-slate-100 uppercase">Auctorum</span>
           </Link>
           <div className="hidden items-center gap-8 md:flex">
-            <Link href="/#productos" className="text-sm text-slate-400 hover:text-white transition-colors">Productos</Link>
-            <Link href="/#tecnologia" className="text-sm text-slate-400 hover:text-white transition-colors">Tecnología</Link>
+            <Link href="/#productos" className="text-sm text-slate-300 hover:text-white transition-colors">Productos</Link>
+            <Link href="/#tecnologia" className="text-sm text-slate-300 hover:text-white transition-colors">Tecnología</Link>
             <Link href="/about" className="text-sm text-white font-medium transition-colors">Sobre Nosotros</Link>
-            <Link href="/login" className="text-sm text-slate-300 hover:text-white transition-colors">Iniciar Sesión</Link>
+            <Link href="/login" className="text-sm text-slate-200 hover:text-white transition-colors">Iniciar Sesión</Link>
           </div>
           <Link href="/signup" className="hidden rounded-full bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors md:inline-flex">
             Comenzar

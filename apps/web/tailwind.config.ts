@@ -33,6 +33,37 @@ const config: Config = {
           500: '#7099b8',
           600: '#4a7c9b',
         },
+        // AUCTORUM Design System — deep institutional dark.
+        // EXACT match to the landing scene's stage background so the page
+        // reads as one continuous surface (no value jumps between hero and
+        // downstream sections).
+        obsidian: {
+          1000: '#020613', // landing stage / page base
+          950:  '#050b1c',
+          900:  '#081127',
+          850:  '#0b1732',
+          800:  '#0f1d3c',
+          700:  '#142448',
+          600:  '#1b2d55',
+          500:  '#223660',
+        },
+        // Remap slate-* used heavily across landing/about so existing
+        // utility classes (bg-slate-950, bg-slate-900, etc.) align with
+        // the obsidian palette without per-file rewrites.
+        slate: {
+          50:  '#e8ecf1',
+          100: '#d4dde8',
+          200: '#b0bcce',
+          300: '#8a9aae',
+          400: '#6b7a8d',
+          500: '#475569',
+          600: '#334155',
+          700: '#1e293b',
+          800: '#0f1d3c',  // -> obsidian-800
+          850: '#0b1732',  // -> obsidian-850
+          900: '#050b1c',  // -> obsidian-950 (was very dark slate)
+          950: '#020613',  // -> obsidian-1000 (page base)
+        },
         primary: {
           DEFAULT: '#2f5e7e',
           50:  '#e9f0f6',

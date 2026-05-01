@@ -17,52 +17,35 @@ import {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-slate-950 text-white">
+    <div className="min-h-screen bg-obsidian-1000 text-white">
       {/* AUCTORUM Design System — single-scene scroll-driven hero.
           Provides its own fixed nav, canvas stage, floaters and 800vh scroll spacer. */}
       <AuctorumLanding />
 
-      {/* The downstream sections below render after the 800vh scene scroll spacer */}
-      <div className="relative z-10 bg-slate-950">
-        {/* Anchored nav for the post-hero sections — appears once the scene scroll completes */}
-        <nav className="sticky top-0 z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl">
-          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-            <Link href="/" className="flex items-center gap-3">
-              <Image src="/auctorum-mark-azul.png" alt="Auctorum" width={28} height={28} className="h-7 w-auto" />
-              <span className="text-sm font-bold tracking-widest text-white uppercase">Auctorum</span>
-            </Link>
-            <div className="hidden items-center gap-8 md:flex">
-              <a href="#productos" className="text-sm text-slate-400 hover:text-white transition-colors">Productos</a>
-              <a href="#tecnologia" className="text-sm text-slate-400 hover:text-white transition-colors">Tecnología</a>
-              <Link href="/about" className="text-sm text-slate-400 hover:text-white transition-colors">Sobre Nosotros</Link>
-              <Link href="/login" className="text-sm text-slate-300 hover:text-white transition-colors">Iniciar Sesión</Link>
-            </div>
-            <Link href="/signup" className="hidden rounded-full bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors md:inline-flex">
-              Comenzar
-            </Link>
-          </div>
-        </nav>
-
+      {/* The downstream sections below render after the 800vh scene scroll spacer.
+          No second nav — the landing's own auc-nav lives inside the sticky scene
+          and naturally scrolls away when the scene ends. */}
+      <div className="relative z-10 bg-obsidian-1000">
       {/* PRODUCTS SECTION */}
-      <section id="productos" className="bg-slate-950 px-6 py-24 border-t border-slate-900">
+      <section id="productos" className="bg-obsidian-1000 px-6 py-24 border-t border-obsidian-700/40">
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-white">Nuestros Productos</h2>
-            <p className="mt-4 text-lg text-slate-400 max-w-2xl mx-auto">Soluciones verticales diseñadas para industrias específicas</p>
+            <p className="mt-4 text-lg text-slate-300 max-w-2xl mx-auto">Soluciones verticales diseñadas para industrias específicas</p>
           </div>
           <div className="grid md:grid-cols-2 gap-8">
-            {/* Card 1 - Concierge (highlighted with blue border) */}
-            <Link href="/systems" className="group relative bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 border border-blue-500/30 hover:border-blue-500/60 transition-all duration-300">
+            {/* Card 1 - Concierge */}
+            <Link href="/systems" className="group relative bg-obsidian-900 rounded-2xl p-8 border border-blue-500/30 hover:border-blue-500/60 transition-all duration-300">
               <span className="inline-block bg-blue-600/20 text-blue-400 text-xs font-semibold px-3 py-1 rounded-full mb-6">PRODUCTO PRINCIPAL</span>
               <div className="w-14 h-14 rounded-xl bg-blue-600/10 flex items-center justify-center mb-6">
                 <Stethoscope className="w-7 h-7 text-blue-400" />
               </div>
               <h3 className="text-2xl font-bold text-white">Concierge Médico AI</h3>
               <p className="mt-2 text-sm text-blue-400 font-medium">Para doctores y consultorios</p>
-              <p className="mt-4 text-slate-400 leading-relaxed">Plataforma completa para consultorios médicos. WhatsApp AI, gestión de citas, facturación electrónica, y más.</p>
+              <p className="mt-4 text-slate-300 leading-relaxed">Plataforma completa para consultorios médicos. WhatsApp AI, gestión de citas, facturación electrónica, y más.</p>
               <div className="mt-6 flex flex-wrap gap-2">
                 {['WhatsApp AI', 'Citas', 'Facturación', 'Expedientes'].map(t => (
-                  <span key={t} className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full">{t}</span>
+                  <span key={t} className="text-xs bg-obsidian-800 text-slate-200 px-3 py-1 rounded-full">{t}</span>
                 ))}
               </div>
               <div className="mt-6 inline-flex items-center gap-2 text-blue-400 font-semibold text-sm group-hover:gap-3 transition-all">
@@ -70,19 +53,19 @@ export default function HomePage() {
               </div>
             </Link>
             {/* Card 2 - Cotizador */}
-            <Link href="/platform" className="group bg-slate-900/50 rounded-2xl p-8 border border-slate-800 hover:border-slate-700 transition-all duration-300">
-              <div className="w-14 h-14 rounded-xl bg-slate-800 flex items-center justify-center mb-6">
-                <FileText className="w-7 h-7 text-slate-400" />
+            <Link href="/platform" className="group bg-obsidian-900 rounded-2xl p-8 border border-obsidian-700 hover:border-obsidian-600 transition-all duration-300">
+              <div className="w-14 h-14 rounded-xl bg-obsidian-800 flex items-center justify-center mb-6">
+                <FileText className="w-7 h-7 text-slate-300" />
               </div>
               <h3 className="text-2xl font-bold text-white">Motor de Cotizaciones B2B</h3>
-              <p className="mt-2 text-sm text-slate-500 font-medium">Para negocios e industria</p>
-              <p className="mt-4 text-slate-400 leading-relaxed">Genera cotizaciones profesionales, gestiona catálogos de productos, y automatiza tu proceso de ventas.</p>
+              <p className="mt-2 text-sm text-slate-400 font-medium">Para negocios e industria</p>
+              <p className="mt-4 text-slate-300 leading-relaxed">Genera cotizaciones profesionales, gestiona catálogos de productos, y automatiza tu proceso de ventas.</p>
               <div className="mt-6 flex flex-wrap gap-2">
                 {['PDF Profesional', 'Catálogo', 'CRM', 'Analytics'].map(t => (
-                  <span key={t} className="text-xs bg-slate-800 text-slate-300 px-3 py-1 rounded-full">{t}</span>
+                  <span key={t} className="text-xs bg-obsidian-800 text-slate-200 px-3 py-1 rounded-full">{t}</span>
                 ))}
               </div>
-              <div className="mt-6 inline-flex items-center gap-2 text-slate-400 font-semibold text-sm group-hover:gap-3 transition-all">
+              <div className="mt-6 inline-flex items-center gap-2 text-slate-300 font-semibold text-sm group-hover:gap-3 transition-all">
                 Conocer más <ArrowRight className="w-4 h-4" />
               </div>
             </Link>
@@ -91,11 +74,11 @@ export default function HomePage() {
       </section>
 
       {/* TECHNOLOGY SECTION */}
-      <section id="tecnologia" className="bg-gradient-to-b from-slate-950 to-slate-900 px-6 py-24">
+      <section id="tecnologia" className="bg-obsidian-1000 px-6 py-24 border-t border-obsidian-700/40">
         <div className="mx-auto max-w-5xl">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl font-bold text-white">Construido con tecnología de vanguardia</h2>
-            <p className="mt-4 text-lg text-slate-400">Infraestructura enterprise para empresas de cualquier tamaño</p>
+            <p className="mt-4 text-lg text-slate-300">Infraestructura enterprise para empresas de cualquier tamaño</p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
@@ -104,12 +87,12 @@ export default function HomePage() {
               {icon: Shield, title: 'Seguridad Enterprise', desc: 'Cifrado AES-256, 2FA, HMAC webhooks, hardening completo'},
               {icon: Building2, title: 'Multi-tenant SaaS', desc: 'Cada cliente con su propio espacio aislado y personalizable'},
             ].map(card => (
-              <div key={card.title} className="bg-slate-900/30 rounded-xl p-6 border border-slate-800 hover:border-blue-500/50 transition-all duration-300 group">
+              <div key={card.title} className="bg-obsidian-900 rounded-xl p-6 border border-obsidian-700/60 hover:border-blue-500/50 transition-all duration-300 group">
                 <div className="w-12 h-12 rounded-lg bg-blue-600/10 flex items-center justify-center mb-4 group-hover:bg-blue-600/20 transition-colors">
                   <card.icon className="w-6 h-6 text-blue-400" />
                 </div>
                 <h3 className="text-base font-semibold text-white mb-2">{card.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">{card.desc}</p>
+                <p className="text-sm text-slate-300 leading-relaxed">{card.desc}</p>
               </div>
             ))}
           </div>
@@ -117,18 +100,18 @@ export default function HomePage() {
       </section>
 
       {/* ABOUT SECTION */}
-      <section id="nosotros" className="bg-slate-900 px-6 py-24">
+      <section id="nosotros" className="bg-obsidian-1000 px-6 py-24 border-t border-obsidian-700/40">
         <div className="mx-auto max-w-3xl text-center">
           <p className="text-sm font-medium uppercase tracking-widest text-blue-400 mb-4">Sobre Nosotros</p>
           <h2 className="text-3xl md:text-4xl font-bold text-white">Una empresa construida desde Saltillo para todo México</h2>
-          <p className="mt-6 text-lg text-slate-400 leading-relaxed">
+          <p className="mt-6 text-lg text-slate-300 leading-relaxed">
             Somos un equipo de ingenieros del Tecnológico de Monterrey construyendo software que transforma cómo operan los negocios. Nuestra misión: que cada profesional tenga acceso a herramientas de IA enterprise.
           </p>
         </div>
       </section>
 
       {/* CTA SECTION */}
-      <section className="bg-gradient-to-b from-slate-900 via-blue-950/30 to-slate-950 px-6 py-24">
+      <section className="bg-obsidian-1000 px-6 py-24 border-t border-obsidian-700/40">
         <div className="mx-auto max-w-3xl text-center">
           <Sparkles className="w-10 h-10 text-blue-400 mx-auto mb-6" />
           <h2 className="text-3xl md:text-4xl font-bold text-white">¿Listo para automatizar tu negocio?</h2>
@@ -145,46 +128,46 @@ export default function HomePage() {
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-slate-950 border-t border-slate-800 px-6 py-12">
+      <footer className="bg-obsidian-1000 border-t border-obsidian-700/40 px-6 py-12">
         <div className="mx-auto max-w-6xl">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 pb-8 border-b border-slate-800">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 pb-8 border-b border-obsidian-700/40">
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Productos</h4>
               <div className="space-y-3">
-                <Link href="/systems" className="block text-sm text-slate-400 hover:text-white transition-colors">Concierge Médico</Link>
-                <Link href="/platform" className="block text-sm text-slate-400 hover:text-white transition-colors">Cotizador B2B</Link>
+                <Link href="/systems" className="block text-sm text-slate-300 hover:text-white transition-colors">Concierge Médico</Link>
+                <Link href="/platform" className="block text-sm text-slate-300 hover:text-white transition-colors">Cotizador B2B</Link>
               </div>
             </div>
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Empresa</h4>
               <div className="space-y-3">
-                <Link href="/about" className="block text-sm text-slate-400 hover:text-white transition-colors">Sobre Nosotros</Link>
-                <a href="mailto:sistema@auctorum.com.mx" className="block text-sm text-slate-400 hover:text-white transition-colors">Contacto</a>
+                <Link href="/about" className="block text-sm text-slate-300 hover:text-white transition-colors">Sobre Nosotros</Link>
+                <a href="mailto:contacto@auctorum.mx" className="block text-sm text-slate-300 hover:text-white transition-colors">Contacto</a>
               </div>
             </div>
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Legal</h4>
               <div className="space-y-3">
-                <a href="/privacy" className="block text-sm text-slate-400 hover:text-white transition-colors">Aviso de Privacidad</a>
-                <a href="/terms" className="block text-sm text-slate-400 hover:text-white transition-colors">Términos y Condiciones</a>
-                <a href="/cookies" className="block text-sm text-slate-400 hover:text-white transition-colors">Política de Cookies</a>
-                <a href="/ai-policy" className="block text-sm text-slate-400 hover:text-white transition-colors">Política de IA</a>
+                <a href="/privacy" className="block text-sm text-slate-300 hover:text-white transition-colors">Aviso de Privacidad</a>
+                <a href="/terms" className="block text-sm text-slate-300 hover:text-white transition-colors">Términos y Condiciones</a>
+                <a href="/cookies" className="block text-sm text-slate-300 hover:text-white transition-colors">Política de Cookies</a>
+                <a href="/ai-policy" className="block text-sm text-slate-300 hover:text-white transition-colors">Política de IA</a>
               </div>
             </div>
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Contacto</h4>
               <div className="space-y-3">
-                <a href="mailto:sistema@auctorum.com.mx" className="block text-sm text-slate-400 hover:text-white transition-colors">sistema@auctorum.com.mx</a>
-                <span className="block text-sm text-slate-500">Saltillo, Coahuila, México</span>
+                <a href="mailto:contacto@auctorum.mx" className="block text-sm text-slate-300 hover:text-white transition-colors">contacto@auctorum.mx</a>
+                <span className="block text-sm text-slate-400">Saltillo, Coahuila, México</span>
               </div>
             </div>
           </div>
           <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8">
             <div className="flex items-center gap-3">
-              <Image src="/logo.png" alt="Auctorum" width={24} height={24} className="h-6 w-auto opacity-70" />
-              <span className="text-sm font-bold tracking-widest text-slate-300 uppercase">Auctorum</span>
+              <Image src="/auctorum-mark-azul.png" alt="Auctorum" width={24} height={24} className="h-6 w-auto opacity-70" />
+              <span className="text-sm font-bold tracking-widest text-slate-200 uppercase">Auctorum</span>
             </div>
-            <p className="text-xs text-slate-500">&copy; 2026 Auctorum. Todos los derechos reservados.</p>
+            <p className="text-xs text-slate-400">&copy; 2026 Auctorum. Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>

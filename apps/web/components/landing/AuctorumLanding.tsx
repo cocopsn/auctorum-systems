@@ -976,12 +976,6 @@ function motifBuildTree(cx, cy, zoom) {
         return 1;
       }
 
-      // FLUIDITY: smoothed camera state. Each tick the camera lerps
-      // toward its target instead of snapping. Gives the scene weight
-      // and decouples visual movement from scroll cadence.
-      let smX = 0, smY = 0, smZ = 0.38;
-      let smInit = false;
-
       // ==========================================================
       // RENDER LOOP
       // ==========================================================
@@ -1040,22 +1034,6 @@ function motifBuildTree(cx, cy, zoom) {
           // between bang and settled state has no visible jump.
           zoom = 0.24 + bangEase * 0.22;
         }
-
-        // FLUIDITY: lerp the smoothed camera toward the target each frame.
-        // 0.10 per frame ≈ 10 frames to reach 65% / ~25 frames to settle =
-        // ~400ms of weight after a scroll input. During bang we sync 1:1
-        // because zoom is already animated explicitly.
-        const SMOOTH = settled ? 0.10 : 1;
-        if (!smInit) {
-          // Seed smoothed values from the first computed target so the
-          // first post-bang frame doesn't snap from (0,0,0.38).
-          smX = camX; smY = camY; smZ = zoom; smInit = true;
-        } else {
-          smX += (camX - smX) * SMOOTH;
-          smY += (camY - smY) * SMOOTH;
-          smZ += (zoom - smZ) * SMOOTH;
-        }
-        camX = smX; camY = smY; zoom = smZ;
 
         // --------- Determine active hub ---------
         if (settled) {
