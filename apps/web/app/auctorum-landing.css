@@ -158,9 +158,10 @@
   max-width: 480px;
   opacity: 0;
   transform: translateY(16px);
+  /* Fade shortened 900ms -> 600ms so first hub copy lands faster after bang. */
   transition:
-    opacity 900ms cubic-bezier(.2,.8,.2,1),
-    transform 900ms cubic-bezier(.2,.8,.2,1);
+    opacity 600ms cubic-bezier(.2,.8,.2,1),
+    transform 600ms cubic-bezier(.2,.8,.2,1);
   pointer-events: none;
   font-family: var(--auc-font-sans);
   color: #e8eef8;
@@ -279,7 +280,8 @@
   transform: translate(-50%, -50%) scale(0.92);
   width: 280px; height: auto;
   opacity: 0;
-  transition: opacity 1400ms ease, transform 1400ms cubic-bezier(.2,.8,.2,1);
+  /* Fade shortened 1400ms -> 700ms so logo lands faster after bang. */
+  transition: opacity 700ms ease, transform 700ms cubic-bezier(.2,.8,.2,1);
   z-index: 25;
   pointer-events: none;
   filter:

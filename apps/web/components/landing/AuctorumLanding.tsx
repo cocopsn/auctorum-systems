@@ -928,8 +928,11 @@ function motifBuildTree(cx, cy, zoom) {
 
       // Bang timing. The bang progresses on time, not scroll, because
       // it fires once at load.
-      const BANG_DURATION = 4600; // ms
-      const BANG_HOLD = 700;      // settle time after bang
+      // PERCEIVED-LATENCY EDIT: shortened from 4600/700 to 2000/200.
+      // Floater + logo can't fade in until "settled" — original 5.3s wait
+      // felt too long.
+      const BANG_DURATION = 2000; // ms
+      const BANG_HOLD = 200;      // settle time after bang
 
       function easeOutCubic(t) { return 1 - Math.pow(1 - t, 3); }
       function easeInOutCubic(t) {
