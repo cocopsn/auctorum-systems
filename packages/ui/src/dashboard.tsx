@@ -251,12 +251,12 @@ export function AppShell({
             </div>
           )}
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-white">{brand}</p>
+            <p className="truncate text-sm font-semibold text-[var(--theme-sidebar-foreground,#ffffff)]">{brand}</p>
             <p className="truncate text-xs text-[var(--theme-sidebar-text,#94a3b8)]">{appName}</p>
           </div>
           <button
             type="button"
-            className="ml-auto rounded-lg p-1.5 text-[var(--theme-sidebar-text,#94a3b8)] hover:bg-[var(--theme-sidebar-hover,#1e293b)] hover:text-white lg:hidden"
+            className="ml-auto rounded-lg p-1.5 text-[var(--theme-sidebar-text,#94a3b8)] hover:bg-[var(--theme-sidebar-hover,#1e293b)] hover:text-[var(--theme-sidebar-foreground,#ffffff)] lg:hidden"
             onClick={() => setOpen(false)}
             aria-label="Cerrar menu"
           >
@@ -281,12 +281,12 @@ export function AppShell({
                   onClick={() => setOpen(false)}
                   className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition ${
                     active
-                      ? 'border-l-2 border-[var(--theme-sidebar-active,#60a5fa)] bg-[var(--theme-sidebar-active-bg,rgba(30,64,175,0.5))] font-medium text-white'
+                      ? 'border-l-2 border-[var(--theme-sidebar-active,#60a5fa)] bg-[var(--theme-sidebar-active-bg,rgba(30,64,175,0.5))] font-medium text-[var(--theme-sidebar-active-fg,#ffffff)]'
                       : 'border-l-2 border-transparent text-[var(--theme-sidebar-text,#cbd5e1)] hover:bg-[var(--theme-sidebar-hover,#1e293b)]'
                   }`}
                   aria-current={active ? 'page' : undefined}
                 >
-                  <Icon className={`h-4 w-4 ${active ? 'text-white' : 'text-[var(--theme-sidebar-text,#94a3b8)]'}`} />
+                  <Icon className={`h-4 w-4 ${active ? 'text-[var(--theme-sidebar-active-fg,#ffffff)]' : 'text-[var(--theme-sidebar-text,#94a3b8)]'}`} />
                   {item.label}
                 </Link>
               </div>
@@ -295,18 +295,18 @@ export function AppShell({
         </nav>
 
         <div className="border-t border-[var(--theme-sidebar-border,#1e293b)] p-4">
-          <div className="flex items-center gap-3 rounded-2xl bg-slate-800 p-3">
+          <div className="flex items-center gap-3 rounded-2xl bg-[var(--theme-user-card-bg,#1e293b)] p-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--theme-sidebar-active,#1e40af)] text-sm font-semibold text-white">
               {userName.slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-white">{userName}</p>
+              <p className="truncate text-sm font-medium text-[var(--theme-sidebar-foreground,#ffffff)]">{userName}</p>
               <p className="truncate text-xs text-[var(--theme-sidebar-text,#64748b)]">{planLabel}</p>
             </div>
             <ChevronDown className="h-4 w-4 text-[var(--theme-sidebar-text,#94a3b8)]" />
           </div>
           <form action={logoutAction} method="POST" className="mt-3">
-            <button type="submit" className="w-full rounded-xl px-3 py-2 text-left text-xs text-[var(--theme-sidebar-text,#64748b)] hover:bg-[var(--theme-sidebar-hover,#1e293b)] hover:text-[var(--theme-sidebar-text,#cbd5e1)]">
+            <button type="submit" className="w-full rounded-xl px-3 py-2 text-left text-xs text-[var(--theme-sidebar-text,#64748b)] hover:bg-[var(--theme-sidebar-hover,#1e293b)] hover:text-[var(--theme-sidebar-foreground,#ffffff)]">
               Cerrar sesion
             </button>
           </form>

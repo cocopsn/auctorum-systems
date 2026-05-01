@@ -66,8 +66,11 @@ export function DashboardShell({
     '--theme-sidebar-hover': theme.sidebarHover,
     '--theme-sidebar-border': theme.sidebarBorder,
     '--theme-sidebar-text': theme.sidebarText,
+    '--theme-sidebar-foreground': theme.sidebarForeground,
     '--theme-sidebar-active': theme.sidebarActive,
     '--theme-sidebar-active-bg': theme.sidebarActiveBg,
+    '--theme-sidebar-active-fg': theme.sidebarActiveFg,
+    '--theme-user-card-bg': theme.userCardBg,
     '--theme-accent': theme.accent,
   } as React.CSSProperties
 
