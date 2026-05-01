@@ -7,11 +7,17 @@ import { Menu, X, Stethoscope } from 'lucide-react';
 const navLinks = [
   { href: '#servicios', label: 'Servicios' },
   { href: '#testimonios', label: 'Testimonios' },
-  { href: '#ubicacion', label: 'Ubicación' },
+  { href: '#ubicacion', label: 'Ubicaci\u00f3n' },
   { href: '/agendar', label: 'Agendar' },
 ];
 
-export default function Navbar() {
+type Props = {
+  doctorName: string
+  specialty: string
+  ctaLink: string
+}
+
+export default function Navbar({ doctorName, specialty, ctaLink }: Props) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -36,8 +42,8 @@ export default function Navbar() {
               <Stethoscope className="w-5 h-5 text-white" />
             </div>
             <div className="hidden sm:block">
-              <p className="text-sm font-bold text-slate-900 leading-none">Dra. Laura Martínez</p>
-              <p className="text-[10px] text-slate-500 tracking-wider uppercase">Dermatología</p>
+              <p className="text-sm font-bold text-slate-900 leading-none">{doctorName}</p>
+              <p className="text-[10px] text-slate-500 tracking-wider uppercase">{specialty}</p>
             </div>
           </a>
 
@@ -56,7 +62,7 @@ export default function Navbar() {
 
           <div className="hidden md:block">
             <a
-              href="/agendar"
+              href={ctaLink}
               className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-full text-sm font-semibold transition-all hover:shadow-lg hover:shadow-teal-600/25"
             >
               Agendar cita
@@ -81,7 +87,7 @@ export default function Navbar() {
               {navLinks.map((link) => (
                 <a key={link.href} href={link.href} onClick={() => setMobileOpen(false)} className="block text-slate-700 hover:text-teal-600 py-2 transition-colors">{link.label}</a>
               ))}
-              <a href="/agendar" className="flex items-center justify-center bg-teal-600 text-white px-5 py-3 rounded-full font-semibold text-sm w-full">Agendar por WhatsApp</a>
+              <a href={ctaLink} className="flex items-center justify-center bg-teal-600 text-white px-5 py-3 rounded-full font-semibold text-sm w-full">Agendar por WhatsApp</a>
             </div>
           </motion.div>
         )}

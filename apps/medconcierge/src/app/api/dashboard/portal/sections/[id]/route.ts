@@ -5,8 +5,11 @@ import { and, eq } from "drizzle-orm"
 import { db, portalPages } from "@quote-engine/db"
 import { getAuthTenant } from "@/lib/auth"
 import { z } from "zod"
+import { validateOrigin } from '@/lib/csrf'
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!validateOrigin(req)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
@@ -41,6 +44,8 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!validateOrigin(req)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 })

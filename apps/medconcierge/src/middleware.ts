@@ -7,12 +7,14 @@ const DASHBOARD_ROUTES = [
   '/citas', '/pacientes', '/horarios', '/notas', '/settings',
   '/agenda', '/ai-settings', '/portal', '/integrations', '/conversaciones',
   '/recordatorios', '/funnel', '/reports', '/follow-ups', '/budgets',
-  '/payments', '/invoices', '/campaigns', '/dashboard',
+  '/payments', '/invoices', '/campaigns', '/dashboard', '/admin', '/onboarding',
 ]
 
 function isDashboardRoute(pathname: string): boolean {
   return DASHBOARD_ROUTES.some(r => pathname === r || pathname.startsWith(r + '/'))
 }
+
+const LEGAL_ROUTES = ['/privacy', '/terms', '/ai-policy', '/cookies', '/data-deletion']
 
 function isStaticOrApi(pathname: string): boolean {
   if (pathname.startsWith('/_next')) return true
@@ -48,15 +50,28 @@ export async function middleware(request: NextRequest) {
     return await handleRequest(request)
   } catch (err) {
     console.error(
-      'Middleware uncaught error (recovering):',
+      '[middleware] ERROR — fail-closed:',
       err instanceof Error ? err.message : err,
     )
-    // On any unexpected error, let the request through rather than crashing.
-    // Clear any Supabase cookies that might be corrupted to prevent loops.
-    const response = NextResponse.next()
+    // H-1: Fail-closed — deny access to private routes on error.
+    // Public routes (landing, login, agendar, webhooks, health) still pass through.
+    const path = request.nextUrl.pathname
+    const isPublicRoute = path === '/' || path === '/login' || path === '/reset-password' || path.startsWith('/signup') || path.startsWith('/agendar')
+      || LEGAL_ROUTES.includes(path)
+      || path.startsWith('/api/wa/') || path.startsWith('/api/health')
+      || path.startsWith('/_next') || /\.(ico|png|jpg|svg|css|js|woff2?)$/.test(path)
+    if (isPublicRoute) {
+      const response = NextResponse.next()
+      const host = request.headers.get('host') ?? ''
+      clearSupabaseCookies(request, response, host)
+      return response
+    }
+    // Private routes: redirect to login
     const host = request.headers.get('host') ?? ''
-    clearSupabaseCookies(request, response, host)
-    return response
+    const realOrigin = host.includes('localhost') ? `http://${host}` : `https://${host || 'auctorum.com.mx'}`
+    const loginRedirect = NextResponse.redirect(new URL('/login', realOrigin))
+    clearSupabaseCookies(request, loginRedirect, host)
+    return loginRedirect
   }
 }
 
@@ -70,13 +85,7 @@ async function handleRequest(request: NextRequest) {
   // 1. Skip static assets and API routes
   if (isStaticOrApi(pathname)) return NextResponse.next()
 
-  // 2. Portal rewrite pass-through: if this is an internal rewritten request, let it through
-  if (request.nextUrl.searchParams.get('_portal') === '1') {
-    const response = NextResponse.next()
-    const slugFromPath = pathname.split('/')[1]
-    if (slugFromPath) response.headers.set('x-tenant-slug', slugFromPath)
-    return response
-  }
+  // 2. (Removed: _portal bypass was a security vulnerability)
 
   // 3. Extract subdomain slug
   let slug: string | null = null
@@ -93,12 +102,28 @@ async function handleRequest(request: NextRequest) {
     }
   }
 
-  // 4. /login always public
-  if (pathname === '/login') return NextResponse.next()
+  // 4. /login always public -- but clear stale auth cookies to prevent
+  // client-side auto-refresh loops from corrupted tokens
+  if (pathname === '/login' || pathname === '/reset-password' || pathname.startsWith('/signup')) {
+    const hasAuthCookies = request.cookies.getAll().some(c =>
+      c.name.startsWith('sb-') || c.name.includes('auth-token')
+    )
+    if (hasAuthCookies) {
+      const resp = NextResponse.next({ request })
+      clearSupabaseCookies(request, resp, host)
+      return resp
+    }
+    return NextResponse.next()
+  }
+
+  // 4b. Legal pages — always public (no auth required)
+  if (LEGAL_ROUTES.includes(pathname)) return NextResponse.next()
 
   // 5. Landing page: root path on subdomain shows the public landing
   if (slug && pathname === '/') {
-    return NextResponse.next()
+    const response = NextResponse.next()
+    response.headers.set('x-tenant-slug', slug)
+    return response
   }
 
   // 5b. Portal routes: subdomain + non-dashboard path -> rewrite with marker
@@ -157,6 +182,14 @@ async function handleRequest(request: NextRequest) {
             }
           },
         },
+        // Disable automatic token refresh — the middleware does a single
+        // getUser() call which refreshes once if needed. Without this flag
+        // the Supabase client retries refresh infinitely on corrupt tokens.
+        auth: {
+          autoRefreshToken: false,
+          persistSession: true,
+          detectSessionInUrl: false,
+        },
       }
     )
     const { data: { user: authUser } } = await supabase.auth.getUser()
@@ -171,7 +204,11 @@ async function handleRequest(request: NextRequest) {
     return clearResponse
   }
 
-  if (!session) return NextResponse.redirect(new URL('/login', realOrigin))
+  if (!session) {
+    const clearRedirect = NextResponse.redirect(new URL('/login', realOrigin))
+    clearSupabaseCookies(request, clearRedirect, host)
+    return clearRedirect
+  }
   if (slug) response.headers.set('x-tenant-slug', slug)
   return response
 }

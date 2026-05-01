@@ -14,6 +14,7 @@ import {
   listCalendarEvents,
   type CalendarEvent,
 } from "../apps/medconcierge/src/lib/google-calendar"
+import { Redis } from 'ioredis'
 
 // --------------- Helpers ---------------
 
@@ -40,7 +41,7 @@ function extractPatientName(summary: string): string | null {
 
 async function syncTenantCalendar(tenant: any) {
   const config = (tenant.config as Record<string, any>) || {}
-  const calConfig = getCalendarConfig(config)
+  const calConfig = getCalendarConfig(config, tenant.id)
   if (!calConfig) return
 
   const now = new Date()
@@ -50,7 +51,8 @@ async function syncTenantCalendar(tenant: any) {
     const events = await listCalendarEvents(
       now.toISOString(),
       twoWeeksLater.toISOString(),
-      config
+      config,
+      tenant.id,
     )
 
     console.log(`[calendar-sync] ${tenant.slug}: ${events.length} events from GCal`)
@@ -193,8 +195,19 @@ async function syncTenantCalendar(tenant: any) {
         console.log(`[calendar-sync] ${tenant.slug}: cancelled appointment ${appt.id} (GCal event ${appt.googleEventId} no longer exists)`)
       }
     }
-  } catch (e) {
-    console.error(`[calendar-sync] ${tenant.slug} error:`, e)
+  } catch (e: any) {
+    // If OAuth token is invalid, mark calendar as disconnected
+    if (e?.message?.includes('invalid_grant') || e?.message?.includes('Token has been expired or revoked')) {
+      console.error(`[calendar-sync] ${tenant.slug}: OAuth token revoked, marking disconnected`)
+      const tenantConfig = (tenant.config as Record<string, any>) || {}
+      if (tenantConfig.googleCalendar?.oauth) {
+        delete tenantConfig.googleCalendar.oauth
+        delete tenantConfig.googleCalendar.mode
+        await db.update(tenants).set({ config: tenantConfig, updatedAt: new Date() }).where(eq(tenants.id, tenant.id))
+      }
+    } else {
+      console.error(`[calendar-sync] ${tenant.slug} error:`, e)
+    }
   }
 }
 
@@ -242,18 +255,31 @@ async function createAppointmentFromEvent(
 // --------------- Main ---------------
 
 async function main() {
-  console.log("[calendar-sync] Starting bidirectional sync...")
-
-  const activeTenants = await db
-    .select()
-    .from(tenants)
-    .where(and(eq(tenants.isActive, true), isNull(tenants.deletedAt)))
-
-  for (const tenant of activeTenants) {
-    await syncTenantCalendar(tenant)
+  const redis = new Redis(process.env.REDIS_URL || 'redis://localhost:6379')
+  const LOCK_KEY = 'lock:calendar-sync'
+  const acquired = await redis.set(LOCK_KEY, Date.now().toString(), 'EX', 300, 'NX')
+  if (!acquired) {
+    console.log("[calendar-sync] Already running, skipping.")
+    await redis.quit()
+    process.exit(0)
   }
+  try {
+    console.log("[calendar-sync] Starting bidirectional sync...")
 
-  console.log("[calendar-sync] Sync complete")
+    const activeTenants = await db
+      .select()
+      .from(tenants)
+      .where(and(eq(tenants.isActive, true), isNull(tenants.deletedAt)))
+
+    for (const tenant of activeTenants) {
+      await syncTenantCalendar(tenant)
+    }
+
+    console.log("[calendar-sync] Sync complete")
+  } finally {
+    await redis.del(LOCK_KEY)
+    await redis.quit()
+  }
   process.exit(0)
 }
 

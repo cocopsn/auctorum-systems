@@ -75,7 +75,7 @@ export default async function TenantPage({ params }: TenantPageProps) {
               price: p.unitPrice,
               priceCurrency: config.quote_settings?.currency || 'MXN',
             })),
-          }),
+          }).replace(/<\/script/gi, "<\/script"),
         }}
       />
       <CatalogPageClient

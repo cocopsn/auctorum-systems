@@ -56,4 +56,4 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
 };
 
 export const FALLBACK_ERROR_MESSAGE =
-  "Disculpe, estoy teniendo dificultades tecnicas. Por favor intente de nuevo en unos minutos, o llame directamente al +52 844 664 4307.";
+  `Disculpe, estoy teniendo dificultades tecnicas. Por favor intente de nuevo en unos minutos, o llame directamente al ${process.env.FALLBACK_CONTACT_PHONE || '+52 844 664 4307'}.`;

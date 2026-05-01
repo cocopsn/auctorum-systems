@@ -4,13 +4,20 @@ import { NextRequest } from "next/server"
 import { eq } from "drizzle-orm"
 import { db, appointments, patients, tenants } from "@quote-engine/db"
 import type { TenantConfig } from "@quote-engine/db"
-import { createHmac } from "crypto"
+import { createHmac, timingSafeEqual } from "crypto"
 
-const SECRET = process.env.ICAL_SECRET || process.env.NEXTAUTH_SECRET || "auctorum-ical-default-secret"
+function getIcalSecret(): string {
+  const secret = process.env.ICAL_SECRET || process.env.NEXTAUTH_SECRET
+  if (!secret) {
+    throw new Error("ICAL_SECRET or NEXTAUTH_SECRET must be set")
+  }
+  return secret
+}
 
 function verifyIcalToken(appointmentId: string, token: string): boolean {
-  const expected = createHmac("sha256", SECRET).update(appointmentId).digest("hex").slice(0, 16)
-  return token === expected
+  const expected = createHmac("sha256", getIcalSecret()).update(appointmentId).digest("hex").slice(0, 16)
+  if (expected.length !== token.length) return false
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(token))
 }
 
 export async function GET(
@@ -18,6 +25,13 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    try {
+      getIcalSecret()
+    } catch {
+      console.error("iCal secret not configured")
+      return new Response("Server configuration error", { status: 500 })
+    }
+
     const token = req.nextUrl.searchParams.get("token")
     if (!token) {
       return new Response("Missing token", { status: 400 })
@@ -71,7 +85,7 @@ export async function GET(
       `UID:${appt.id}@auctorum.com.mx`,
       `SUMMARY:Cita con ${tenant.name} - ${specialty}`,
       `LOCATION:${location}`,
-      `DESCRIPTION:${appt.reason || "Consulta medica"}\\nTel: ${config.contact?.phone || ""}`,
+      `DESCRIPTION:${appt.reason || "Consulta medica"}\nTel: ${config.contact?.phone || ""}`,
       "STATUS:CONFIRMED",
       "BEGIN:VALARM",
       "TRIGGER:-PT60M",

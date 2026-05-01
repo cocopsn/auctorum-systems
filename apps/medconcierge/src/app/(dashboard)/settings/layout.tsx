@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Settings, MessageSquare, Bot, Users, CreditCard, FileText, Radio, Shield, Sparkles } from 'lucide-react'
+import { Settings, MessageSquare, Bot, Users, CreditCard, FileText, Radio, Shield, Sparkles, Palette } from 'lucide-react'
 
 const settingsNav = [
   { href: '/settings', label: 'General', icon: Settings, exact: true },
@@ -14,6 +14,7 @@ const settingsNav = [
   { href: '/settings/channels', label: 'Canales', icon: Radio },
   { href: '/settings/security', label: 'Seguridad', icon: Shield },
   { href: '/settings/subscription', label: 'Suscripcion', icon: Sparkles },
+  { href: '/settings/appearance', label: 'Apariencia', icon: Palette },
 ]
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {

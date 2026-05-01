@@ -5,6 +5,7 @@ import { getAuthTenant } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { validateOrigin } from '@/lib/csrf'
 
 // PATCH /api/dashboard/campaigns/[id]
 // Update a draft campaign
@@ -19,6 +20,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) {
@@ -112,6 +115,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) {

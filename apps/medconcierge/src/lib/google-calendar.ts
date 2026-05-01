@@ -38,47 +38,187 @@ export interface UpdateEventParams {
 
 interface CalendarConfig {
   calendarId: string;
-  serviceAccountEmail: string;
-  serviceAccountPrivateKey: string;
+  mode: 'oauth' | 'service_account';
+  // Service account fields
+  serviceAccountEmail?: string;
+  serviceAccountPrivateKey?: string;
+  // OAuth fields
+  accessToken?: string;
+  refreshToken?: string;
+  tokenExpiry?: string;
+  tenantId?: string;
 }
 
 /**
  * Get calendar config from tenant config or environment variables.
- * Tenant config takes precedence over env vars.
+ * Supports both OAuth (per-doctor) and service account (legacy) modes.
  */
-export function getCalendarConfig(tenantConfig?: Record<string, any>): CalendarConfig | null {
-  // Try tenant-level config first
+export function getCalendarConfig(tenantConfig?: Record<string, any>, tenantId?: string): CalendarConfig | null {
   const gc = tenantConfig?.googleCalendar;
-  if (gc?.calendarId && gc?.serviceAccountEmail && gc?.serviceAccountPrivateKey) {
+  if (!gc) {
+    // Fall back to environment variables (service account only)
+    const calendarId = process.env.GOOGLE_CALENDAR_ID;
+    const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+    const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
+    if (!calendarId || !email || !key) return null;
+    return {
+      calendarId,
+      mode: 'service_account',
+      serviceAccountEmail: email,
+      serviceAccountPrivateKey: key.replace(/\\n/g, '\n'),
+    };
+  }
+
+  // OAuth mode (preferred)
+  if (gc.mode === 'oauth' && gc.oauth?.refreshToken) {
+    return {
+      calendarId: gc.oauth.calendarId || gc.calendarId || 'primary',
+      mode: 'oauth',
+      accessToken: gc.oauth.accessToken,
+      refreshToken: gc.oauth.refreshToken,
+      tokenExpiry: gc.oauth.tokenExpiry,
+      tenantId,
+    };
+  }
+
+  // Service account mode (legacy)
+  if (gc.calendarId && gc.serviceAccountEmail && gc.serviceAccountPrivateKey) {
     return {
       calendarId: gc.calendarId,
+      mode: 'service_account',
       serviceAccountEmail: gc.serviceAccountEmail,
       serviceAccountPrivateKey: gc.serviceAccountPrivateKey.replace(/\\n/g, '\n'),
     };
   }
 
-  // Fall back to environment variables
-  const calendarId = process.env.GOOGLE_CALENDAR_ID;
-  const email = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
-  const key = process.env.GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY;
-
-  if (!calendarId || !email || !key) return null;
-
-  return {
-    calendarId,
-    serviceAccountEmail: email,
-    serviceAccountPrivateKey: key.replace(/\\n/g, '\n'),
-  };
+  return null;
 }
 
 export function isGoogleCalendarConfigured(tenantConfig?: Record<string, any>): boolean {
   return getCalendarConfig(tenantConfig) !== null;
 }
 
+// ---------------------------------------------------------------------------
+// OAuth token refresh
+// ---------------------------------------------------------------------------
+
+/**
+ * Refresh an OAuth access token using the refresh token.
+ * Returns the new access token or null on failure.
+ */
+async function refreshAccessToken(refreshToken: string): Promise<{
+  accessToken: string;
+  expiresIn: number;
+} | null> {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret) {
+    console.error('[google-calendar] Cannot refresh token: missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET');
+    return null;
+  }
+
+  try {
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('[google-calendar] Token refresh failed:', err);
+      return null;
+    }
+
+    const data = await res.json();
+    return {
+      accessToken: data.access_token,
+      expiresIn: data.expires_in || 3600,
+    };
+  } catch (err: any) {
+    console.error('[google-calendar] Token refresh error:', err?.message || err);
+    return null;
+  }
+}
+
+/**
+ * Get a valid access token, refreshing if needed.
+ * Updates the tenant config in the DB if the token was refreshed.
+ */
+async function getValidAccessToken(config: CalendarConfig): Promise<string | null> {
+  if (!config.accessToken || !config.refreshToken) return null;
+
+  // Check if token is still valid (with 5min buffer)
+  if (config.tokenExpiry) {
+    const expiry = new Date(config.tokenExpiry).getTime();
+    if (Date.now() < expiry - 5 * 60 * 1000) {
+      return config.accessToken;
+    }
+  }
+
+  // Token expired or no expiry info — refresh it
+  console.log('[google-calendar] Access token expired, refreshing...');
+  const refreshed = await refreshAccessToken(config.refreshToken);
+  if (!refreshed) return null;
+
+  // Update DB with new token if we have tenantId
+  if (config.tenantId) {
+    try {
+      // Dynamic import to avoid circular dependency in cron scripts
+      const { db, tenants } = await import('@quote-engine/db');
+      const { eq } = await import('drizzle-orm');
+
+      const [tenant] = await db.select().from(tenants).where(eq(tenants.id, config.tenantId)).limit(1);
+      if (tenant) {
+        const tenantConfig = (tenant.config as Record<string, any>) || {};
+        if (tenantConfig.googleCalendar?.oauth) {
+          tenantConfig.googleCalendar.oauth.accessToken = refreshed.accessToken;
+          tenantConfig.googleCalendar.oauth.tokenExpiry = new Date(
+            Date.now() + refreshed.expiresIn * 1000,
+          ).toISOString();
+
+          await db
+            .update(tenants)
+            .set({ config: tenantConfig, updatedAt: new Date() })
+            .where(eq(tenants.id, config.tenantId));
+
+          console.log('[google-calendar] Token refreshed and saved to DB');
+        }
+      }
+    } catch (err: any) {
+      console.error('[google-calendar] Failed to save refreshed token:', err?.message);
+    }
+  }
+
+  return refreshed.accessToken;
+}
+
+// ---------------------------------------------------------------------------
+// Calendar client builders
+// ---------------------------------------------------------------------------
+
 /**
  * Build an authenticated Google Calendar client from config.
+ * Supports both OAuth and service account authentication.
  */
-function getCalendarClient(config: CalendarConfig) {
+async function getCalendarClient(config: CalendarConfig) {
+  if (config.mode === 'oauth') {
+    const accessToken = await getValidAccessToken(config);
+    if (!accessToken) {
+      throw new Error('Failed to get valid OAuth access token');
+    }
+    const auth = new google.auth.OAuth2();
+    auth.setCredentials({ access_token: accessToken });
+    return google.calendar({ version: 'v3', auth });
+  }
+
+  // Service account auth (legacy)
   const auth = new google.auth.JWT({
     email: config.serviceAccountEmail,
     key: config.serviceAccountPrivateKey,
@@ -97,15 +237,16 @@ function getCalendarClient(config: CalendarConfig) {
 export async function createCalendarEvent(
   params: CreateEventParams,
   tenantConfig?: Record<string, any>,
+  tenantId?: string,
 ): Promise<string | null> {
-  const config = getCalendarConfig(tenantConfig);
+  const config = getCalendarConfig(tenantConfig, tenantId);
   if (!config) {
     console.log('[google-calendar] not configured, skipping event creation');
     return null;
   }
 
   try {
-    const calendar = getCalendarClient(config);
+    const calendar = await getCalendarClient(config);
     const reminderMinutes = params.reminderMinutes ?? 60;
 
     const event = await calendar.events.insert({
@@ -149,12 +290,13 @@ export async function listCalendarEvents(
   timeMin: string,
   timeMax: string,
   tenantConfig?: Record<string, any>,
+  tenantId?: string,
 ): Promise<CalendarEvent[]> {
-  const config = getCalendarConfig(tenantConfig);
+  const config = getCalendarConfig(tenantConfig, tenantId);
   if (!config) return [];
 
   try {
-    const calendar = getCalendarClient(config);
+    const calendar = await getCalendarClient(config);
     const response = await calendar.events.list({
       calendarId: config.calendarId,
       timeMin,
@@ -185,12 +327,13 @@ export async function listCalendarEvents(
 export async function cancelCalendarEvent(
   eventId: string,
   tenantConfig?: Record<string, any>,
+  tenantId?: string,
 ): Promise<boolean> {
-  const config = getCalendarConfig(tenantConfig);
+  const config = getCalendarConfig(tenantConfig, tenantId);
   if (!config) return false;
 
   try {
-    const calendar = getCalendarClient(config);
+    const calendar = await getCalendarClient(config);
     await calendar.events.delete({
       calendarId: config.calendarId,
       eventId,
@@ -210,12 +353,13 @@ export async function updateCalendarEvent(
   eventId: string,
   updates: UpdateEventParams,
   tenantConfig?: Record<string, any>,
+  tenantId?: string,
 ): Promise<boolean> {
-  const config = getCalendarConfig(tenantConfig);
+  const config = getCalendarConfig(tenantConfig, tenantId);
   if (!config) return false;
 
   try {
-    const calendar = getCalendarClient(config);
+    const calendar = await getCalendarClient(config);
     const requestBody: any = {};
 
     if (updates.summary) requestBody.summary = updates.summary;
@@ -252,11 +396,12 @@ export async function updateCalendarEvent(
  */
 export async function testCalendarConnection(
   tenantConfig?: Record<string, any>,
+  tenantId?: string,
 ): Promise<{ success: boolean; eventCount: number }> {
-  const config = getCalendarConfig(tenantConfig);
+  const config = getCalendarConfig(tenantConfig, tenantId);
   if (!config) throw new Error('Google Calendar no esta configurado');
 
-  const calendar = getCalendarClient(config);
+  const calendar = await getCalendarClient(config);
   const now = new Date();
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 

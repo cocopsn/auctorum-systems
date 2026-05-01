@@ -5,12 +5,15 @@ import { getAuthTenant } from "@/lib/auth"
 import { writeFile, mkdir } from "fs/promises"
 import { join } from "path"
 import crypto from "crypto"
+import { validateOrigin } from '@/lib/csrf'
 
 const UPLOAD_DIR = join(process.cwd(), "public", "uploads", "portal")
 const MAX_SIZE = 5 * 1024 * 1024 // 5MB
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"])
 
 export async function POST(req: NextRequest) {
+  if (!validateOrigin(req)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 })

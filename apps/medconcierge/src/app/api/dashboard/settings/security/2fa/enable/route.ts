@@ -6,6 +6,7 @@ import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import crypto from 'crypto';
 import { z } from 'zod';
+import { validateOrigin } from '@/lib/csrf'
 
 // ---------------------------------------------------------------------------
 // Base32 encoder (RFC 4648) — no external library
@@ -45,6 +46,8 @@ function base32Encode(buffer: Buffer): string {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) {

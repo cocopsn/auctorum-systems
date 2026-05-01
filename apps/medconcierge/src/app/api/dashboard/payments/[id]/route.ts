@@ -5,6 +5,7 @@ import { getAuthTenant } from '@/lib/auth';
 import { db, payments } from '@quote-engine/db';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
+import { validateOrigin } from '@/lib/csrf'
 
 // ---------------------------------------------------------------------------
 // PATCH /api/dashboard/payments/[id]
@@ -19,6 +20,8 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   const auth = await getAuthTenant();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 

@@ -7,7 +7,7 @@
 
 // Use relative imports since scripts/ is at repo root and pnpm strict mode
 // does not hoist workspace packages to root node_modules.
-import { createWorker, closeAll, type Job, type AuctorumJobPayload } from '../packages/queue/src/index';
+import { createWorker, createQueue, closeAll, getConnection, type Job, type AuctorumJobPayload } from '../packages/queue/src/index';
 import {
   db,
   conversations,
@@ -17,6 +17,8 @@ import {
   patients,
   notifications,
   type Tenant,
+  botInstances,
+  doctors,
 } from '../packages/db/index';
 import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 import {
@@ -26,7 +28,10 @@ import {
   searchKnowledgeBase,
   buildTenantSystemPrompt,
   checkTenantBudget,
+  setDoctorContext,
 } from '../packages/ai/index';
+
+const DEFAULT_TIMEZONE = process.env.DEFAULT_TIMEZONE || 'America/Monterrey'
 
 // --------------- WhatsApp send (inlined to avoid Next.js path aliases) ---------------
 
@@ -69,28 +74,36 @@ async function sendWhatsAppMessage(to: string, body: string): Promise<boolean> {
   }
 }
 
+
+// H-6: Per-tenant WhatsApp send — reads phone_number_id from bot_instances
+async function getPhoneNumberIdForTenant(tenantId: string): Promise<string | null> {
+  const [bot] = await db
+    .select({ config: botInstances.config })
+    .from(botInstances)
+    .where(and(eq(botInstances.tenantId, tenantId), eq(botInstances.channel, 'whatsapp'), eq(botInstances.status, 'active')))
+    .limit(1);
+  return (bot?.config as any)?.phone_number_id || process.env.WHATSAPP_PHONE_NUMBER_ID || null;
+}
+
 // --------------- Tenant resolution ---------------
 
 async function resolveTenant(normalized: string): Promise<{ tenant: Tenant; tenantId: string } | null> {
+  // Match patient by phone number (exact last-10-digits match)
   const [matchedPatient] = await db
     .select({ tenantId: patients.tenantId })
     .from(patients)
-    .where(sql`REGEXP_REPLACE(${patients.phone}, '[^0-9]', '', 'g') LIKE ${'%' + normalized}`)
+    .where(
+      sql`LENGTH(${normalized}) >= 10 AND RIGHT(REGEXP_REPLACE(${patients.phone}, '[^0-9]', '', 'g'), 10) = RIGHT(${normalized}, 10)`
+    )
     .limit(1);
 
-  let tenantId: string;
-  if (matchedPatient) {
-    tenantId = matchedPatient.tenantId;
-  } else {
-    const [medTenant] = await db
-      .select({ id: tenants.id })
-      .from(tenants)
-      .where(and(eq(tenants.isActive, true), isNull(tenants.deletedAt), sql`(${tenants.config}::jsonb)->'medical' IS NOT NULL`))
-      .limit(1);
-    if (!medTenant) return null;
-    tenantId = medTenant.id;
+  if (!matchedPatient) {
+    // C-3: Do NOT fall back to arbitrary tenant. Reject unknown numbers.
+    console.warn(`[worker] REJECTED: No patient match for phone ${normalized}. No fallback.`);
+    return null;
   }
 
+  const tenantId = matchedPatient.tenantId;
   const [tenant] = await db.select().from(tenants).where(eq(tenants.id, tenantId)).limit(1);
   if (!tenant) return null;
   return { tenant, tenantId };
@@ -102,7 +115,7 @@ async function getOrCreateConversation(tenantId: string, phone: string, normaliz
   let [client] = await db
     .select()
     .from(clients)
-    .where(and(eq(clients.tenantId, tenantId), sql`REGEXP_REPLACE(${clients.phone}, '[^0-9]', '', 'g') LIKE ${'%' + normalized}`))
+    .where(and(eq(clients.tenantId, tenantId), sql`LENGTH(${normalized}) >= 7 AND RIGHT(REGEXP_REPLACE(${clients.phone}, '[^0-9]', '', 'g'), 10) = RIGHT(${normalized}, 10)`))
     .limit(1);
 
   if (!client) {
@@ -196,6 +209,17 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
     return;
   }
 
+  // H-3: Per-phone rate limiting (20 messages per hour)
+  const redis = getConnection();
+  const rateLimitKey = `ratelimit:phone:${normalized}:${Math.floor(Date.now() / 3600000)}`;
+  const msgCount = await redis.incr(rateLimitKey);
+  if (msgCount === 1) await redis.expire(rateLimitKey, 3600);
+  if (msgCount > 20) {
+    console.warn(`[worker] Rate limited phone ${normalized}: ${msgCount} msgs in current hour`);
+    await sendWhatsAppMessage(from, 'Has enviado muchos mensajes. Por favor espera unos minutos antes de continuar.');
+    return;
+  }
+
   const { conversation } = await getOrCreateConversation(tenantId, from, normalized);
 
   if ((conversation as any).botPaused) {
@@ -240,13 +264,13 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
   // Inject current date/time (America/Monterrey), patient's WhatsApp phone,
   // and explicit next-weekday mapping so the LLM never does date arithmetic wrong.
   const nowInMonterrey = new Date().toLocaleString('sv-SE', {
-    timeZone: 'America/Monterrey',
+    timeZone: DEFAULT_TIMEZONE,
   });
   const todayISO = new Date().toLocaleDateString('en-CA', {
-    timeZone: 'America/Monterrey',
+    timeZone: DEFAULT_TIMEZONE,
   });
   const dayOfWeekSpanish = new Date().toLocaleDateString('es-MX', {
-    timeZone: 'America/Monterrey',
+    timeZone: DEFAULT_TIMEZONE,
     weekday: 'long',
   });
   const patientPhoneFull = (from || '').replace(/\D/g, '') || normalized;
@@ -263,13 +287,13 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
   }
 
   const weekdayMap = {
-    lunes: getNextWeekdayDate(1, 'America/Monterrey'),
-    martes: getNextWeekdayDate(2, 'America/Monterrey'),
-    miercoles: getNextWeekdayDate(3, 'America/Monterrey'),
-    jueves: getNextWeekdayDate(4, 'America/Monterrey'),
-    viernes: getNextWeekdayDate(5, 'America/Monterrey'),
-    sabado: getNextWeekdayDate(6, 'America/Monterrey'),
-    domingo: getNextWeekdayDate(0, 'America/Monterrey'),
+    lunes: getNextWeekdayDate(1, DEFAULT_TIMEZONE),
+    martes: getNextWeekdayDate(2, DEFAULT_TIMEZONE),
+    miercoles: getNextWeekdayDate(3, DEFAULT_TIMEZONE),
+    jueves: getNextWeekdayDate(4, DEFAULT_TIMEZONE),
+    viernes: getNextWeekdayDate(5, DEFAULT_TIMEZONE),
+    sabado: getNextWeekdayDate(6, DEFAULT_TIMEZONE),
+    domingo: getNextWeekdayDate(0, DEFAULT_TIMEZONE),
   };
 
   const contextInjection = `
@@ -323,10 +347,54 @@ NUNCA asumas que "tienes todo" y respondas confirmando. La confirmación requier
 tool execution exitosa.
 `;
 
+
+  // ============ MULTI-DOCTOR CONTEXT ============
+  const tenantDoctors = await db.select().from(doctors).where(and(eq(doctors.tenantId, tenantId), eq(doctors.isActive, true)));
+
+  // Detect previously selected doctor from conversation
+  let selectedDoctor = null;
+  if (tenantDoctors.length > 1 && (conversation as any).doctorId) {
+    selectedDoctor = tenantDoctors.find(d => d.id === (conversation as any).doctorId) || null;
+  }
+
+  // Set context for tool executors
+  setDoctorContext({
+    doctors: tenantDoctors,
+    selectedDoctor,
+    conversationId: conversation.id,
+  });
+
+  // Multi-doctor prompt injection
+  let multiDoctorPrompt = '';
+  if (tenantDoctors.length > 1) {
+    const doctorList = tenantDoctors.map((d, i) => `${i + 1}. ${d.name}${d.specialty ? ' - ' + d.specialty : ''}`).join('\n');
+    const selectedInfo = selectedDoctor ? `DOCTOR SELECCIONADO PARA ESTA CONVERSACION: ${selectedDoctor.name} (ID: ${selectedDoctor.id})` : 'DOCTOR SELECCIONADO: Ninguno aun';
+    multiDoctorPrompt = `
+
+===== CONSULTORIO MULTI-DOCTOR =====
+
+Este consultorio tiene ${tenantDoctors.length} doctores:
+${doctorList}
+
+FLUJO MULTI-DOCTOR OBLIGATORIO:
+1. Si el paciente NO ha elegido doctor aun, PREGUNTA: "Tenemos ${tenantDoctors.length} doctores disponibles. Con cual desea agendar?" y lista los nombres.
+2. Cuando el paciente diga un nombre, llama select_doctor(doctor_name) INMEDIATAMENTE.
+3. Una vez seleccionado, usa SOLO el calendario de ese doctor para check_availability y create_appointment.
+4. Pasa doctor_id en check_availability y create_appointment.
+5. Si el paciente pregunta algo general (horarios, direccion, costos), responde SIN requerir seleccion de doctor.
+6. Si el paciente dice "quiero cambiar de doctor", permite cambiar llamando select_doctor con el nuevo nombre.
+
+${selectedInfo}
+`;
+  } else if (tenantDoctors.length === 1) {
+    // Single doctor - auto-select silently
+    setDoctorContext({ doctors: tenantDoctors, selectedDoctor: tenantDoctors[0], conversationId: conversation.id });
+  }
+
   const systemPromptOverride = buildTenantSystemPrompt({
     tenant,
     ragChunks: ragChunks.map((c) => c.content),
-    customInstructions: (settings.systemPrompt ?? '') + contextInjection,
+    customInstructions: (settings.systemPrompt ?? '') + contextInjection + multiDoctorPrompt,
   });
 
   // Call OpenAI with function calling tools
@@ -368,10 +436,27 @@ tool execution exitosa.
     type: 'new_message',
     title: 'Nuevo mensaje WhatsApp',
     message: `${from}: ${text.slice(0, 100)}${text.length > 100 ? '...' : ''}`,
-  }).catch(() => {});
+  }).catch((err) => { console.error('Notification insert failed:', err) });
 
-  // Send via WhatsApp
-  const sent = await sendWhatsAppMessage(from, answer);
+  // Send via WhatsApp (H-6: use per-tenant phone_number_id)
+  const perTenantPhoneId = await getPhoneNumberIdForTenant(tenantId);
+  let sent = false;
+  if (perTenantPhoneId) {
+    const token = process.env.WHATSAPP_TOKEN;
+    if (token) {
+      try {
+        const res = await fetch(`${WHATSAPP_API_URL}/${perTenantPhoneId}/messages`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messaging_product: 'whatsapp', to: normalizePhone(from), type: 'text', text: { body: answer } }),
+        });
+        sent = res.ok;
+        if (!sent) console.error('[worker] WhatsApp API error:', await res.text());
+      } catch (err) { console.error('[worker] WhatsApp send error:', err); }
+    }
+  } else {
+    sent = await sendWhatsAppMessage(from, answer);
+  }
   if (!sent) {
     console.error(`[worker] failed to send WhatsApp to ${from}`);
   }
@@ -386,12 +471,34 @@ console.log('[worker] Starting WhatsApp message worker...');
 const worker = createWorker('whatsapp_messages', processWhatsAppMessage, 2);
 
 worker.on('completed', (job) => {
+  processedJobCount++;
   console.log(`[worker] Job ${job.id} completed`);
 });
 
 worker.on('failed', (job, err) => {
   console.error(`[worker] Job ${job?.id} failed:`, err.message);
 });
+// M-10: Periodically clean failed BullMQ jobs (older than 24h)
+const cleanupQueue = createQueue('whatsapp_messages');
+setInterval(async () => {
+  try {
+    const failedJobs = await cleanupQueue.getFailed(0, 100);
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    let cleaned = 0;
+    for (const job of failedJobs) {
+      if (job.timestamp < oneDayAgo) {
+        await job.remove();
+        cleaned++;
+      }
+    }
+    if (cleaned > 0) {
+      console.log(`[worker] Cleaned ${cleaned} failed BullMQ jobs older than 24h`);
+    }
+  } catch (err) {
+    console.error('[worker] Failed to clean BullMQ jobs:', err);
+  }
+}, 60 * 60 * 1000); // Run every hour
+
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
@@ -407,5 +514,20 @@ process.on('SIGINT', async () => {
   await closeAll();
   process.exit(0);
 });
+
+
+// L-4: Worker heartbeat logging
+let processedJobCount = 0;
+setInterval(() => {
+  const mem = process.memoryUsage();
+  console.log(JSON.stringify({
+    type: 'heartbeat',
+    uptime: Math.floor(process.uptime()),
+    rss: Math.round(mem.rss / 1024 / 1024) + 'MB',
+    heap: Math.round(mem.heapUsed / 1024 / 1024) + 'MB',
+    processed: processedJobCount,
+    timestamp: new Date().toISOString(),
+  }));
+}, 5 * 60 * 1000); // every 5 minutes
 
 console.log('[worker] Ready, waiting for jobs on queue: whatsapp_messages');

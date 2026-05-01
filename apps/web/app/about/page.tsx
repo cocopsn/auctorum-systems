@@ -2,7 +2,7 @@ export const dynamic = 'force-static';
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { GraduationCap, Rocket, Award, Trophy, Shield, Code, Stethoscope, Mic, Handshake, TrendingUp } from 'lucide-react';
+import { GraduationCap, Rocket, Award, Trophy, Shield, Code, Stethoscope, Mic, Handshake, TrendingUp, Heart, Megaphone } from 'lucide-react';
 
 const credentials = [
   {
@@ -57,6 +57,29 @@ const marcoCredentials = [
     icon: TrendingUp,
     title: 'Expansión por Red Profesional',
     subtitle: 'Crecimiento sostenible a través de confianza e implementación precisa',
+  },
+];
+
+const zertucheCredentials = [
+  {
+    icon: Trophy,
+    title: 'NHI Speaking Champion',
+    subtitle: 'Primer lugar en competencia internacional de oratoria espontánea',
+  },
+  {
+    icon: Shield,
+    title: 'Líder Estudiantil',
+    subtitle: 'Presidente del Comité Estudiantil — Colegio Ignacio Zaragoza',
+  },
+  {
+    icon: Megaphone,
+    title: 'Vocero Estatal',
+    subtitle: 'Promotor de la campaña nacional en la lucha contra el cáncer',
+  },
+  {
+    icon: Heart,
+    title: 'Voluntariado Social',
+    subtitle: 'Misionero Lasallista y voluntario en Alvernia',
   },
 ];
 
@@ -135,7 +158,6 @@ export default function AboutPage() {
             {/* Image — right column */}
             <div className="animate-fade-in-up anim-d2 relative order-1 flex justify-center md:order-2">
               <div className="relative">
-                {/* Subtle radial glow behind image */}
                 <div
                   className="absolute -inset-12"
                   style={{
@@ -232,10 +254,9 @@ export default function AboutPage() {
       <section className="relative overflow-hidden bg-slate-950 px-6 py-20 md:py-32">
         <div className="relative mx-auto max-w-7xl">
           <div className="grid items-center gap-12 md:grid-cols-2">
-            {/* Image — left column (invertido respecto a Armando) */}
+            {/* Image — left column */}
             <div className="animate-fade-in-up relative order-1 flex justify-center">
               <div className="relative">
-                {/* Subtle radial glow behind image */}
                 <div
                   className="absolute -inset-12"
                   style={{
@@ -336,7 +357,122 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 7: NUESTRA HISTORIA */}
+      {/* SEPARADOR VISUAL — ZERTUCHE */}
+      <div className="relative py-20">
+        <div className="mx-auto max-w-5xl px-6">
+          <div className="relative flex items-center justify-center">
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
+            <div className="mx-6 flex items-center gap-2">
+              <div className="h-1.5 w-1.5 rotate-45 bg-blue-500" />
+              <Image src="/logo.png" alt="" width={20} height={20} className="h-5 w-auto opacity-40" />
+              <div className="h-1.5 w-1.5 rotate-45 bg-blue-500" />
+            </div>
+            <div className="h-px flex-1 bg-gradient-to-r from-transparent via-slate-700 to-transparent" />
+          </div>
+        </div>
+      </div>
+
+      {/* SECTION 7: HERO ARMANDO ZERTUCHE */}
+      <section className="relative overflow-hidden bg-slate-950 px-6 py-20 md:py-28">
+        <div className="relative mx-auto max-w-7xl">
+          <div className="grid items-center gap-12 md:grid-cols-2">
+            {/* Text — left column */}
+            <div className="animate-fade-in-up order-2 md:order-1">
+              <p className="mb-6 font-mono text-sm uppercase tracking-widest text-blue-400">
+                {'// Dirección de Operaciones'}
+              </p>
+              <h2 className="leading-none">
+                <span className="block text-5xl font-bold text-white md:text-6xl">Armando</span>
+                <span className="block bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-5xl font-bold text-transparent md:text-6xl">
+                  Zertuche
+                </span>
+              </h2>
+              <p className="mt-4 text-xl text-slate-400">
+                Director de Operaciones — Auctorum Med
+              </p>
+            </div>
+
+            {/* Image — right column */}
+            <div className="animate-fade-in-up anim-d2 relative order-1 flex justify-center md:order-2">
+              <div className="relative">
+                <div
+                  className="absolute -inset-12"
+                  style={{
+                    background: 'radial-gradient(ellipse at center, rgba(16,185,129,0.08) 0%, transparent 70%)',
+                  }}
+                />
+                <img
+                  src="/coo-zertuche.png"
+                  alt="Armando Zertuche — Director de Operaciones de Auctorum Med"
+                  className="relative z-10 mx-auto h-auto w-full max-w-xs md:max-w-sm"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 8: SOBRE ZERTUCHE */}
+      <section className="relative bg-slate-950 px-6 py-24">
+        <div className="mx-auto max-w-5xl">
+          <div className="animate-fade-in-up">
+            <p className="mb-4 font-mono text-sm uppercase tracking-widest text-blue-400">
+              {'// Sobre Armando Zertuche'}
+            </p>
+            <h2 className="mb-10 text-4xl font-bold text-white">
+              Liderando las operaciones médicas
+            </h2>
+          </div>
+          <div className="animate-fade-in-up anim-d1 max-w-3xl space-y-6 text-lg leading-relaxed text-slate-300">
+            <p>
+              Armando Zertuche dirige las operaciones de Auctorum Med, asegurando la
+              implementación eficiente del sistema y la satisfacción operativa de cada
+              consultorio. Su liderazgo combina visión estratégica con ejecución disciplinada.
+            </p>
+            <p>
+              Reconocido por su capacidad de comunicación y liderazgo, ha sido galardonado en
+              múltiples competencias de oratoria y discurso a nivel nacional e internacional,
+              incluyendo primer lugar en la NHI Spontaneous Speaking Competition y premiaciones
+              en la UAdeC, Cumbres, La Salle y La Paz. Ha ejercido roles de liderazgo como
+              Presidente del Comité Estudiantil del Colegio Ignacio Zaragoza y Vocero Estatal
+              en la campaña de lucha contra el cáncer.
+            </p>
+            <p>
+              Su trayectoria incluye reconocimientos en expresión artística a nivel estatal,
+              primer lugar como promotor de conciencia juvenil por la Fiscalía en delitos por
+              hechos de corrupción, y experiencia en voluntariado social como Misionero
+              Lasallista y en Alvernia. Actualmente estudia Arquitectura, donde fue nombrado
+              Capitán de su generación en segundo semestre.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 9: CREDENCIALES DE ZERTUCHE */}
+      <section className="relative bg-slate-950 px-6 py-24">
+        <div className="mx-auto max-w-5xl">
+          <div className="animate-fade-in-up">
+            <p className="mb-4 font-mono text-sm uppercase tracking-widest text-blue-400">
+              {'// Credenciales'}
+            </p>
+            <h2 className="mb-12 text-4xl font-bold text-white">Perfil Profesional</h2>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2">
+            {zertucheCredentials.map((cred, i) => (
+              <div
+                key={cred.title}
+                className={`animate-fade-in-up anim-d${i + 1} group rounded-xl border border-slate-800 bg-slate-900/50 p-6 backdrop-blur transition-all duration-300 hover:border-blue-500/50 hover:shadow-lg hover:shadow-blue-500/10`}
+              >
+                <cred.icon className="mb-3 h-8 w-8 text-blue-400" />
+                <h3 className="text-lg font-semibold text-white">{cred.title}</h3>
+                <p className="mt-1 text-sm text-slate-400">{cred.subtitle}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* SECTION 10: NUESTRA HISTORIA */}
       <section className="relative bg-slate-950 px-6 py-24">
         <div className="mx-auto max-w-5xl">
           <div className="animate-fade-in-up">
@@ -371,7 +507,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 8: VISIÓN */}
+      {/* SECTION 11: VISIÓN */}
       <section className="relative bg-slate-950 px-6 py-24">
         <div className="mx-auto max-w-4xl text-center">
           <div className="mx-auto mb-10 w-20 border-t-2 border-blue-500" />
@@ -383,7 +519,7 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* SECTION 9: CTA */}
+      {/* SECTION 12: CTA */}
       <section className="bg-gradient-to-b from-slate-950 via-blue-950/30 to-slate-950 px-6 py-24">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="animate-fade-in-up text-3xl font-bold text-white md:text-4xl">
@@ -427,8 +563,10 @@ export default function AboutPage() {
             <div>
               <h4 className="mb-4 text-sm font-semibold text-white">Legal</h4>
               <div className="space-y-3">
-                <span className="block text-sm text-slate-500">Aviso de Privacidad</span>
-                <span className="block text-sm text-slate-500">Términos de Servicio</span>
+                <a href="https://dra-martinez.auctorum.com.mx/privacy" className="block text-sm text-slate-400 transition-colors hover:text-white">Aviso de Privacidad</a>
+                <a href="https://dra-martinez.auctorum.com.mx/terms" className="block text-sm text-slate-400 transition-colors hover:text-white">Términos y Condiciones</a>
+                <a href="https://dra-martinez.auctorum.com.mx/cookies" className="block text-sm text-slate-400 transition-colors hover:text-white">Política de Cookies</a>
+                <a href="https://dra-martinez.auctorum.com.mx/ai-policy" className="block text-sm text-slate-400 transition-colors hover:text-white">Política de IA</a>
               </div>
             </div>
             <div>

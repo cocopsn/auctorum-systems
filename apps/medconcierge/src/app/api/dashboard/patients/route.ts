@@ -1,11 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from 'next/server'
-import { eq, ilike, or, desc } from 'drizzle-orm'
-import { db } from '@quote-engine/db'
-import { patients } from '@quote-engine/db'
+import { eq, ilike, or, desc, sql } from 'drizzle-orm'
+import { db, patients, clinicalRecords } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
-import { z } from 'zod';
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthTenant()
@@ -19,26 +17,6 @@ export async function GET(request: NextRequest) {
   const offset = (page - 1) * limit
 
   try {
-    const conditions = [eq(patients.tenantId, tenantId)]
-
-    if (search) {
-      conditions.push(
-        or(
-          ilike(patients.name, `%${search}%`),
-          ilike(patients.phone, `%${search}%`)
-        )!
-      )
-    }
-
-    const results = await db
-      .select()
-      .from(patients)
-      .where(conditions.length > 1 ? (conditions[0] && conditions[1] ? undefined : conditions[0]) : conditions[0])
-      .orderBy(desc(patients.lastAppointmentAt))
-      .limit(limit)
-      .offset(offset)
-
-    // Simplified: just filter by tenant + search
     let filtered = await db
       .select()
       .from(patients)
@@ -54,7 +32,31 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ patients: filtered, page, limit })
+    // Get notes count per patient
+    const patientIds = filtered.map(p => p.id)
+    let notesCounts: Record<string, number> = {}
+
+    if (patientIds.length > 0) {
+      const counts = await db
+        .select({
+          patientId: clinicalRecords.patientId,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(clinicalRecords)
+        .where(eq(clinicalRecords.tenantId, tenantId))
+        .groupBy(clinicalRecords.patientId)
+
+      for (const row of counts) {
+        notesCounts[row.patientId] = row.count
+      }
+    }
+
+    const patientsWithNotes = filtered.map(p => ({
+      ...p,
+      notesCount: notesCounts[p.id] ?? 0,
+    }))
+
+    return NextResponse.json({ patients: patientsWithNotes, page, limit })
   } catch (error) {
     console.error('Patients API error:', error)
     return NextResponse.json({ error: 'Error fetching patients' }, { status: 500 })

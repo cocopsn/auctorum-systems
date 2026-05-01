@@ -57,7 +57,7 @@ interface PlanDefinition {
 const PLANS: PlanDefinition[] = [
   {
     key: 'basico',
-    name: 'Free',
+    name: 'Plan Básico',
     price: '$1,400',
     priceDetail: 'MXN/mes',
     features: ['100 conversaciones', '1 usuario', 'Funciones basicas'],
@@ -71,7 +71,7 @@ const PLANS: PlanDefinition[] = [
   },
   {
     key: 'auctorum',
-    name: 'Pro',
+    name: 'Plan Auctorum',
     price: '$1,800',
     priceDetail: 'MXN/mes',
     features: ['1,000 conversaciones', '5 usuarios', 'Todas las funciones'],
@@ -131,8 +131,8 @@ function statusBadge(status: string) {
 
 function planBadge(plan: string) {
   const map: Record<string, { label: string; className: string }> = {
-    free: { label: 'Free', className: 'bg-gray-100 text-gray-700' },
-    pro: { label: 'Pro', className: 'bg-indigo-50 text-indigo-700' },
+    basico: { label: 'Básico', className: 'bg-gray-100 text-gray-700' },
+    auctorum: { label: 'Auctorum', className: 'bg-indigo-50 text-indigo-700' },
     enterprise: { label: 'Enterprise', className: 'bg-amber-50 text-amber-700' },
   };
   const entry = map[plan] ?? { label: plan, className: 'bg-gray-100 text-gray-500' };

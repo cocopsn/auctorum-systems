@@ -4,6 +4,7 @@ import { eq, and, lt, desc } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
 import { z } from 'zod';
+import { validateOrigin } from '@/lib/csrf'
 
 export const dynamic = 'force-dynamic'
 
@@ -72,6 +73,8 @@ export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant()
     if (!auth) {

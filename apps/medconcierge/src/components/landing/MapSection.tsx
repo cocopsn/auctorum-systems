@@ -3,39 +3,91 @@
 import { motion } from 'framer-motion';
 import { MapPin, Phone, Clock, MessageCircle } from 'lucide-react';
 
-export default function MapSection() {
+type Props = {
+  address: string
+  phone: string
+  email: string
+  schedule: Record<string, { enabled: boolean; start: string; end: string }>
+  consultationFee: number
+  ctaLink: string
+}
+
+function formatScheduleLines(schedule: Props['schedule']): { weekdays: string; saturday: string; sunday: string } {
+  const dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+  const dayNames: Record<string, string> = {
+    monday: 'Lunes', tuesday: 'Martes', wednesday: 'Mi\u00e9rcoles',
+    thursday: 'Jueves', friday: 'Viernes', saturday: 'S\u00e1bado', sunday: 'Domingo',
+  }
+
+  const weekdays = dayOrder.slice(0, 5).filter(d => schedule[d]?.enabled)
+  const sat = schedule.saturday
+  const sun = schedule.sunday
+
+  let weekdayStr = 'Cerrado'
+  if (weekdays.length > 0) {
+    const t = schedule[weekdays[0]]
+    weekdayStr = `${t.start} - ${t.end}`
+    if (weekdays.length === 5) weekdayStr = `Lunes a Viernes: ${weekdayStr}`
+    else weekdayStr = `${weekdays.map(d => dayNames[d]).join(', ')}: ${weekdayStr}`
+  }
+
+  return {
+    weekdays: weekdayStr,
+    saturday: sat?.enabled ? `S\u00e1bado: ${sat.start} - ${sat.end}` : 'S\u00e1bado: Cerrado',
+    sunday: sun?.enabled ? `Domingo: ${sun.start} - ${sun.end}` : 'Domingo: Cerrado',
+  }
+}
+
+function formatPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '')
+  if (digits.length === 12 && digits.startsWith('52')) {
+    return `+52 (${digits.slice(2, 5)}) ${digits.slice(5, 8)}-${digits.slice(8)}`
+  }
+  return phone
+}
+
+export default function MapSection({ address, phone, schedule, consultationFee, ctaLink }: Props) {
+  const sched = formatScheduleLines(schedule)
+  const displayPhone = formatPhone(phone)
+  const telHref = `tel:${phone.replace(/\D/g, '')}`
+
+  // Build a simple Google Maps embed URL from address
+  const mapQuery = encodeURIComponent(address)
+
   return (
     <section id="ubicacion" className="px-4 sm:px-6 lg:px-8 py-16 md:py-24 bg-[#F8FAFB]">
       <div className="max-w-7xl mx-auto">
         <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.5 }} className="text-center mb-12">
-          <p className="text-xs text-teal-600 uppercase tracking-[0.2em] mb-3 font-semibold">Ubicación</p>
-          <h2 className="font-light text-3xl md:text-4xl lg:text-5xl text-slate-900">Encuéntranos en <span className="font-semibold text-teal-700">Saltillo</span></h2>
+          <p className="text-xs text-teal-600 uppercase tracking-[0.2em] mb-3 font-semibold">Ubicaci&oacute;n</p>
+          <h2 className="font-light text-3xl md:text-4xl lg:text-5xl text-slate-900">Enc&uacute;entranos</h2>
         </motion.div>
         <div className="grid lg:grid-cols-2 gap-8">
           <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="rounded-2xl overflow-hidden shadow-lg border border-gray-100 h-80 lg:h-full min-h-[320px]">
-            <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3602.8!2d-100.99!3d25.42!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x0%3A0x0!2sBlvd.+V.+Carranza+2345%2C+Saltillo!5e0!3m2!1ses!2smx!4v1" width="100%" height="100%" style={{ border: 0 }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" title="Consultorio Dra. Laura Martínez" />
+            <iframe src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${mapQuery}`} width="100%" height="100%" style={{ border: 0 }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" title="Ubicaci\u00f3n del consultorio" />
           </motion.div>
           <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="space-y-6">
             <div className="flex gap-4">
               <div className="flex-shrink-0 w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center"><MapPin className="w-5 h-5 text-teal-600" /></div>
-              <div><p className="font-semibold text-slate-900">Dirección</p><p className="text-sm text-slate-500 mt-1">Blvd. V. Carranza 2345, Consultorio 8,<br />Saltillo, Coahuila</p></div>
+              <div><p className="font-semibold text-slate-900">Direcci&oacute;n</p><p className="text-sm text-slate-500 mt-1">{address}</p></div>
             </div>
             <div className="flex gap-4">
               <div className="flex-shrink-0 w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center"><Phone className="w-5 h-5 text-teal-600" /></div>
-              <div><p className="font-semibold text-slate-900">Teléfono</p><a href="tel:+528441234567" className="text-sm text-teal-600 hover:text-teal-700 transition-colors mt-1 inline-block">+52 (844) 123-4567</a></div>
+              <div><p className="font-semibold text-slate-900">Tel&eacute;fono</p><a href={telHref} className="text-sm text-teal-600 hover:text-teal-700 transition-colors mt-1 inline-block">{displayPhone}</a></div>
             </div>
             <div className="flex gap-4">
               <div className="flex-shrink-0 w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center"><MessageCircle className="w-5 h-5 text-emerald-600" /></div>
-              <div><p className="font-semibold text-slate-900">WhatsApp</p><a href="/agendar" className="text-sm text-emerald-600 hover:text-emerald-700 transition-colors mt-1 inline-block">Enviar mensaje — Agendar cita</a></div>
+              <div><p className="font-semibold text-slate-900">WhatsApp</p><a href={ctaLink} className="text-sm text-emerald-600 hover:text-emerald-700 transition-colors mt-1 inline-block">Enviar mensaje &mdash; Agendar cita</a></div>
             </div>
             <div className="flex gap-4">
               <div className="flex-shrink-0 w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center"><Clock className="w-5 h-5 text-teal-600" /></div>
-              <div><p className="font-semibold text-slate-900">Horario</p><div className="text-sm text-slate-500 mt-1 space-y-0.5"><p>Lunes a Viernes: 9:00 - 14:00</p><p>Sábado: 10:00 - 13:00</p><p className="text-xs text-slate-400">Domingo: Cerrado</p></div></div>
+              <div><p className="font-semibold text-slate-900">Horario</p><div className="text-sm text-slate-500 mt-1 space-y-0.5"><p>{sched.weekdays}</p><p>{sched.saturday}</p><p className="text-xs text-slate-400">{sched.sunday}</p></div></div>
             </div>
-            <div className="bg-teal-50 rounded-xl p-4 border border-teal-100">
-              <p className="text-sm text-slate-700"><strong className="text-teal-700">Consulta:</strong> $800 MXN</p>
-              <p className="text-xs text-slate-500 mt-1">Aceptamos efectivo, tarjeta y transferencia</p>
-            </div>
+            {consultationFee > 0 && (
+              <div className="bg-teal-50 rounded-xl p-4 border border-teal-100">
+                <p className="text-sm text-slate-700"><strong className="text-teal-700">Consulta:</strong> ${consultationFee.toLocaleString()} MXN</p>
+                <p className="text-xs text-slate-500 mt-1">Aceptamos efectivo, tarjeta y transferencia</p>
+              </div>
+            )}
           </motion.div>
         </div>
       </div>

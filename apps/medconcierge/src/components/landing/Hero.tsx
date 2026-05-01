@@ -3,7 +3,22 @@
 import { motion } from 'framer-motion';
 import { ArrowRight, Star, Stethoscope, Shield } from 'lucide-react';
 
-export default function Hero() {
+type Props = {
+  doctorName: string
+  specialty: string
+  subSpecialty?: string
+  tagline?: string
+  rating: number
+  reviewCount: number
+  yearsExperience: number
+  consultationFee: number
+  ctaLink: string
+  initials: string
+}
+
+export default function Hero({ doctorName, specialty, subSpecialty, tagline, rating, reviewCount, yearsExperience, consultationFee, ctaLink, initials }: Props) {
+  const specialtyLabel = subSpecialty ? `${specialty} \u2014 ${subSpecialty}` : specialty
+
   return (
     <section className="relative min-h-[100dvh] flex items-center overflow-hidden bg-gradient-to-br from-teal-800 via-teal-700 to-teal-600">
       <div className="absolute inset-0 opacity-[0.04]">
@@ -20,18 +35,21 @@ export default function Hero() {
             </motion.div>
 
             <h1 className="font-light text-4xl sm:text-5xl lg:text-6xl text-white leading-[1.1] mb-4">
-              Tu piel en las mejores{' '}
-              <span className="font-semibold text-amber-400">manos</span>
+              {tagline || (
+                <>Tu piel en las mejores{' '}<span className="font-semibold text-amber-400">manos</span></>
+              )}
             </h1>
 
-            <p className="font-medium text-lg sm:text-xl text-amber-300 mb-4">Dra. Laura Martínez — Dermatología Especializada</p>
+            <p className="font-medium text-lg sm:text-xl text-amber-300 mb-4">{doctorName} &mdash; {specialtyLabel}</p>
 
             <p className="text-white/80 text-base sm:text-lg leading-relaxed mb-8 max-w-xl">
-              15 años de experiencia en dermatología clínica y cosmética. Consulta: $800 MXN. Agenda fácil por WhatsApp.
+              {yearsExperience > 0 && <>{yearsExperience} a&ntilde;os de experiencia en {specialty.toLowerCase()}. </>}
+              {consultationFee > 0 && <>Consulta: ${consultationFee.toLocaleString()} MXN. </>}
+              Agenda f&aacute;cil por WhatsApp.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4">
-              <a href="/agendar" className="group inline-flex items-center justify-center gap-3 bg-amber-500 hover:bg-amber-400 text-slate-900 px-8 py-4 rounded-full font-bold text-lg transition-all hover:shadow-xl hover:shadow-amber-500/30 hover:scale-[1.02]">
+              <a href={ctaLink} className="group inline-flex items-center justify-center gap-3 bg-amber-500 hover:bg-amber-400 text-slate-900 px-8 py-4 rounded-full font-bold text-lg transition-all hover:shadow-xl hover:shadow-amber-500/30 hover:scale-[1.02]">
                 Agendar por WhatsApp
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </a>
@@ -45,18 +63,20 @@ export default function Hero() {
               <div className="relative w-72 h-72 sm:w-80 sm:h-80 lg:w-[400px] lg:h-[400px] rounded-[2rem] overflow-hidden border-4 border-amber-400/40 shadow-2xl bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center">
                 <Stethoscope className="w-32 h-32 text-white/20" />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-8xl font-light text-white/50">LM</span>
+                  <span className="text-8xl font-light text-white/50">{initials}</span>
                 </div>
               </div>
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8, duration: 0.5 }} className="absolute -bottom-4 -left-4 sm:-bottom-6 sm:-left-6 bg-white/90 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-xl border border-gray-200">
-                <div className="flex items-center gap-2">
-                  <div className="flex">{[...Array(5)].map((_, i) => (<Star key={i} className="w-4 h-4 fill-amber-400 text-amber-400" />))}</div>
-                  <div>
-                    <p className="font-bold text-sm text-slate-900">4.8&#9733; Google</p>
-                    <p className="text-xs text-slate-500">52 reseñas</p>
+              {reviewCount > 0 && (
+                <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8, duration: 0.5 }} className="absolute -bottom-4 -left-4 sm:-bottom-6 sm:-left-6 bg-white/90 backdrop-blur-xl rounded-2xl px-4 py-3 shadow-xl border border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <div className="flex">{[...Array(5)].map((_, i) => (<Star key={i} className={`w-4 h-4 ${i < Math.round(rating) ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}`} />))}</div>
+                    <div>
+                      <p className="font-bold text-sm text-slate-900">{rating}&#9733; Google</p>
+                      <p className="text-xs text-slate-500">{reviewCount} rese&ntilde;as</p>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
+                </motion.div>
+              )}
             </div>
           </motion.div>
         </div>

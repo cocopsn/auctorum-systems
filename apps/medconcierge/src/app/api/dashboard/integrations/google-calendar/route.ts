@@ -9,6 +9,7 @@ import {
   isGoogleCalendarConfigured,
   testCalendarConnection,
 } from '@/lib/google-calendar';
+import { validateOrigin } from '@/lib/csrf'
 
 // GET — check if Google Calendar is configured
 export async function GET() {
@@ -40,6 +41,8 @@ const SaveSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -98,7 +101,9 @@ export async function POST(request: NextRequest) {
 }
 
 // DELETE — disconnect Google Calendar
-export async function DELETE() {
+export async function DELETE(request: Request) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });

@@ -8,6 +8,7 @@ import { executeToolCall } from './tool-executors';
 
 const OPENAI_BASE_URL = 'https://api.openai.com/v1';
 const MAX_TOOL_ROUNDS = 3;
+const MAX_TOTAL_OPENAI_CALLS = 5;
 
 type ChatMessage = {
   role: 'system' | 'user' | 'assistant' | 'tool';
@@ -53,6 +54,7 @@ export async function runWhatsAppReplyWithTools(
 
   const allToolCalls: ToolCallResult[] = [];
   let rounds = 0;
+  let totalOpenAICalls = 0;
 
   while (rounds < MAX_TOOL_ROUNDS) {
     rounds++;
@@ -65,6 +67,8 @@ export async function runWhatsAppReplyWithTools(
       temperature: 0.7,
     };
 
+    totalOpenAICalls++;
+    if (totalOpenAICalls > MAX_TOTAL_OPENAI_CALLS) { console.warn('[ai/tools] max total OpenAI calls reached'); break; }
     const res = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
       method: 'POST',
       headers: {
@@ -214,6 +218,8 @@ Responde correctamente llamando check_availability.`;
         content: correctionMessage,
       });
 
+      totalOpenAICalls++;
+      if (totalOpenAICalls > MAX_TOTAL_OPENAI_CALLS) { console.warn('[ai/tools] max total OpenAI calls reached'); break; }
       const correctiveRes = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -259,6 +265,8 @@ Responde correctamente llamando check_availability.`;
         }
 
         // Get final answer after corrective tools (allow chained tool calls)
+        totalOpenAICalls++;
+        if (totalOpenAICalls > MAX_TOTAL_OPENAI_CALLS) { console.warn('[ai/tools] max total OpenAI calls reached'); break; }
         const finalRes = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
           method: 'POST',
           headers: {
@@ -299,6 +307,8 @@ Responde correctamente llamando check_availability.`;
             });
           }
           // Final answer after chained tools
+          totalOpenAICalls++;
+          if (totalOpenAICalls > MAX_TOTAL_OPENAI_CALLS) { console.warn('[ai/tools] max total OpenAI calls reached'); break; }
           const lastRes = await fetch(`${OPENAI_BASE_URL}/chat/completions`, {
             method: 'POST',
             headers: {

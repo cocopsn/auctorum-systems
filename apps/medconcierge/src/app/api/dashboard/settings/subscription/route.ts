@@ -5,6 +5,7 @@ import { getAuthTenant } from '@/lib/auth';
 import { db, tenants } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { validateOrigin } from '@/lib/csrf'
 
 // GET /api/dashboard/settings/subscription
 // Returns the current subscription for the tenant
@@ -16,7 +17,7 @@ export async function GET(request: NextRequest) {
     }
 
     const result = await db.execute(
-      sql`SELECT id, tenant_id, plan, status, amount, currency, billing_cycle, current_period_start, current_period_end, payment_method, processor_subscription_id, grace_period_days, cancelled_at, created_at, updated_at FROM subscriptions WHERE tenant_id = ${auth.tenant.id}`
+      sql`SELECT id, tenant_id, plan, status, amount, currency, billing_cycle, current_period_start, current_period_end, payment_method, processor_subscription_id, stripe_customer_id, grace_period_days, cancelled_at, created_at, updated_at FROM subscriptions WHERE tenant_id = ${auth.tenant.id}`
     ) as any[];
 
     const row = result[0] ?? null;
@@ -44,6 +45,8 @@ const patchSchema = z.object({
 });
 
 export async function PATCH(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) {
@@ -86,7 +89,7 @@ export async function PATCH(request: NextRequest) {
 
     // Fetch updated subscription
     const result = await db.execute(
-      sql`SELECT id, tenant_id, plan, status, amount, currency, billing_cycle, current_period_start, current_period_end, payment_method, processor_subscription_id, grace_period_days, cancelled_at, created_at, updated_at FROM subscriptions WHERE tenant_id = ${auth.tenant.id}`
+      sql`SELECT id, tenant_id, plan, status, amount, currency, billing_cycle, current_period_start, current_period_end, payment_method, processor_subscription_id, stripe_customer_id, grace_period_days, cancelled_at, created_at, updated_at FROM subscriptions WHERE tenant_id = ${auth.tenant.id}`
     ) as any[];
 
     return NextResponse.json({ subscription: result[0] ?? null });

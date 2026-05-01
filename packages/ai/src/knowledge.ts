@@ -129,10 +129,10 @@ export async function deleteKnowledgeFile({
   await openaiFetch(
     `/vector_stores/${record.vectorStoreId}/files/${record.openaiFileId}`,
     { method: "DELETE" },
-  ).catch(() => null);
+  ).catch((err) => { console.error('Notification insert failed:', err) });
   await openaiFetch(`/files/${record.openaiFileId}`, {
     method: "DELETE",
-  }).catch(() => null);
+  }).catch((err) => { console.error('Notification insert failed:', err) });
 
   const [updated] = await db
     .update(aiKnowledgeFiles)

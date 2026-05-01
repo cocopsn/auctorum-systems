@@ -46,8 +46,8 @@ type ShellResponse = {
 }
 
 const PLAN_LABELS: Record<string, string> = {
-  free: 'Plan Básico',
-  pro: 'Plan Pro',
+  basico: 'Plan Básico',
+  auctorum: 'Plan Auctorum',
   enterprise: 'Plan Enterprise',
 }
 

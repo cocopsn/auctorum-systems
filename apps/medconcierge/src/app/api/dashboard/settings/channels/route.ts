@@ -5,6 +5,7 @@ import { getAuthTenant } from '@/lib/auth';
 import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { validateOrigin } from '@/lib/csrf'
 
 // GET /api/dashboard/settings/channels
 // Returns channels_config JSONB from tenants table
@@ -48,6 +49,8 @@ const patchSchema = z.object({
 // PATCH /api/dashboard/settings/channels
 // Update channels_config JSONB — body is the full channels_config object
 export async function PATCH(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) {

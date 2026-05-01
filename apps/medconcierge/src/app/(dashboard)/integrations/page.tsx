@@ -2,6 +2,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Plug,
   Calendar,
@@ -16,7 +17,6 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
-  Shield,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -44,9 +44,12 @@ interface IntegrationCardDef {
   alwaysConnected?: boolean;
 }
 
-interface GCalStatus {
-  configured: boolean;
+interface GCalOAuthStatus {
+  connected: boolean;
+  mode: 'oauth' | 'service_account' | null;
+  email: string | null;
   calendarId: string | null;
+  connectedAt: string | null;
   autoSync: boolean;
 }
 
@@ -91,103 +94,78 @@ const INTEGRATION_CARDS: IntegrationCardDef[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Google Calendar Config Form
+// Google Calendar OAuth Card
 // ---------------------------------------------------------------------------
 
-function GoogleCalendarConfig({
-  gcalStatus,
+function GoogleCalendarOAuth({
+  status,
   onRefresh,
 }: {
-  gcalStatus: GCalStatus;
+  status: GCalOAuthStatus;
   onRefresh: () => void;
 }) {
-  const [calendarId, setCalendarId] = useState('');
-  const [serviceAccountEmail, setServiceAccountEmail] = useState('');
-  const [serviceAccountPrivateKey, setServiceAccountPrivateKey] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
+  const searchParams = useSearchParams();
+  const googleResult = searchParams.get('google');
   const [disconnecting, setDisconnecting] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [showInstructions, setShowInstructions] = useState(false);
 
-  const handleSave = async () => {
-    setSaving(true);
-    setMessage(null);
-    try {
-      const res = await fetch('/api/dashboard/integrations/google-calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          calendarId,
-          serviceAccountEmail,
-          serviceAccountPrivateKey,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setMessage({ type: 'success', text: data.message || 'Conexion exitosa' });
-        setCalendarId('');
-        setServiceAccountEmail('');
-        setServiceAccountPrivateKey('');
-        onRefresh();
-      } else {
-        setMessage({ type: 'error', text: data.error || 'Error al conectar' });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Error de red' });
-    } finally {
-      setSaving(false);
+  useEffect(() => {
+    if (googleResult === 'connected') {
+      setMessage({ type: 'success', text: 'Google Calendar conectado exitosamente' });
+      onRefresh();
+    } else if (googleResult === 'error') {
+      const reason = searchParams.get('reason') || 'unknown';
+      setMessage({ type: 'error', text: `Error al conectar Google Calendar: ${reason}` });
     }
-  };
+  }, [googleResult, searchParams, onRefresh]);
 
   const handleDisconnect = async () => {
     if (!confirm('Desconectar Google Calendar? Las citas existentes no se eliminaran.')) return;
     setDisconnecting(true);
+    setMessage(null);
     try {
-      await fetch('/api/dashboard/integrations/google-calendar', { method: 'DELETE' });
-      setMessage({ type: 'success', text: 'Google Calendar desconectado' });
-      onRefresh();
+      const res = await fetch('/api/auth/google/disconnect', { method: 'POST' });
+      if (res.ok) {
+        setMessage({ type: 'success', text: 'Google Calendar desconectado' });
+        onRefresh();
+      } else {
+        setMessage({ type: 'error', text: 'Error al desconectar' });
+      }
     } catch {
-      setMessage({ type: 'error', text: 'Error al desconectar' });
+      setMessage({ type: 'error', text: 'Error de red' });
     } finally {
       setDisconnecting(false);
     }
   };
 
-  const handleTest = async () => {
-    setTesting(true);
-    setMessage(null);
-    try {
-      const res = await fetch('/api/dashboard/integrations/google-calendar');
-      const data = await res.json();
-      if (data.configured) {
-        setMessage({ type: 'success', text: `Conexion activa. Calendar: ${data.calendarId}` });
-      } else {
-        setMessage({ type: 'error', text: 'No configurado' });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Error de red' });
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  if (gcalStatus.configured) {
+  if (status.connected) {
     return (
       <div className="mt-4 space-y-3">
         <div className="flex items-center gap-2 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-800">
           <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
-          <span>Conectado a: <strong>{gcalStatus.calendarId}</strong></span>
+          <div>
+            <span>Conectado</span>
+            {status.email && (
+              <span className="ml-1">
+                a: <strong>{status.email}</strong>
+              </span>
+            )}
+            {status.mode === 'oauth' && (
+              <span className="ml-2 inline-flex items-center rounded bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-700">
+                OAuth
+              </span>
+            )}
+          </div>
         </div>
+
+        {status.autoSync && (
+          <p className="text-xs text-gray-500 flex items-center gap-1">
+            <CheckCircle2 className="h-3 w-3 text-green-500" />
+            Sincronizacion automatica activada
+          </p>
+        )}
+
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleTest}
-            disabled={testing}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors disabled:opacity-50"
-          >
-            {testing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-            Probar conexion
-          </button>
           <button
             onClick={handleDisconnect}
             disabled={disconnecting}
@@ -196,14 +174,10 @@ function GoogleCalendarConfig({
             {disconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Desconectar'}
           </button>
         </div>
-        {gcalStatus.autoSync && (
-          <p className="text-xs text-gray-500 flex items-center gap-1">
-            <CheckCircle2 className="h-3 w-3 text-green-500" />
-            Sincronizacion automatica activada
-          </p>
-        )}
+
         {message && (
-          <div className={`rounded-lg px-4 py-2 text-sm ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+          <div className={`rounded-lg px-4 py-2 text-sm flex items-center gap-2 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
+            {message.type === 'success' ? <CheckCircle2 className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
             {message.text}
           </div>
         )}
@@ -213,85 +187,22 @@ function GoogleCalendarConfig({
 
   return (
     <div className="mt-4 space-y-4">
-      <button
-        onClick={() => setShowInstructions(!showInstructions)}
-        className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700"
+      <p className="text-sm text-gray-600">
+        Conecta tu Google Calendar con un click para sincronizar citas automaticamente.
+      </p>
+
+      <a
+        href="/api/auth/google"
+        className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 transition-colors"
       >
-        <Shield className="h-4 w-4" />
-        {showInstructions ? 'Ocultar instrucciones' : 'Ver instrucciones de configuracion'}
-        {showInstructions ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </button>
-
-      {showInstructions && (
-        <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm text-blue-800 space-y-2">
-          <p className="font-semibold">Pasos para configurar Google Calendar:</p>
-          <ol className="list-decimal list-inside space-y-1 text-xs">
-            <li>Ve a <strong>Google Cloud Console</strong> (console.cloud.google.com)</li>
-            <li>Crea un proyecto o selecciona uno existente</li>
-            <li>Habilita la <strong>Google Calendar API</strong></li>
-            <li>Ve a IAM &amp; Admin &rarr; Service Accounts &rarr; Crear Service Account</li>
-            <li>Genera una key JSON para el Service Account</li>
-            <li>Ve a <strong>Google Calendar</strong> &rarr; Settings &rarr; Share with people</li>
-            <li>Agrega el email del Service Account con permisos de &quot;Make changes to events&quot;</li>
-            <li>Pega las credenciales abajo</li>
-          </ol>
-        </div>
-      )}
-
-      <div className="space-y-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Calendar ID (email del calendario)
-          </label>
-          <input
-            type="email"
-            value={calendarId}
-            onChange={(e) => setCalendarId(e.target.value)}
-            placeholder="tucorreo@gmail.com"
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Service Account Email
-          </label>
-          <input
-            type="email"
-            value={serviceAccountEmail}
-            onChange={(e) => setServiceAccountEmail(e.target.value)}
-            placeholder="mi-servicio@proyecto.iam.gserviceaccount.com"
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Service Account Private Key
-          </label>
-          <textarea
-            value={serviceAccountPrivateKey}
-            onChange={(e) => setServiceAccountPrivateKey(e.target.value)}
-            placeholder="-----BEGIN PRIVATE KEY-----&#10;...&#10;-----END PRIVATE KEY-----"
-            rows={4}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm font-mono focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none resize-none"
-          />
-          <p className="mt-1 text-xs text-gray-400">
-            Pega el contenido del campo &quot;private_key&quot; del archivo JSON descargado
-          </p>
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleSave}
-          disabled={saving || !calendarId || !serviceAccountEmail || !serviceAccountPrivateKey}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
-        >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-          Guardar y probar conexion
-        </button>
-      </div>
+        <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
+          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        </svg>
+        Conectar Google Calendar
+      </a>
 
       {message && (
         <div className={`rounded-lg px-4 py-2 text-sm flex items-center gap-2 ${message.type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'}`}>
@@ -371,9 +282,7 @@ function DbConfigForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Host
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Host</label>
           <input
             type="text"
             value={config.host}
@@ -383,9 +292,7 @@ function DbConfigForm({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Puerto
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Puerto</label>
           <input
             type="text"
             value={config.port}
@@ -396,9 +303,7 @@ function DbConfigForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Base de datos
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Base de datos</label>
         <input
           type="text"
           value={config.database}
@@ -410,9 +315,7 @@ function DbConfigForm({
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Usuario
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Usuario</label>
           <input
             type="text"
             value={config.user}
@@ -422,9 +325,7 @@ function DbConfigForm({
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Contrasena
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Contrasena</label>
           <input
             type="password"
             value={config.password}
@@ -447,13 +348,8 @@ function DbConfigForm({
           disabled={loading}
           className="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
         >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            'Conectar'
-          )}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Conectar'}
         </button>
-
         {testSuccess && (
           <span className="flex items-center gap-1 text-sm text-green-600">
             <CheckCircle2 className="h-4 w-4" />
@@ -499,7 +395,7 @@ function IntegrationCard({
 }: {
   def: IntegrationCardDef;
   integration: Integration | null;
-  gcalStatus: GCalStatus;
+  gcalStatus: GCalOAuthStatus;
   onConnect: (type: string, config?: Record<string, unknown>) => void;
   onDisconnect: (type: string) => void;
   onSync: (type: string) => void;
@@ -510,7 +406,7 @@ function IntegrationCard({
   const isGcal = def.type === 'google_calendar';
   const connected =
     def.alwaysConnected ||
-    (isGcal ? gcalStatus.configured : integration?.status === 'connected');
+    (isGcal ? gcalStatus.connected : integration?.status === 'connected');
 
   const handleDbConnect = (dbConfig: DbConfig) => {
     onConnect(def.type, dbConfig as unknown as Record<string, unknown>);
@@ -525,27 +421,22 @@ function IntegrationCard({
             {def.icon}
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">
-              {def.label}
-            </h3>
+            <h3 className="text-sm font-semibold text-gray-900">{def.label}</h3>
             <p className="text-xs text-gray-500">{def.description}</p>
           </div>
         </div>
         <StatusBadge connected={connected} />
       </div>
 
-      {/* Google Calendar custom config */}
-      {isGcal && (
-        <GoogleCalendarConfig gcalStatus={gcalStatus} onRefresh={onRefreshGcal} />
-      )}
+      {/* Google Calendar OAuth */}
+      {isGcal && <GoogleCalendarOAuth status={gcalStatus} onRefresh={onRefreshGcal} />}
 
       {/* Connected state (non-gcal) */}
       {connected && !def.alwaysConnected && !isGcal && (
         <div className="mt-4 space-y-3">
           {integration?.last_sync_at && (
             <p className="text-xs text-gray-500">
-              Ultima sincronizacion:{' '}
-              {new Date(integration.last_sync_at).toLocaleString('es-MX')}
+              Ultima sincronizacion: {new Date(integration.last_sync_at).toLocaleString('es-MX')}
             </p>
           )}
           <div className="flex items-center gap-2">
@@ -554,11 +445,7 @@ function IntegrationCard({
               disabled={loading}
               className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-700 hover:bg-indigo-100 transition-colors disabled:opacity-50"
             >
-              {loading ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
+              {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
               Sincronizar ahora
             </button>
             <button
@@ -589,16 +476,12 @@ function IntegrationCard({
             disabled={loading}
             className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
           >
-            {loading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              'Conectar'
-            )}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Conectar'}
           </button>
         </div>
       )}
 
-      {/* Disconnected state — external DB with expandable config */}
+      {/* Disconnected state — external DB */}
       {!connected && def.hasConfig && (
         <div className="mt-4">
           <button
@@ -606,15 +489,9 @@ function IntegrationCard({
             className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700"
           >
             Configurar conexion
-            {expanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
+            {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
-          {expanded && (
-            <DbConfigForm onConnect={handleDbConnect} loading={loading} />
-          )}
+          {expanded && <DbConfigForm onConnect={handleDbConnect} loading={loading} />}
         </div>
       )}
     </div>
@@ -629,9 +506,12 @@ export default function IntegrationsPage() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [gcalStatus, setGcalStatus] = useState<GCalStatus>({
-    configured: false,
+  const [gcalStatus, setGcalStatus] = useState<GCalOAuthStatus>({
+    connected: false,
+    mode: null,
+    email: null,
     calendarId: null,
+    connectedAt: null,
     autoSync: false,
   });
 
@@ -651,7 +531,7 @@ export default function IntegrationsPage() {
 
   const fetchGcalStatus = useCallback(async () => {
     try {
-      const res = await fetch('/api/dashboard/integrations/google-calendar');
+      const res = await fetch('/api/auth/google/status');
       if (res.ok) {
         const data = await res.json();
         setGcalStatus(data);
@@ -669,10 +549,7 @@ export default function IntegrationsPage() {
   const getIntegration = (type: string): Integration | null =>
     integrations.find((i) => i.type === type) ?? null;
 
-  const handleConnect = async (
-    type: string,
-    config?: Record<string, unknown>
-  ) => {
+  const handleConnect = async (type: string, config?: Record<string, unknown>) => {
     setActionLoading(type);
     try {
       await fetch(`/api/dashboard/integrations/${type}`, {

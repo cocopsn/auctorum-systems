@@ -7,6 +7,7 @@ import { getAuthTenant } from "@/lib/auth"
 import { updateCalendarEvent, isGoogleCalendarConfigured } from "@/lib/google-calendar"
 import { sendWhatsAppMessage } from "@/lib/whatsapp"
 import { z } from "zod"
+import { validateOrigin } from '@/lib/csrf'
 
 const updateSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
@@ -18,6 +19,8 @@ const updateSchema = z.object({
 })
 
 export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
+  if (!validateOrigin(req)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: "No autorizado" }, { status: 401 })

@@ -1,14 +1,17 @@
-import { pgTable, uuid, varchar, text, boolean, jsonb, decimal, integer, timestamp } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, varchar, text, boolean, jsonb, integer, timestamp, index } from 'drizzle-orm/pg-core'
 import { tenants } from './tenants'
 
 export const doctors = pgTable('doctors', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').notNull().references(() => tenants.id, { onDelete: 'cascade' }),
-  specialty: varchar('specialty', { length: 255 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  specialty: varchar('specialty', { length: 255 }),
   subSpecialty: varchar('sub_specialty', { length: 255 }),
+  email: varchar('email', { length: 255 }),
+  phone: varchar('phone', { length: 20 }),
   cedulaProfesional: varchar('cedula_profesional', { length: 20 }),
   cedulaEspecialidad: varchar('cedula_especialidad', { length: 20 }),
-  consultationFee: decimal('consultation_fee', { precision: 10, scale: 2 }),
+  consultationFee: varchar('consultation_fee', { length: 20 }),
   consultationDurationMin: integer('consultation_duration_min').default(30),
   bio: text('bio'),
   education: text('education'),
@@ -17,8 +20,19 @@ export const doctors = pgTable('doctors', {
   acceptsInsurance: boolean('accepts_insurance').default(false),
   insuranceProviders: jsonb('insurance_providers').$type<string[]>().default([]),
   photoUrl: text('photo_url'),
+  // Multi-doctor scheduling fields
+  googleCalendarId: varchar('google_calendar_id', { length: 255 }),
+  googleAccessToken: text('google_access_token'),
+  googleRefreshToken: text('google_refresh_token'),
+  googleTokenExpiry: timestamp('google_token_expiry', { withTimezone: true }),
+  schedule: jsonb('schedule').$type<Record<string, { start: string; end: string; enabled: boolean }>>(),
+  isActive: boolean('is_active').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
-})
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => ({
+  tenantIdx: index('idx_doctors_tenant').on(table.tenantId),
+  tenantActiveIdx: index('idx_doctors_tenant_active').on(table.tenantId, table.isActive),
+}))
 
 export type Doctor = typeof doctors.$inferSelect
 export type NewDoctor = typeof doctors.$inferInsert

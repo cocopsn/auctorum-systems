@@ -6,6 +6,7 @@ import { db } from '@quote-engine/db'
 import { appointments, patients, appointmentEvents } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
 import { z } from 'zod';
+import { validateOrigin } from '@/lib/csrf'
 
 export async function GET(request: NextRequest) {
   const auth = await getAuthTenant()
@@ -73,6 +74,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   const auth = await getAuthTenant()
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const tenantId = auth.tenant.id

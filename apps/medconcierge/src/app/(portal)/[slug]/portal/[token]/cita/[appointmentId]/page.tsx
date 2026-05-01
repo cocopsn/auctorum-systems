@@ -1,16 +1,10 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = "force-dynamic"
 
-import { notFound } from 'next/navigation'
-import { eq, and } from 'drizzle-orm'
-import { db, appointments, clinicalNotes } from '@quote-engine/db'
-import { getPortalPatient } from '@/lib/portal'
-import { AppointmentDetailView } from '@/components/portal/appointment-detail-view'
-
-// ============================================================
-// Patient portal — appointment detail page (server component).
-// Shows a single appointment with prescription + clinical note
-// (assessment + plan only, NOT subjective/objective).
-// ============================================================
+import { notFound } from "next/navigation"
+import { eq, and } from "drizzle-orm"
+import { db, appointments, clinicalRecords } from "@quote-engine/db"
+import { getPortalPatient } from "@/lib/portal"
+import { AppointmentDetailView } from "@/components/portal/appointment-detail-view"
 
 export default async function AppointmentDetailPage({
   params,
@@ -34,13 +28,13 @@ export default async function AppointmentDetailPage({
 
   if (!appointment) notFound()
 
-  const [note] = appointment.id
+  const [record] = appointment.id
     ? await db
         .select()
-        .from(clinicalNotes)
+        .from(clinicalRecords)
         .where(and(
-          eq(clinicalNotes.appointmentId, appointment.id),
-          eq(clinicalNotes.tenantId, tenant.id),
+          eq(clinicalRecords.appointmentId, appointment.id),
+          eq(clinicalRecords.tenantId, tenant.id),
         ))
         .limit(1)
     : [undefined]
@@ -48,7 +42,7 @@ export default async function AppointmentDetailPage({
   return (
     <AppointmentDetailView
       appointment={appointment}
-      note={note ?? null}
+      note={record ?? null}
       tenantName={tenant.name}
       slug={params.slug}
       token={params.token}

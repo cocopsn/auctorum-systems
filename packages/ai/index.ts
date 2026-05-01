@@ -1,3 +1,21 @@
+/**
+ * AI package public API.
+ *
+ * NOTE (L-7): This file contains duplicate implementations of functions
+ * that also exist in src/. The src/ directory is the canonical source.
+ * Migration plan:
+ * 1. Verify all callers import from '@quote-engine/ai' (this file)
+ * 2. Replace duplicate function bodies with re-exports from src/
+ * 3. Remove dead code from this file
+ *
+ * Functions duplicated in src/:
+ * - getAiSettings (src/settings.ts)
+ * - saveAiSettings (src/settings.ts)
+ * - runPlayground (src/chat.ts)
+ * - runWhatsAppReply (src/chat.ts)
+ * - DEFAULT_AI_SETTINGS (src/types.ts)
+ * - FALLBACK_ERROR_MESSAGE (src/types.ts)
+ */
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import {
   aiKnowledgeFiles,
@@ -34,7 +52,7 @@ export const DEFAULT_AI_SETTINGS: AiSettings = {
 };
 
 const FALLBACK_ERROR_MESSAGE =
-  'Disculpe, estoy teniendo dificultades tecnicas. Por favor intente de nuevo en unos minutos, o llame directamente al +52 844 664 4307.';
+  `Disculpe, estoy teniendo dificultades tecnicas. Por favor intente de nuevo en unos minutos, o llame directamente al ${process.env.FALLBACK_CONTACT_PHONE || '+52 844 664 4307'}.`;
 
 function getOpenAIKey() {
   const key = process.env.OPENAI_API_KEY;
@@ -172,8 +190,8 @@ export async function deleteKnowledgeFile({ tenantId, fileId }: { tenantId: stri
 
   if (!record) return null;
 
-  await openaiFetch(`/vector_stores/${record.vectorStoreId}/files/${record.openaiFileId}`, { method: 'DELETE' }).catch(() => null);
-  await openaiFetch(`/files/${record.openaiFileId}`, { method: 'DELETE' }).catch(() => null);
+  await openaiFetch(`/vector_stores/${record.vectorStoreId}/files/${record.openaiFileId}`, { method: 'DELETE' }).catch((err) => { console.error('Notification insert failed:', err) });
+  await openaiFetch(`/files/${record.openaiFileId}`, { method: 'DELETE' }).catch((err) => { console.error('Notification insert failed:', err) });
 
   const [updated] = await db
     .update(aiKnowledgeFiles)
@@ -369,4 +387,5 @@ export { checkTenantBudget, getTenantUsage, type BudgetCheckResult } from './bud
 export { runWhatsAppReplyWithTools } from './run-with-tools';
 export type { RunWithToolsParams, RunWithToolsResult } from './run-with-tools';
 export { WHATSAPP_TOOLS } from './tools';
+export { setDoctorContext } from './tool-executors';
 export type { ToolCallResult, ToolName } from './tools';

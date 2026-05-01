@@ -131,8 +131,7 @@ export async function POST(request: NextRequest, { params }: RouteCtx) {
 
     return NextResponse.json({ success: true, data: row }, { status: 201 });
   } catch (error) {
-    console.error('POST /api/dashboard/patients/[id]/files error:', error);
-    const message = error instanceof Error ? error.message : 'Error al subir archivo';
-    return NextResponse.json({ error: message }, { status: 500 });
+    console.error('[patient-files] Upload error:', error);
+    return NextResponse.json({ error: 'Operation failed' }, { status: 500 });
   }
 }

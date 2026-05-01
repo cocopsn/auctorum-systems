@@ -126,7 +126,7 @@ function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="relative flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 transition"
+        className="relative flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-600 hover:bg-gray-200 transition"
         aria-label="Notificaciones"
       >
         <Bell className="h-5 w-5" />
@@ -153,7 +153,7 @@ function NotificationBell() {
           </div>
           <div className="max-h-80 overflow-y-auto">
             {notifications.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-slate-400">
+              <div className="px-4 py-8 text-center text-sm text-[var(--theme-sidebar-text,#94a3b8)]">
                 No hay notificaciones nuevas
               </div>
             ) : (
@@ -176,8 +176,8 @@ function NotificationBell() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-slate-900">{n.title}</p>
-                      <p className="mt-0.5 line-clamp-2 text-xs text-slate-500">{n.message}</p>
-                      <p className="mt-1 text-[11px] text-slate-400">{timeAgo(n.createdAt)}</p>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-[var(--theme-sidebar-text,#64748b)]">{n.message}</p>
+                      <p className="mt-1 text-[11px] text-[var(--theme-sidebar-text,#94a3b8)]">{timeAgo(n.createdAt)}</p>
                     </div>
                   </button>
                 );
@@ -234,29 +234,29 @@ export function AppShell({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-40 bg-slate-900/40 backdrop-blur-sm lg:hidden" onClick={() => setOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-[var(--theme-sidebar,#0f172a)]/40 backdrop-blur-sm lg:hidden" onClick={() => setOpen(false)} />
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-slate-900 transition-transform duration-300 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col bg-[var(--theme-sidebar,#0f172a)] transition-transform duration-300 lg:translate-x-0 ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex h-16 items-center gap-3 border-b border-slate-800 px-5">
+        <div className="flex h-16 items-center gap-3 border-b border-[var(--theme-sidebar-border,#1e293b)] px-5">
           {logoUrl ? (
             <img src={logoUrl} alt={brand} className="h-10 w-10 rounded-xl object-contain" />
           ) : (
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-800 text-sm font-bold text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--theme-sidebar-active,#1e40af)] text-sm font-bold text-white">
               {brand.slice(0, 2).toUpperCase()}
             </div>
           )}
           <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-white">{brand}</p>
-            <p className="truncate text-xs text-slate-400">{appName}</p>
+            <p className="truncate text-sm font-semibold text-[var(--theme-sidebar-foreground,#ffffff)]">{brand}</p>
+            <p className="truncate text-xs text-[var(--theme-sidebar-text,#94a3b8)]">{appName}</p>
           </div>
           <button
             type="button"
-            className="ml-auto rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white lg:hidden"
+            className="ml-auto rounded-lg p-1.5 text-[var(--theme-sidebar-text,#94a3b8)] hover:bg-[var(--theme-sidebar-hover,#1e293b)] hover:text-[var(--theme-sidebar-foreground,#ffffff)] lg:hidden"
             onClick={() => setOpen(false)}
             aria-label="Cerrar menu"
           >
@@ -272,7 +272,7 @@ export function AppShell({
             return (
               <div key={item.key ?? item.href}>
                 {groupLabel && (
-                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 px-4 pt-4 pb-1">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-[var(--theme-sidebar-text,#64748b)] px-4 pt-4 pb-1">
                     {groupLabel}
                   </p>
                 )}
@@ -281,12 +281,12 @@ export function AppShell({
                   onClick={() => setOpen(false)}
                   className={`flex items-center gap-3 rounded-lg px-4 py-2.5 text-sm transition ${
                     active
-                      ? 'border-l-2 border-blue-400 bg-blue-800/50 font-medium text-white'
-                      : 'border-l-2 border-transparent text-slate-300 hover:bg-slate-800'
+                      ? 'border-l-2 border-[var(--theme-sidebar-active,#60a5fa)] bg-[var(--theme-sidebar-active-bg,rgba(30,64,175,0.5))] font-medium text-[var(--theme-sidebar-active-fg,#ffffff)]'
+                      : 'border-l-2 border-transparent text-[var(--theme-sidebar-text,#cbd5e1)] hover:bg-[var(--theme-sidebar-hover,#1e293b)]'
                   }`}
                   aria-current={active ? 'page' : undefined}
                 >
-                  <Icon className={`h-4 w-4 ${active ? 'text-white' : 'text-slate-400'}`} />
+                  <Icon className={`h-4 w-4 ${active ? 'text-[var(--theme-sidebar-active-fg,#ffffff)]' : 'text-[var(--theme-sidebar-text,#94a3b8)]'}`} />
                   {item.label}
                 </Link>
               </div>
@@ -294,19 +294,19 @@ export function AppShell({
           })}
         </nav>
 
-        <div className="border-t border-slate-800 p-4">
-          <div className="flex items-center gap-3 rounded-2xl bg-slate-800 p-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-800 text-sm font-semibold text-white">
+        <div className="border-t border-[var(--theme-sidebar-border,#1e293b)] p-4">
+          <div className="flex items-center gap-3 rounded-2xl bg-[var(--theme-user-card-bg,#1e293b)] p-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--theme-sidebar-active,#1e40af)] text-sm font-semibold text-white">
               {userName.slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-white">{userName}</p>
-              <p className="truncate text-xs text-slate-500">{planLabel}</p>
+              <p className="truncate text-sm font-medium text-[var(--theme-sidebar-foreground,#ffffff)]">{userName}</p>
+              <p className="truncate text-xs text-[var(--theme-sidebar-text,#64748b)]">{planLabel}</p>
             </div>
-            <ChevronDown className="h-4 w-4 text-slate-400" />
+            <ChevronDown className="h-4 w-4 text-[var(--theme-sidebar-text,#94a3b8)]" />
           </div>
           <form action={logoutAction} method="POST" className="mt-3">
-            <button type="submit" className="w-full rounded-xl px-3 py-2 text-left text-xs text-slate-500 hover:bg-slate-800 hover:text-slate-300">
+            <button type="submit" className="w-full rounded-xl px-3 py-2 text-left text-xs text-[var(--theme-sidebar-text,#64748b)] hover:bg-[var(--theme-sidebar-hover,#1e293b)] hover:text-[var(--theme-sidebar-foreground,#ffffff)]">
               Cerrar sesion
             </button>
           </form>
@@ -326,12 +326,12 @@ export function TopHeader({ greeting, subtitle, ctaHref, headerActions }: { gree
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
       <div className="flex min-h-16 flex-col gap-4 px-5 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
         <div className="ml-12 lg:ml-0">
-          <p className="text-sm text-slate-500">Dashboard / <span className="text-slate-700">{greeting}</span></p>
+          <p className="text-sm text-[var(--theme-sidebar-text,#64748b)]">Dashboard / <span className="text-slate-700">{greeting}</span></p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex h-11 min-w-[220px] flex-1 items-center gap-2 rounded-full bg-slate-100 px-4 text-sm text-slate-500 lg:flex-none">
+          <label className="flex h-11 min-w-[220px] flex-1 items-center gap-2 rounded-full bg-slate-100 px-4 text-sm text-[var(--theme-sidebar-text,#64748b)] lg:flex-none">
             <Search className="h-4 w-4" />
-            <input className="w-full bg-transparent outline-none placeholder:text-slate-400" placeholder="Search here..." />
+            <input className="w-full bg-transparent outline-none placeholder:text-[var(--theme-sidebar-text,#94a3b8)]" placeholder="Search here..." />
           </label>
           <NotificationBell />
           {headerActions}
@@ -368,7 +368,7 @@ export function KpiCard({
           {trend}
         </span>
       </div>
-      <p className="text-sm text-slate-500">{title}</p>
+      <p className="text-sm text-[var(--theme-sidebar-text,#64748b)]">{title}</p>
       <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{value}</p>
     </DashboardCard>
   );
@@ -390,9 +390,9 @@ export function LineChartCard({
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-          <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+          <p className="mt-1 text-sm text-[var(--theme-sidebar-text,#64748b)]">{subtitle}</p>
         </div>
-        <div className="flex gap-3 text-xs text-slate-500">
+        <div className="flex gap-3 text-xs text-[var(--theme-sidebar-text,#64748b)]">
           <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-blue-500" />{seriesA}</span>
           <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-orange-300" />{seriesB}</span>
         </div>
@@ -415,11 +415,11 @@ export function DonutCard({ title, label, value }: { title: string; label: strin
   return (
     <DashboardCard className="min-h-[300px]">
       <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-      <p className="mt-1 text-sm text-slate-500">Distribution</p>
+      <p className="mt-1 text-sm text-[var(--theme-sidebar-text,#64748b)]">Distribution</p>
       <div className="mt-8 flex items-center justify-center">
         <div className="relative h-44 w-44 rounded-full bg-[conic-gradient(#2563eb_0_58%,#dbeafe_58%_78%,#f1f5f9_78%_100%)]">
           <div className="absolute inset-8 flex flex-col items-center justify-center rounded-full bg-white shadow-sm">
-            <span className="text-sm text-slate-500">{label}</span>
+            <span className="text-sm text-[var(--theme-sidebar-text,#64748b)]">{label}</span>
             <span className="text-2xl font-semibold text-slate-900">{value}</span>
           </div>
         </div>
@@ -434,7 +434,7 @@ export function ProgressList({ title, items }: { title: string; items: Array<{ l
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h2 className="text-base font-semibold text-slate-900">{title}</h2>
-          <p className="mt-1 text-sm text-slate-500">Best performers</p>
+          <p className="mt-1 text-sm text-[var(--theme-sidebar-text,#64748b)]">Best performers</p>
         </div>
         <span className="text-xs font-medium text-blue-600">View All</span>
       </div>
@@ -444,7 +444,7 @@ export function ProgressList({ title, items }: { title: string; items: Array<{ l
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-medium text-slate-900">{item.label}</p>
-                <p className="mt-1 text-xs text-slate-500">{item.meta}</p>
+                <p className="mt-1 text-xs text-[var(--theme-sidebar-text,#64748b)]">{item.meta}</p>
               </div>
               <p className="text-lg font-semibold text-slate-900">{item.value}</p>
             </div>
@@ -477,7 +477,7 @@ export function AiInsightCard({ insights, href = '/dashboard/ai-settings' }: { i
         {insights.map((insight) => (
           <div key={insight.title} className="rounded-2xl bg-slate-50 p-4">
             <p className="text-sm font-medium text-slate-900">{insight.title}</p>
-            <p className="mt-1 line-clamp-2 text-sm text-slate-500">{insight.body}</p>
+            <p className="mt-1 line-clamp-2 text-sm text-[var(--theme-sidebar-text,#64748b)]">{insight.body}</p>
           </div>
         ))}
       </div>
@@ -493,7 +493,7 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
   return (
     <button type="button" onClick={() => onChange(!checked)} className="flex w-full items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white px-4 py-3 text-left">
       <span className="text-sm font-medium text-slate-700">{label}</span>
-      <span className={`flex h-6 w-11 items-center rounded-full p-1 transition ${checked ? 'bg-blue-600' : 'bg-slate-200'}`}>
+      <span className={`flex h-6 w-11 items-center rounded-full p-1 transition ${checked ? 'bg-blue-600' : 'bg-gray-200'}`}>
         <span className={`h-4 w-4 rounded-full bg-white shadow-sm transition ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
       </span>
     </button>
@@ -505,7 +505,7 @@ export function Dropzone({ onFiles }: { onFiles: (files: FileList) => void }) {
     <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-8 text-center transition hover:border-blue-200 hover:bg-blue-50/40">
       <UploadCloud className="h-8 w-8 text-blue-500" />
       <span className="mt-3 text-sm font-medium text-slate-900">Arrastra archivos o haz clic para subir</span>
-      <span className="mt-1 text-xs text-slate-500">PDF, TXT, Markdown o DOCX. Maximo 20MB.</span>
+      <span className="mt-1 text-xs text-[var(--theme-sidebar-text,#64748b)]">PDF, TXT, Markdown o DOCX. Maximo 20MB.</span>
       <input type="file" className="sr-only" multiple accept=".pdf,.txt,.md,.markdown,.docx,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => event.target.files && onFiles(event.target.files)} />
     </label>
   );
@@ -611,7 +611,7 @@ export function AiManager({ title = 'AI Concierge', defaultPrompt }: { title?: s
       <div className="mb-8">
         <p className="text-sm font-medium text-blue-600">Tenant AI</p>
         <h1 className="mt-1 text-3xl font-semibold tracking-tight text-slate-900">{title}</h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-500">
+        <p className="mt-2 max-w-2xl text-sm text-[var(--theme-sidebar-text,#64748b)]">
           Configura el cerebro, el conocimiento y el simulador del concierge que atendera conversaciones del negocio.
         </p>
       </div>
@@ -622,7 +622,7 @@ export function AiManager({ title = 'AI Concierge', defaultPrompt }: { title?: s
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900">Comportamiento del Agente</h2>
-                <p className="mt-1 text-sm text-slate-500">Instrucciones base y capacidades disponibles para el concierge.</p>
+                <p className="mt-1 text-sm text-[var(--theme-sidebar-text,#64748b)]">Instrucciones base y capacidades disponibles para el concierge.</p>
               </div>
               <button type="button" onClick={save} className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700">
                 Guardar
@@ -632,7 +632,7 @@ export function AiManager({ title = 'AI Concierge', defaultPrompt }: { title?: s
               value={settings.systemPrompt}
               onChange={(event) => setSettings((current) => ({ ...current, systemPrompt: event.target.value }))}
               rows={10}
-              className="mt-6 w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900 outline-none ring-blue-100 placeholder:text-slate-400 focus:ring-4"
+              className="mt-6 w-full rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900 outline-none ring-blue-100 placeholder:text-[var(--theme-sidebar-text,#94a3b8)] focus:ring-4"
               placeholder="Eres un asistente experto..."
             />
             <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -640,26 +640,26 @@ export function AiManager({ title = 'AI Concierge', defaultPrompt }: { title?: s
               <Toggle checked={settings.answerFaq} onChange={(checked) => setSettings((current) => ({ ...current, answerFaq: checked }))} label="Responder preguntas frecuentes" />
               <Toggle checked={settings.humanHandoff} onChange={(checked) => setSettings((current) => ({ ...current, humanHandoff: checked }))} label="Transferir a humano" />
             </div>
-            {status && <p className="mt-4 text-sm text-slate-500">{status}</p>}
+            {status && <p className="mt-4 text-sm text-[var(--theme-sidebar-text,#64748b)]">{status}</p>}
           </DashboardCard>
 
           <DashboardCard>
             <h2 className="text-lg font-semibold text-slate-900">Base de Conocimiento</h2>
-            <p className="mt-1 text-sm text-slate-500">Sube PDFs de precios, catalogos, politicas clinicas o documentos operativos.</p>
+            <p className="mt-1 text-sm text-[var(--theme-sidebar-text,#64748b)]">Sube PDFs de precios, catalogos, politicas clinicas o documentos operativos.</p>
             <div className="mt-6">
               <Dropzone onFiles={upload} />
             </div>
             <div className="mt-6 space-y-3">
               {files.length === 0 ? (
-                <div className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">Aun no hay archivos ingeridos.</div>
+                <div className="rounded-2xl bg-slate-50 p-5 text-sm text-[var(--theme-sidebar-text,#64748b)]">Aun no hay archivos ingeridos.</div>
               ) : (
                 files.map((file) => (
                   <div key={file.id} className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-4">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-slate-900">{file.fileName}</p>
-                      <p className="text-xs text-slate-500">{file.mimeType} · {file.status || 'processing'}</p>
+                      <p className="text-xs text-[var(--theme-sidebar-text,#64748b)]">{file.mimeType} · {file.status || 'processing'}</p>
                     </div>
-                    <button type="button" onClick={() => removeFile(file.id)} className="rounded-xl px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 hover:text-red-600">
+                    <button type="button" onClick={() => removeFile(file.id)} className="rounded-xl px-3 py-2 text-sm text-[var(--theme-sidebar-text,#64748b)] hover:bg-slate-50 hover:text-red-600">
                       Eliminar
                     </button>
                   </div>
@@ -674,7 +674,7 @@ export function AiManager({ title = 'AI Concierge', defaultPrompt }: { title?: s
             <h2 className="text-lg font-semibold text-slate-900">AI Health & Usage</h2>
             <div className="mt-5 grid grid-cols-2 gap-3">
               <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-xs text-slate-500">Consultas atendidas</p>
+                <p className="text-xs text-[var(--theme-sidebar-text,#64748b)]">Consultas atendidas</p>
                 <p className="mt-2 text-2xl font-semibold text-slate-900">{chat.filter((item) => item.role === 'user').length}</p>
               </div>
               <div className="rounded-2xl bg-emerald-50 p-4">

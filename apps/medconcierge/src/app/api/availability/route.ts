@@ -4,12 +4,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { and, eq, gte, lte, notInArray } from 'drizzle-orm'
 import { db } from '@quote-engine/db'
 import { schedules, scheduleBlocks, appointments } from '@quote-engine/db'
-import { rateLimit } from '@/lib/rate-limit'
+import { rateLimit, getClientIP } from '@/lib/rate-limit'
 
 export async function GET(request: NextRequest) {
   // Rate limiting: 30 req/min per IP
-  const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
-  const { success: rateLimitOk } = rateLimit(`availability:${ip}`, 30, 60_000);
+  const ip = getClientIP(request);
+  const { success: rateLimitOk } = await rateLimit(`availability:${ip}`, 30, 60_000);
   if (!rateLimitOk) {
     return Response.json({ error: 'Too many requests' }, { status: 429 });
   }

@@ -1,15 +1,14 @@
 import { Queue, Worker, Job } from 'bullmq';
 import IORedis from 'ioredis';
 
-const REDIS_HOST = process.env.REDIS_HOST || '127.0.0.1';
-const REDIS_PORT = parseInt(process.env.REDIS_PORT || '6379', 10);
+const REDIS_URL = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
 
 /** Shared Redis connection for queues (reused across createQueue calls). */
 let sharedConnection: IORedis | null = null;
 
-function getConnection(): IORedis {
+export function getConnection(): IORedis {
   if (!sharedConnection) {
-    sharedConnection = new IORedis(REDIS_PORT, REDIS_HOST, {
+    sharedConnection = new IORedis(REDIS_URL, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
     });

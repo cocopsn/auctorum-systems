@@ -380,9 +380,9 @@ export default function SystemsPage() {
           </h2>
 
           <div className="grid md:grid-cols-3 gap-8 mt-12 max-w-5xl mx-auto">
-            {/* Free Plan */}
+            {/* Plan Básico */}
             <div className="bg-white rounded-2xl p-8 border border-slate-200">
-              <h3 className="text-lg font-semibold text-slate-900">Free</h3>
+              <h3 className="text-lg font-semibold text-slate-900">Básico</h3>
               <div className="mt-4">
                 <span className="text-4xl font-bold text-slate-900">$1,400</span>
                 <span className="text-slate-500 ml-1">/mes</span>
@@ -577,14 +577,24 @@ export default function SystemsPage() {
               </h4>
               <ul className="mt-4 space-y-2">
                 <li>
-                  <Link href="/privacy" className="text-sm text-slate-400 hover:text-white transition-colors">
+                  <a href="https://dra-martinez.auctorum.com.mx/privacy" className="text-sm text-slate-400 hover:text-white transition-colors">
                     Aviso de Privacidad
-                  </Link>
+                  </a>
                 </li>
                 <li>
-                  <Link href="/terms" className="text-sm text-slate-400 hover:text-white transition-colors">
-                    Términos de Servicio
-                  </Link>
+                  <a href="https://dra-martinez.auctorum.com.mx/terms" className="text-sm text-slate-400 hover:text-white transition-colors">
+                    Términos y Condiciones
+                  </a>
+                </li>
+                <li>
+                  <a href="https://dra-martinez.auctorum.com.mx/cookies" className="text-sm text-slate-400 hover:text-white transition-colors">
+                    Política de Cookies
+                  </a>
+                </li>
+                <li>
+                  <a href="https://dra-martinez.auctorum.com.mx/ai-policy" className="text-sm text-slate-400 hover:text-white transition-colors">
+                    Política de IA
+                  </a>
                 </li>
               </ul>
             </div>

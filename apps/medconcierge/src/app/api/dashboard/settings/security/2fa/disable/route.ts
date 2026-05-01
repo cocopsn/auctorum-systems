@@ -6,6 +6,7 @@ import { db } from '@quote-engine/db';
 import { sql } from 'drizzle-orm';
 import { z } from 'zod';
 import crypto from 'crypto';
+import { validateOrigin } from '@/lib/csrf'
 
 // ---------------------------------------------------------------------------
 // TOTP verification — same implementation as verify endpoint
@@ -58,6 +59,8 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
+
   try {
     const auth = await getAuthTenant();
     if (!auth) {

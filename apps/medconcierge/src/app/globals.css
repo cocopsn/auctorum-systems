@@ -136,3 +136,39 @@
     -webkit-backdrop-filter: blur(12px);
   }
 }
+
+/* Print styles for clinical records */
+@media print {
+  nav, aside, header,
+  .print\:hidden,
+  [data-print-hide] {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt !important;
+    line-height: 1.5 !important;
+  }
+
+  .prose {
+    max-width: none !important;
+    padding: 0 !important;
+    font-size: 12pt !important;
+  }
+
+  .prose img {
+    max-width: 100% !important;
+    page-break-inside: avoid !important;
+  }
+
+  .prose h2, .prose h3 {
+    page-break-after: avoid !important;
+  }
+
+  @page {
+    size: letter;
+    margin: 2cm;
+  }
+}
