@@ -357,10 +357,3 @@
   .auc-scroll-hint-line { animation: none; }
   .auc-floater-status .dot { animation: none; }
 }
-
-/* Wrapper to anchor the scene above downstream sections */
-.auc-landing-root {
-  position: relative;
-  z-index: 1;
-  background: #020613;
-}
