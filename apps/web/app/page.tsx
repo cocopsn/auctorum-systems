@@ -1,8 +1,9 @@
 export const dynamic = 'force-static';
 
 import Link from 'next/link';
-import AuctorumHero from '@/components/landing/AuctorumHero';
+import AuctorumLanding from '@/components/landing/AuctorumLanding';
 import Image from 'next/image';
+import './auctorum-landing.css';
 import {
   Stethoscope,
   FileText,
@@ -12,34 +13,35 @@ import {
   Shield,
   Building2,
   Sparkles,
-  ChevronRight,
-  Zap,
 } from 'lucide-react';
 
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      {/* NAV BAR */}
-      <nav className="sticky top-0 z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-3">
-            <Image src="/logo.png" alt="Auctorum" width={36} height={36} className="h-9 w-auto" />
-            <span className="text-sm font-bold tracking-widest text-white uppercase">Auctorum</span>
-          </Link>
-          <div className="hidden items-center gap-8 md:flex">
-            <a href="#productos" className="text-sm text-slate-400 hover:text-white transition-colors">Productos</a>
-            <a href="#tecnologia" className="text-sm text-slate-400 hover:text-white transition-colors">Tecnología</a>
-            <Link href="/about" className="text-sm text-slate-400 hover:text-white transition-colors">Sobre Nosotros</Link>
-            <Link href="/login" className="text-sm text-slate-300 hover:text-white transition-colors">Iniciar Sesión</Link>
-          </div>
-          <Link href="/signup" className="hidden rounded-full bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors md:inline-flex">
-            Comenzar
-          </Link>
-        </div>
-      </nav>
+      {/* AUCTORUM Design System — single-scene scroll-driven hero.
+          Provides its own fixed nav, canvas stage, floaters and 800vh scroll spacer. */}
+      <AuctorumLanding />
 
-      {/* HERO SECTION — Futuristic Particle Globe */}
-      <AuctorumHero />
+      {/* The downstream sections below render after the 800vh scene scroll spacer */}
+      <div className="relative z-10 bg-slate-950">
+        {/* Anchored nav for the post-hero sections — appears once the scene scroll completes */}
+        <nav className="sticky top-0 z-50 border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-xl">
+          <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+            <Link href="/" className="flex items-center gap-3">
+              <Image src="/auctorum-mark-azul.png" alt="Auctorum" width={28} height={28} className="h-7 w-auto" />
+              <span className="text-sm font-bold tracking-widest text-white uppercase">Auctorum</span>
+            </Link>
+            <div className="hidden items-center gap-8 md:flex">
+              <a href="#productos" className="text-sm text-slate-400 hover:text-white transition-colors">Productos</a>
+              <a href="#tecnologia" className="text-sm text-slate-400 hover:text-white transition-colors">Tecnología</a>
+              <Link href="/about" className="text-sm text-slate-400 hover:text-white transition-colors">Sobre Nosotros</Link>
+              <Link href="/login" className="text-sm text-slate-300 hover:text-white transition-colors">Iniciar Sesión</Link>
+            </div>
+            <Link href="/signup" className="hidden rounded-full bg-blue-600 px-6 py-2 text-sm font-medium text-white hover:bg-blue-500 transition-colors md:inline-flex">
+              Comenzar
+            </Link>
+          </div>
+        </nav>
 
       {/* PRODUCTS SECTION */}
       <section id="productos" className="bg-slate-950 px-6 py-24 border-t border-slate-900">
@@ -186,6 +188,7 @@ export default function HomePage() {
           </div>
         </div>
       </footer>
+      </div>
     </div>
   );
 }
