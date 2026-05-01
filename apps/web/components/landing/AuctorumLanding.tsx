@@ -947,20 +947,20 @@ function motifBuildTree(cx, cy, zoom) {
       // PLATEAU MAPPING: each hub gets a scroll dwell window where pathT
       // does not advance. Keeps each floater on screen long enough to read
       // even on fast trackpad scroll. Anchors: [scrollPos, pathT] pairs.
-      // Plateau widths: ~7% of scroll = ~half a viewport at 800vh.
+      // Plateau widths: 10% of scroll = ~80vh ≈ a full viewport at 800vh.
       const PATH_ANCHORS: [number, number][] = [
         [0.00, 0.0],
         [0.14, 0.0],   // genesis hold ends
-        [0.20, 0.18],  // arrive at MED
-        [0.27, 0.18],  // MED dwell
-        [0.36, 0.34],  // arrive at AI
-        [0.43, 0.34],  // AI dwell
-        [0.54, 0.56],  // arrive at ACOPLE
-        [0.61, 0.56],  // ACOPLE dwell
-        [0.68, 0.70],  // arrive at FUTURO
-        [0.75, 0.70],  // FUTURO dwell
-        [0.82, 0.85],  // arrive at MANIFIESTO
-        [0.89, 0.85],  // MANIFIESTO dwell
+        [0.19, 0.18],  // arrive at MED
+        [0.29, 0.18],  // MED dwell (10%)
+        [0.34, 0.34],  // arrive at AI
+        [0.44, 0.34],  // AI dwell (10%)
+        [0.50, 0.56],  // arrive at ACOPLE
+        [0.60, 0.56],  // ACOPLE dwell (10%)
+        [0.66, 0.70],  // arrive at FUTURO
+        [0.76, 0.70],  // FUTURO dwell (10%)
+        [0.81, 0.85],  // arrive at MANIFIESTO
+        [0.91, 0.85],  // MANIFIESTO dwell (10%)
         [0.97, 1.0],   // loop-back
         [1.00, 1.0],
       ];
@@ -1144,12 +1144,11 @@ function motifBuildTree(cx, cy, zoom) {
         if (settled) {
           // Path-T proximity → motif strength: full near hub center,
           // gentle falloff over a wide band so the motif lingers as the
-          // user scrolls.
-          const sCur = scrollProgress;
-          let curT;
-          if (sCur < 0.14) curT = 0;
-          else if (sCur > 0.97) curT = 1;
-          else curT = (sCur - 0.14) / 0.83;
+          // user scrolls. CRITICAL: uses the same plateau-aware mapping
+          // as camera/activeHub so motifs stay locked onto the hub during
+          // its dwell. Previously this was a separate linear formula and
+          // motifs appeared/disappeared out of sync with the floater copy.
+          const curT = scrollToPathT(scrollProgress);
 
           for (let h = 1; h < HUBS.length; h++) {
             const hub = HUBS[h];
