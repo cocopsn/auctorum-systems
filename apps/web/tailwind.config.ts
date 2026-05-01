@@ -9,18 +9,42 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        // AUCTORUM Design System — steel-blue accent (institutional dark).
+        // Override Tailwind's `blue` so existing utility classes (text-blue-400,
+        // bg-blue-600, etc.) across landing + about page match the design
+        // system palette without per-file rewrites.
+        blue: {
+          50:  '#e9f0f6',
+          100: '#cfdbe6',
+          200: '#a8b9cc',
+          300: '#7c93ad',
+          400: '#7099b8',
+          500: '#4a7c9b',
+          600: '#2f5e7e',
+          700: '#1d4569',
+          800: '#143654',
+          900: '#0f2a44',
+          950: '#081a2d',
+        },
+        // Map violet-* (used in the about-page hero gradient) to a deeper
+        // steel tone so accent gradients read institutional, not playful.
+        violet: {
+          400: '#9db7db',
+          500: '#7099b8',
+          600: '#4a7c9b',
+        },
         primary: {
-          DEFAULT: '#2563EB',
-          50: '#EFF6FF',
-          100: '#DBEAFE',
-          200: '#BFDBFE',
-          300: '#93C5FD',
-          400: '#60A5FA',
-          500: '#3B82F6',
-          600: '#2563EB',
-          700: '#1D4ED8',
-          800: '#1E40AF',
-          900: '#1E3A8A',
+          DEFAULT: '#2f5e7e',
+          50:  '#e9f0f6',
+          100: '#cfdbe6',
+          200: '#a8b9cc',
+          300: '#7c93ad',
+          400: '#7099b8',
+          500: '#4a7c9b',
+          600: '#2f5e7e',
+          700: '#1d4569',
+          800: '#143654',
+          900: '#0f2a44',
         },
         bg: {
           primary: 'var(--bg-primary)',
