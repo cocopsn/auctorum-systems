@@ -718,9 +718,9 @@ function motifBuildTree(cx, cy, zoom) {
       nodes.push({ x: h.x, y: h.y, r: 3.8, hub: h.id, pulse: rng(), brightness: 1.0 });
     });
 
-    // Cluster filler around each hub
+    // PERF: cluster count reduced 55 → 28 per hub. 4 hubs × 28 = 112 cluster nodes.
     HUBS.slice(1, 5).forEach(h => {
-      const count = 55;
+      const count = 28;
       for (let i = 0; i < count; i++) {
         const a = rng() * Math.PI * 2;
         const d = 80 + rng() * 540;
@@ -735,13 +735,13 @@ function motifBuildTree(cx, cy, zoom) {
       }
     });
 
-    // Bridge neurons between hubs (along connecting lines)
+    // PERF: bridge steps reduced 18 → 10 per pair.
     for (let i = 1; i < HUBS.length; i++) {
       for (let j = i + 1; j < HUBS.length; j++) {
         const a = HUBS[i], b = HUBS[j];
         const dist = Math.hypot(a.x - b.x, a.y - b.y);
         if (dist > 3200) continue;
-        const steps = 18;
+        const steps = 10;
         for (let k = 1; k < steps; k++) {
           const t = k / steps;
           const jx = (rng() - 0.5) * 260;
@@ -758,8 +758,8 @@ function motifBuildTree(cx, cy, zoom) {
       }
     }
 
-    // Ambient field
-    for (let i = 0; i < 80; i++) {
+    // PERF: ambient field reduced 80 → 40.
+    for (let i = 0; i < 40; i++) {
       nodes.push({
         x: (rng() - 0.5) * 4400,
         y: (rng() - 0.5) * 2800,
@@ -770,7 +770,7 @@ function motifBuildTree(cx, cy, zoom) {
       });
     }
 
-    // Build edges: each node connects to its 2-3 nearest neighbors.
+    // PERF: edges per node reduced from 2-3 to 1-2.
     const edges = [];
     const seen = new Set();
     for (let i = 0; i < nodes.length; i++) {
@@ -781,7 +781,7 @@ function motifBuildTree(cx, cy, zoom) {
         if (d < 420) dists.push([d, j]);
       }
       dists.sort((a, b) => a[0] - b[0]);
-      const connectN = 2 + (rng() < 0.3 ? 1 : 0);
+      const connectN = 1 + (rng() < 0.35 ? 1 : 0);
       for (let k = 0; k < Math.min(connectN, dists.length); k++) {
         const j = dists[k][1];
         const key = i < j ? `${i}-${j}` : `${j}-${i}`;
@@ -845,7 +845,9 @@ function motifBuildTree(cx, cy, zoom) {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d', { alpha: false }) as CanvasRenderingContext2D;
-      let w = 0, h = 0, dpr = Math.min(2, window.devicePixelRatio || 1);
+      // PERF: cap DPR to 1 (was Math.min(2, ...)). Cuts pixel fill cost ~4x
+      // on retina with negligible visual loss for an animated canvas scene.
+      let w = 0, h = 0, dpr = 1;
 
       graphRef.current = buildGraph();
       const { nodes, edges } = graphRef.current;
@@ -863,6 +865,9 @@ function motifBuildTree(cx, cy, zoom) {
         (a, b) => nodes[a].originDist - nodes[b].originDist
       );
 
+      // PERF: cache the background gradient. Was being created via
+      // createRadialGradient on every frame — now rebuilt only on resize.
+      let bgGrad: CanvasGradient | null = null;
       function fit() {
         w = window.innerWidth;
         h = window.innerHeight;
@@ -871,6 +876,10 @@ function motifBuildTree(cx, cy, zoom) {
         canvas.width = Math.floor(w * dpr);
         canvas.height = Math.floor(h * dpr);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        bgGrad = ctx.createRadialGradient(w / 2, h / 2, 50, w / 2, h / 2, Math.max(w, h) * 0.7);
+        bgGrad.addColorStop(0, '#061127');
+        bgGrad.addColorStop(0.55, '#020817');
+        bgGrad.addColorStop(1, '#01040c');
       }
       fit();
       window.addEventListener('resize', fit);
@@ -931,6 +940,13 @@ function motifBuildTree(cx, cy, zoom) {
       // RENDER LOOP
       // ==========================================================
       function tick(now) {
+        // PERF: skip frames when the tab is hidden — saves all CPU when
+        // user has the page in a background tab.
+        if (typeof document !== 'undefined' && document.hidden) return;
+        // PERF: skip rendering once user has scrolled past the 800vh scene.
+        // Sticky zone is no longer on screen, no point updating the canvas.
+        if (window.scrollY > 8 * window.innerHeight) return;
+
         const elapsed = now - startT;
         const bangT = Math.min(1, elapsed / BANG_DURATION);
         const bangEase = easeOutCubic(bangT);
@@ -997,12 +1013,8 @@ function motifBuildTree(cx, cy, zoom) {
         }
 
         // --------- Clear ---------
-        // Base background — deep marine with soft center glow
-        const bgGrad = ctx.createRadialGradient(w / 2, h / 2, 50, w / 2, h / 2, Math.max(w, h) * 0.7);
-        bgGrad.addColorStop(0, '#061127');
-        bgGrad.addColorStop(0.55, '#020817');
-        bgGrad.addColorStop(1, '#01040c');
-        ctx.fillStyle = bgGrad;
+        // Base background — cached gradient (rebuilt on resize only)
+        ctx.fillStyle = bgGrad as CanvasGradient;
         ctx.fillRect(0, 0, w, h);
 
         // --------- Project ---------
@@ -1072,15 +1084,13 @@ function motifBuildTree(cx, cy, zoom) {
             }
           }
         }
-        // Pulses on top of edges (under nodes)
+        // PERF: pulses redrawn as solid alpha arc (was gradient per pulse).
+        // Two-pass arc gives a similar bloom effect at fraction of the cost.
         for (let i = 0; i < pulses.length; i++) {
           const p = pulses[i];
-          const halo = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 9);
-          halo.addColorStop(0, `rgba(120, 180, 255, ${(0.55 * p.intensity).toFixed(3)})`);
-          halo.addColorStop(1, 'rgba(120, 180, 255, 0)');
-          ctx.fillStyle = halo;
+          ctx.fillStyle = `rgba(120, 180, 255, ${(0.22 * p.intensity).toFixed(3)})`;
           ctx.beginPath();
-          ctx.arc(p.x, p.y, 9, 0, Math.PI * 2);
+          ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
           ctx.fill();
           ctx.fillStyle = `rgba(220, 235, 255, ${(0.95 * p.intensity).toFixed(3)})`;
           ctx.beginPath();
@@ -1207,21 +1217,12 @@ function motifBuildTree(cx, cy, zoom) {
             }
           } else {
             // ---------- DENDRITIC SPINE (non-hub) ----------
-            // Subtle, smaller — these are filler/synapses, not stars.
-            const haloAlpha = netOpacity * 0.10 * pulse;
-            const haloR = (n.r * 4.5) * zoom + freshness * 10;
-            if (haloAlpha > 0.02) {
-              const halo = ctx.createRadialGradient(pp.x, pp.y, 0, pp.x, pp.y, haloR);
-              halo.addColorStop(0, `rgba(120, 170, 255, ${haloAlpha.toFixed(3)})`);
-              halo.addColorStop(1, 'rgba(120, 170, 255, 0)');
-              ctx.fillStyle = halo;
-              ctx.beginPath();
-              ctx.arc(pp.x, pp.y, haloR, 0, Math.PI * 2);
-              ctx.fill();
-            }
-            const dotR = Math.max(0.5, n.r * 0.85 * zoom + freshness * 1.4);
-            const a = netOpacity * (n.brightness * 0.85 + freshness * 0.5);
-            ctx.fillStyle = `rgba(165, 188, 225, ${Math.min(0.75, a).toFixed(3)})`;
+            // PERF: removed per-node radial gradient halo. Was creating ~500
+            // gradients per frame which dominated render time. Replaced with
+            // a slightly larger, brighter dot — visually similar at distance.
+            const dotR = Math.max(0.5, n.r * 0.95 * zoom + freshness * 1.4);
+            const a = netOpacity * (n.brightness * 0.9 + freshness * 0.5);
+            ctx.fillStyle = `rgba(165, 188, 225, ${Math.min(0.78, a).toFixed(3)})`;
             ctx.beginPath();
             ctx.arc(pp.x, pp.y, dotR, 0, Math.PI * 2);
             ctx.fill();
