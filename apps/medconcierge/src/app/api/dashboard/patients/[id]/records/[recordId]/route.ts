@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { eq, and } from "drizzle-orm"
-import { db, clinicalRecords, patients, patientFiles } from "@quote-engine/db"
+import { db, clinicalRecords, patients, patientFiles, auditLog } from "@quote-engine/db"
 import { getAuthTenant } from "@/lib/auth"
 import { validateOrigin } from "@/lib/csrf"
 import { deletePatientFile, getPatientFileSignedUrl } from "@/lib/storage"
@@ -52,6 +52,15 @@ export async function GET(_request: NextRequest, { params }: RouteCtx) {
       ))
       .limit(1)
     if (!record) return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 })
+
+    // NOM-004 audit: log every read of a clinical record (who/when)
+    await auditLog({
+      tenantId: auth.tenant.id,
+      userId: auth.user.id,
+      action: 'record.view',
+      entity: `clinical_record:${params.recordId}`,
+      after: { patientId: params.id, isLocked: record.isLocked },
+    })
 
     const files = await db
       .select()
@@ -143,6 +152,15 @@ export async function PATCH(request: NextRequest, { params }: RouteCtx) {
 
     if (!updated) return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 })
 
+    // NOM-004 audit: track edits (only the changed fields, not the whole record)
+    await auditLog({
+      tenantId: auth.tenant.id,
+      userId: auth.user.id,
+      action: 'record.edit',
+      entity: `clinical_record:${params.recordId}`,
+      after: { patientId: params.id, fields: Object.keys(parsed.data) },
+    })
+
     return NextResponse.json({ record: updated, savedAt: updated.lastSavedAt })
   } catch (err) {
     console.error("Record PATCH error:", err)
@@ -210,6 +228,14 @@ export async function DELETE(request: NextRequest, { params }: RouteCtx) {
       .returning()
 
     if (!deleted) return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 })
+
+    await auditLog({
+      tenantId: auth.tenant.id,
+      userId: auth.user.id,
+      action: 'record.delete',
+      entity: `clinical_record:${params.recordId}`,
+      before: { patientId: params.id, title: deleted.title },
+    })
 
     return NextResponse.json({ success: true })
   } catch (err) {

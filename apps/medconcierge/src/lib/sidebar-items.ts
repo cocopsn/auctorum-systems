@@ -39,6 +39,7 @@ export const ALL_SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'reports', label: 'Reportes', href: '/reports', icon: BarChart3, required: false, group: 'GESTIÓN' },
   { id: 'budgets', label: 'Presupuestos', href: '/budgets', icon: Receipt, required: false, group: 'GESTIÓN' },
   { id: 'payments', label: 'Pagos', href: '/payments', icon: CreditCard, required: false, group: 'GESTIÓN' },
+  { id: 'pagos', label: 'Pagos en línea', href: '/pagos', icon: CreditCard, required: false, group: 'GESTIÓN' },
   { id: 'invoices', label: 'Facturas', href: '/invoices', icon: FileText, required: false, group: 'GESTIÓN' },
   // MARKETING
   { id: 'campaigns', label: 'Campañas', href: '/campaigns', icon: Megaphone, required: false, group: 'MARKETING' },

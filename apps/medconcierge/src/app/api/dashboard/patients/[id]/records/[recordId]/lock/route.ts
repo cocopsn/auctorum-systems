@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, and } from 'drizzle-orm'
-import { db, clinicalRecords, patients, doctors } from '@quote-engine/db'
+import { db, clinicalRecords, patients, doctors, auditLog } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
 import { validateOrigin } from '@/lib/csrf'
 
@@ -119,6 +119,18 @@ export async function POST(request: NextRequest, { params }: RouteCtx) {
     })
     .where(eq(clinicalRecords.id, params.recordId))
     .returning()
+
+  await auditLog({
+    tenantId: auth.tenant.id,
+    userId: auth.user.id,
+    action: 'record.lock',
+    entity: `clinical_record:${params.recordId}`,
+    after: {
+      patientId: params.id,
+      doctorCedula: doctor.cedulaProfesional,
+      doctorName: doctor.name,
+    },
+  })
 
   return NextResponse.json({
     success: true,

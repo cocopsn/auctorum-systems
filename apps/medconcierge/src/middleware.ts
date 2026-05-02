@@ -8,6 +8,7 @@ const DASHBOARD_ROUTES = [
   '/agenda', '/ai-settings', '/portal', '/integrations', '/conversaciones',
   '/recordatorios', '/funnel', '/reports', '/follow-ups', '/budgets',
   '/payments', '/invoices', '/campaigns', '/dashboard', '/admin', '/onboarding',
+  '/pagos',
 ]
 
 function isDashboardRoute(pathname: string): boolean {

@@ -387,6 +387,14 @@ export {
   type SpecialtyId,
 } from './specialty-templates';
 
+export {
+  ICD10_COMMON,
+  ICD10_CATEGORIES,
+  findIcd10ByCode,
+  searchIcd10,
+  type Icd10Entry,
+} from './icd10-common';
+
 
 // --------------------------------------------------------------------------
 // Function calling / tools (added 2026-04-16 PROMPT 2.1b.2)

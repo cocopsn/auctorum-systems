@@ -2,8 +2,8 @@ export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { db, patients, patientFiles, appointments } from '@quote-engine/db';
-import { eq, and, desc } from 'drizzle-orm';
+import { db, patients, patientFiles, appointments, clinicalRecords, auditLog } from '@quote-engine/db';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import { getAuthTenant } from '@/lib/auth';
 import { validateOrigin } from '@/lib/csrf';
 
@@ -131,5 +131,78 @@ export async function PATCH(request: NextRequest, { params }: RouteCtx) {
   } catch (error) {
     console.error('PATCH /api/dashboard/patients/[id] error:', error);
     return NextResponse.json({ error: 'Error al actualizar paciente' }, { status: 500 });
+  }
+}
+
+// ============================================================
+// DELETE /api/dashboard/patients/[id]
+// Soft-delete only. Blocked by NOM-004 if the patient has any
+// signed (locked) clinical records — those carry a 5-year
+// retention requirement (§4.4 + retention rules).
+// ============================================================
+
+export async function DELETE(request: NextRequest, { params }: RouteCtx) {
+  try {
+    if (!validateOrigin(request)) {
+      return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
+    }
+    const auth = await getAuthTenant();
+    if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+    const { id } = params;
+    const [existing] = await db
+      .select({ id: patients.id, name: patients.name })
+      .from(patients)
+      .where(and(eq(patients.id, id), eq(patients.tenantId, auth.tenant.id)))
+      .limit(1);
+
+    if (!existing) {
+      return NextResponse.json({ error: 'Paciente no encontrado' }, { status: 404 });
+    }
+
+    // NOM-004 §4.4 + retención 5 años — pacientes con notas firmadas no
+    // pueden eliminarse.
+    const [{ count: lockedCount }] = (await db.execute(
+      sql`SELECT COUNT(*)::int AS count FROM clinical_records
+          WHERE patient_id = ${id}::uuid
+            AND tenant_id = ${auth.tenant.id}::uuid
+            AND is_locked = true`,
+    )) as unknown as Array<{ count: number }>;
+
+    if (lockedCount > 0) {
+      return NextResponse.json(
+        {
+          error:
+            'No se puede eliminar este paciente: tiene expedientes clínicos firmados. ' +
+            'NOM-004-SSA3-2012 requiere retención mínima de 5 años.',
+          code: 'PATIENT_HAS_LOCKED_RECORDS',
+        },
+        { status: 403 },
+      );
+    }
+
+    // Soft delete (no hard delete of patient data — even unsigned records may
+    // be subject to retention. We mark the patient inactive instead.)
+    await db.execute(sql`
+      UPDATE patients
+      SET name = ${'[Eliminado] ' + existing.name},
+          email = NULL,
+          phone = ${`__deleted_${id.slice(0, 8)}__`},
+          updated_at = NOW()
+      WHERE id = ${id}::uuid
+    `);
+
+    await auditLog({
+      tenantId: auth.tenant.id,
+      userId: auth.user.id,
+      action: 'patient.softdelete',
+      entity: `patient:${id}`,
+      before: { name: existing.name },
+    });
+
+    return NextResponse.json({ success: true, softDeleted: true });
+  } catch (error) {
+    console.error('DELETE /api/dashboard/patients/[id] error:', error);
+    return NextResponse.json({ error: 'Error al eliminar paciente' }, { status: 500 });
   }
 }

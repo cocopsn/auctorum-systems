@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, ChevronDown, Ban, CalendarClock } from 'lucide-react'
+import { Search, ChevronDown, Ban, CalendarClock, CreditCard, Loader2 } from 'lucide-react'
 import { StatusBadge } from './status-badge'
 import { CancelAppointmentDialog } from './cancel-appointment-dialog'
 import { RescheduleAppointmentDialog } from './reschedule-appointment-dialog'
@@ -174,6 +174,7 @@ export function AppointmentsTable({ tenantId }: { tenantId: string }) {
                         </div>
                         {row.status !== 'cancelled' && row.status !== 'completed' && (
                           <>
+                            <ChargeButton row={row} />
                             <button
                               type="button"
                               title="Reagendar"
@@ -241,5 +242,66 @@ export function AppointmentsTable({ tenantId }: { tenantId: string }) {
         />
       )}
     </div>
+  )
+}
+
+// ─── Charge button (Stripe Connect) ───
+// Generates a Checkout link for the appointment + sends it via WhatsApp.
+// Hidden when the tenant has no active Connect account or no fee configured.
+function ChargeButton({ row }: { row: AppointmentRow }) {
+  const [busy, setBusy] = useState(false)
+
+  async function handleCharge() {
+    const fee = parseFloat(row.consultationFee ?? '0')
+    if (!fee || fee < 10) {
+      alert('Configura el costo de consulta primero (mínimo $10 MXN).')
+      return
+    }
+    if (!confirm(
+      `¿Enviar link de pago de $${fee.toFixed(0)} MXN a ${row.patientName} por WhatsApp?`,
+    )) return
+
+    setBusy(true)
+    try {
+      const res = await fetch('/api/dashboard/patient-payments/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: Math.round(fee * 100),
+          description: `Consulta — ${row.reason || 'Cita médica'}`,
+          patientName: row.patientName,
+          patientPhone: row.patientPhone,
+          appointmentId: row.id,
+          patientId: row.patientId,
+          sendWhatsApp: true,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        alert(data.error || 'No se pudo crear el link de pago')
+        return
+      }
+      if (data.sentViaWhatsApp) {
+        alert(`✅ Link enviado a ${row.patientName} por WhatsApp.`)
+      } else {
+        alert(`Link creado, pero no se envió por WhatsApp. URL:\n${data.checkoutUrl}`)
+      }
+    } catch (err) {
+      alert('Error de red.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      title="Enviar cobro por WhatsApp"
+      onClick={handleCharge}
+      disabled={busy}
+      className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:text-emerald-600 hover:bg-emerald-50 transition-colors disabled:opacity-50"
+    >
+      {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+    </button>
   )
 }
