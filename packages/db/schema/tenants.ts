@@ -22,6 +22,12 @@ export const tenants = pgTable('tenants', {
   isActive: boolean('is_active').default(true),
   plan: varchar('plan', { length: 20 }).default('basico'),
   quoteSequence: integer('quote_sequence').notNull().default(0),
+  // ─── Stripe Connect (patient → doctor payments) ───
+  // Stripe Express account id for this tenant. Patients pay through
+  // Auctorum's platform; the destination of the transfer is this account.
+  stripeConnectAccountId: varchar('stripe_connect_account_id', { length: 50 }),
+  stripeConnectStatus: varchar('stripe_connect_status', { length: 20 }).default('none'),
+  stripeConnectOnboardedAt: timestamp('stripe_connect_onboarded_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   // Tier 2 columns

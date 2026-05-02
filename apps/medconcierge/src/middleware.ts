@@ -15,6 +15,8 @@ function isDashboardRoute(pathname: string): boolean {
 }
 
 const LEGAL_ROUTES = ['/privacy', '/terms', '/ai-policy', '/cookies', '/data-deletion']
+// Public marketing/payment pages — never rewritten to subdomain or auth-gated.
+const PUBLIC_FLAT_ROUTES = ['/pago-exitoso', '/pago-cancelado']
 
 function isStaticOrApi(pathname: string): boolean {
   if (pathname.startsWith('/_next')) return true
@@ -118,6 +120,7 @@ async function handleRequest(request: NextRequest) {
 
   // 4b. Legal pages — always public (no auth required)
   if (LEGAL_ROUTES.includes(pathname)) return NextResponse.next()
+  if (PUBLIC_FLAT_ROUTES.includes(pathname)) return NextResponse.next()
 
   // 5. Landing page: root path on subdomain shows the public landing
   if (slug && pathname === '/') {

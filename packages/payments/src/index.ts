@@ -74,3 +74,19 @@ export {
   getMPPayment,
   verifyMPWebhook,
 } from "./billing-mercadopago";
+
+// ---------------------------------------------------------------------------
+// Stripe Connect (patients pay doctors directly via destination charges)
+// ---------------------------------------------------------------------------
+export {
+  DEFAULT_PLATFORM_FEE_PERCENT,
+  MIN_PLATFORM_FEE_CENTAVOS,
+  computeApplicationFee,
+  createConnectAccount,
+  createConnectOnboardingLink,
+  createConnectLoginLink,
+  getConnectAccountStatus,
+  deriveConnectStatus,
+  createPatientCheckoutSession,
+  type ConnectStatus,
+} from "./stripe-connect";

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
+import StripeConnectCard from '@/components/dashboard/stripe-connect-card';
 import {
   Sparkles,
   Loader2,
@@ -295,6 +296,9 @@ export default function SubscriptionSettingsPage() {
           <p className="text-sm text-gray-500">Administra tu plan y facturación</p>
         </div>
       </div>
+
+      {/* Stripe Connect — patient → doctor payments */}
+      <StripeConnectCard />
 
       {/* Messages */}
       {error && (

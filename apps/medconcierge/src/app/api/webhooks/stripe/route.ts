@@ -32,6 +32,28 @@ export async function POST(req: NextRequest) {
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
 
+        // ─── Patient payment (Stripe Connect destination charge) ───
+        // These sessions don't have a planId; their type metadata is set
+        // to 'patient_payment' when we created them in patient-payments/checkout.
+        if (session.metadata?.type === 'patient_payment') {
+          const piId = typeof session.payment_intent === 'string'
+            ? session.payment_intent
+            : null
+          await db.execute(sql`
+            UPDATE patient_payments
+            SET status = 'succeeded',
+                stripe_payment_intent_id = COALESCE(stripe_payment_intent_id, ${piId}),
+                payment_method = COALESCE(${(session.payment_method_types?.[0] as string) ?? null}, payment_method),
+                updated_at = NOW()
+            WHERE stripe_checkout_session_id = ${session.id}
+              AND status IN ('pending', 'processing')
+          `);
+          console.log(
+            `[Stripe Connect] patient_payment session=${session.id} tenant=${tenantId} status=succeeded`,
+          );
+          break;
+        }
+
         if (tenantId && planId && subscriptionId) {
           const plan = STRIPE_PLANS[planId];
           const amount = plan?.amount ?? 0;
@@ -188,6 +210,83 @@ export async function POST(req: NextRequest) {
 
           console.log(`[Stripe] Subscription cancelled for tenant ${tenantId}`);
         }
+        break;
+      }
+
+      // ─── Patient payment events (Stripe Connect destination charges) ───
+
+      case "payment_intent.succeeded": {
+        const pi = event.data.object as any;
+        if (pi.metadata?.type === 'patient_payment') {
+          const charges = pi.charges?.data as Array<any> | undefined;
+          const charge = charges?.[0];
+          await db.execute(sql`
+            UPDATE patient_payments
+            SET status = 'succeeded',
+                stripe_charge_id = ${charge?.id ?? null},
+                receipt_url = ${charge?.receipt_url ?? null},
+                payment_method = COALESCE(${charge?.payment_method_details?.type ?? null}, payment_method),
+                updated_at = NOW()
+            WHERE stripe_payment_intent_id = ${pi.id}
+          `);
+          console.log(`[Stripe Connect] payment_intent.succeeded ${pi.id}`);
+        }
+        break;
+      }
+
+      case "payment_intent.payment_failed":
+      case "payment_intent.canceled": {
+        const pi = event.data.object as any;
+        if (pi.metadata?.type === 'patient_payment') {
+          const reason =
+            pi.last_payment_error?.message || pi.cancellation_reason || `${event.type}`;
+          await db.execute(sql`
+            UPDATE patient_payments
+            SET status = ${event.type === 'payment_intent.canceled' ? 'cancelled' : 'failed'},
+                failure_reason = ${reason},
+                updated_at = NOW()
+            WHERE stripe_payment_intent_id = ${pi.id}
+          `);
+          console.log(`[Stripe Connect] ${event.type} ${pi.id}: ${reason}`);
+        }
+        break;
+      }
+
+      case "charge.refunded": {
+        const charge = event.data.object as any;
+        if (charge.metadata?.type === 'patient_payment' || charge.transfer_data?.destination) {
+          await db.execute(sql`
+            UPDATE patient_payments
+            SET status = 'refunded',
+                updated_at = NOW()
+            WHERE stripe_charge_id = ${charge.id}
+          `);
+          console.log(`[Stripe Connect] charge.refunded ${charge.id}`);
+        }
+        break;
+      }
+
+      // ─── Connect account lifecycle ───
+      case "account.updated": {
+        const account = event.data.object as any;
+        // Mirror status changes to the tenant row so the UI badge stays fresh.
+        const status =
+          account.charges_enabled && account.payouts_enabled
+            ? 'active'
+            : account.details_submitted
+            ? 'restricted'
+            : 'pending';
+        await db.execute(sql`
+          UPDATE tenants
+          SET stripe_connect_status = ${status},
+              stripe_connect_onboarded_at = CASE
+                WHEN ${status} = 'active' AND stripe_connect_onboarded_at IS NULL THEN NOW()
+                ELSE stripe_connect_onboarded_at
+              END,
+              updated_at = NOW()
+          WHERE stripe_connect_account_id = ${account.id}
+        `);
+        console.log(`[Stripe Connect] account.updated ${account.id} -> ${status}`);
         break;
       }
     }
