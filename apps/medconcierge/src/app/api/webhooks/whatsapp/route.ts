@@ -13,6 +13,8 @@ import {
   tenants,
   integrations,
   notifications,
+  campaigns,
+  campaignMessages,
   type Tenant,
 } from '@quote-engine/db'
 import { getAiSettings } from '@quote-engine/ai'
@@ -97,6 +99,13 @@ type WebhookPayload = {
           type?: string
           text?: { body?: string }
           timestamp?: string
+        }>
+        statuses?: Array<{
+          id?: string                              // WhatsApp message id (matches campaign_messages.whatsapp_message_id)
+          status?: 'sent' | 'delivered' | 'read' | 'failed'
+          timestamp?: string
+          recipient_id?: string
+          errors?: Array<{ title?: string; message?: string; code?: number }>
         }>
       }
     }>
@@ -270,8 +279,78 @@ async function removeAppointmentFromCalendar(
   }
 }
 
+// --------------- Campaign delivery status updates ---------------
+// Meta sends `statuses` updates separately from `messages`. Each status row
+// references the WhatsApp message id we got back when we sent — we use it to
+// transition the corresponding campaign_messages row through delivered/read/
+// failed and to bump the campaign aggregate counters.
+async function processCampaignStatuses(body: WebhookPayload): Promise<void> {
+  const statuses = body?.entry?.[0]?.changes?.[0]?.value?.statuses
+  if (!statuses || statuses.length === 0) return
+
+  for (const s of statuses) {
+    const waId = s.id
+    const newStatus = s.status
+    if (!waId || !newStatus) continue
+
+    // Find the campaign_message this status belongs to (skip for non-campaign messages)
+    const [cmRow] = await db
+      .select({ id: campaignMessages.id, campaignId: campaignMessages.campaignId })
+      .from(campaignMessages)
+      .where(eq(campaignMessages.whatsappMessageId, waId))
+      .limit(1)
+    if (!cmRow) continue
+
+    const updates: Record<string, unknown> = {}
+    let counterField: 'delivered' | 'read' | 'failed' | null = null
+
+    if (newStatus === 'delivered') {
+      updates.status = 'delivered'
+      updates.deliveredAt = new Date()
+      counterField = 'delivered'
+    } else if (newStatus === 'read') {
+      updates.status = 'read'
+      updates.readAt = new Date()
+      counterField = 'read'
+    } else if (newStatus === 'failed') {
+      updates.status = 'failed'
+      updates.errorMessage =
+        s.errors?.[0]?.title || s.errors?.[0]?.message || 'Delivery failed'
+      counterField = 'failed'
+    } else {
+      // 'sent' arrives separately too — we already wrote that on POST send.
+      continue
+    }
+
+    await db.update(campaignMessages).set(updates).where(eq(campaignMessages.id, cmRow.id))
+
+    // Bump the campaign's stats_json counter atomically
+    if (counterField) {
+      await db.execute(sql`
+        UPDATE campaigns
+        SET stats_json = jsonb_set(
+          COALESCE(stats_json, '{}'::jsonb),
+          ${'{' + counterField + '}'}::text[],
+          (COALESCE((stats_json->>${counterField})::int, 0) + 1)::text::jsonb
+        ),
+        updated_at = NOW()
+        WHERE id = ${cmRow.campaignId}
+      `)
+    }
+  }
+}
+
 // --------------- Main processing ---------------
 async function processInBackground(body: WebhookPayload) {
+  // Handle delivery status updates first (separate from message processing).
+  // Status updates come without a `messages` array, so the early-return below
+  // would skip them otherwise.
+  try {
+    await processCampaignStatuses(body)
+  } catch (e) {
+    console.error('[webhook] Campaign status processing failed (non-blocking):', e)
+  }
+
   const value = body?.entry?.[0]?.changes?.[0]?.value
   const message = value?.messages?.[0]
   if (!message || message.type !== 'text') return

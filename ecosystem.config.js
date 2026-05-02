@@ -146,6 +146,44 @@ module.exports = {
       error_file: '/var/log/auctorum/worker-error.log',
       out_file: '/var/log/auctorum/worker-out.log',
       merge_logs: true
+    },
+    {
+      // Campaign worker — processes whatsapp_campaigns BullMQ queue with
+      // 45s rate limiting between sends to stay under Meta WABA marketing
+      // limits. Concurrency 1 (one campaign at a time across all tenants).
+      name: 'auctorum-campaign-worker',
+      cwd: '/opt/auctorum-systems/repo',
+      script: 'npx',
+      args: '-y tsx scripts/campaign-worker.ts',
+      interpreter: 'none',
+      instances: 1,
+      exec_mode: 'fork',
+      max_memory_restart: '256M',
+      env: {
+        ...medEnv,
+        NODE_ENV: 'production',
+        NODE_OPTIONS: '--max-old-space-size=256'
+      },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/campaign-worker-error.log',
+      out_file: '/var/log/auctorum/campaign-worker-out.log',
+      merge_logs: true
+    },
+    {
+      // Cron — every minute, picks up scheduled campaigns whose
+      // scheduledAt has passed and enqueues them on whatsapp_campaigns.
+      name: 'cron-campaigns',
+      cwd: '/opt/auctorum-systems/repo',
+      script: 'npx',
+      args: 'tsx scripts/cron-campaigns.ts',
+      cron_restart: '* * * * *',
+      autorestart: false,
+      watch: false,
+      env: { ...cronEnv, TZ: 'America/Monterrey' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/cron-campaigns-error.log',
+      out_file: '/var/log/auctorum/cron-campaigns-out.log',
+      merge_logs: true
     }
   ]
 };
