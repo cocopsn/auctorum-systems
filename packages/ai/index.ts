@@ -379,6 +379,13 @@ export async function runWhatsAppReply({
 export { searchKnowledgeBase, type KnowledgeChunk as RAGChunk } from './rag';
 export { buildTenantSystemPrompt, getTenantVertical } from './prompts';
 export { checkTenantBudget, getTenantUsage, type BudgetCheckResult } from './budget';
+export {
+  SPECIALTY_TEMPLATES,
+  getSpecialtyTemplate,
+  getSpecialtyList,
+  type SpecialtyTemplate,
+  type SpecialtyId,
+} from './specialty-templates';
 
 
 // --------------------------------------------------------------------------

@@ -1,9 +1,22 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Bot, Settings, Play, BarChart3, Loader2, Send, RotateCcw, Zap } from "lucide-react"
+import { Bot, Settings, Play, BarChart3, Loader2, Send, RotateCcw, Zap, Sparkles, ChevronDown } from "lucide-react"
 
 type Tab = "prompt" | "model" | "playground" | "stats"
+
+// Mirrored from packages/ai/specialty-templates.ts.
+// Kept inline so the client bundle does not pull the full template payload
+// (~30KB of medical prompts) — we only need the picker metadata here.
+const SPECIALTY_OPTIONS: Array<{ id: string; name: string; icon: string }> = [
+  { id: 'odontologia',       name: 'Odontología',           icon: '🦷' },
+  { id: 'medicina_general',  name: 'Medicina General',      icon: '🩺' },
+  { id: 'dermatologia',      name: 'Dermatología',          icon: '🧴' },
+  { id: 'cardiologia',       name: 'Cardiología',           icon: '❤️' },
+  { id: 'pediatria',         name: 'Pediatría',             icon: '👶' },
+  { id: 'ginecologia',       name: 'Ginecología',           icon: '🩷' },
+  { id: 'traumatologia',     name: 'Traumatología',         icon: '🦴' },
+]
 
 export default function AiSettingsPage() {
   const [tab, setTab] = useState<Tab>("prompt")
@@ -69,7 +82,7 @@ export default function AiSettingsPage() {
       </div>
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-        {tab === "prompt" && <PromptTab config={config} saving={saving} onSave={saveConfig} />}
+        {tab === "prompt" && <PromptTab config={config} saving={saving} onSave={saveConfig} onTemplateApplied={fetchConfig} />}
         {tab === "model" && <ModelTab config={config} saving={saving} onSave={saveConfig} />}
         {tab === "playground" && <PlaygroundTab />}
         {tab === "stats" && <StatsTab stats={stats} setStats={setStats} />}
@@ -78,27 +91,211 @@ export default function AiSettingsPage() {
   )
 }
 
-function PromptTab({ config, saving, onSave }: { config: any; saving: boolean; onSave: (u: any) => void }) {
+function PromptTab({
+  config,
+  saving,
+  onSave,
+  onTemplateApplied,
+}: {
+  config: any
+  saving: boolean
+  onSave: (u: any) => void
+  onTemplateApplied: () => void
+}) {
   const [prompt, setPrompt] = useState(config?.systemPrompt || "")
-  const defaultPrompt = "Eres un concierge medico para el consultorio. Ayuda a resolver preguntas frecuentes, explicar horarios y preparar solicitudes de cita. No diagnostiques ni sustituyas criterio medico; si hay sintomas urgentes, indica contactar emergencias o transferir a humano."
+  const [pendingTemplate, setPendingTemplate] = useState<string>("")
+  const [applying, setApplying] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const [applyOpts, setApplyOpts] = useState({
+    systemPrompt: true,
+    botMessages: true,
+    specialty: true,
+    services: false,
+    schedule: false,
+  })
+
+  // Re-sync the textarea when config refreshes (e.g., after applying a template).
+  useEffect(() => {
+    if (config?.systemPrompt !== undefined) setPrompt(config.systemPrompt || "")
+  }, [config?.systemPrompt])
+
+  const defaultPrompt =
+    "Eres un concierge medico para el consultorio. Ayuda a resolver preguntas frecuentes, explicar horarios y preparar solicitudes de cita. No diagnostiques ni sustituyas criterio medico; si hay sintomas urgentes, indica contactar emergencias o transferir a humano."
+
+  function handleSelectTemplate(value: string) {
+    if (!value) return
+    setPendingTemplate(value)
+    setConfirming(true)
+  }
+
+  async function applyTemplate(overwrite: boolean) {
+    if (!pendingTemplate) return
+    setApplying(true)
+    try {
+      const res = await fetch("/api/dashboard/ai/apply-template", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          specialtyId: pendingTemplate,
+          apply: applyOpts,
+          overwrite,
+        }),
+      })
+      if (res.ok) {
+        setConfirming(false)
+        setPendingTemplate("")
+        onTemplateApplied() // refetches config + updates the prompt textarea
+      } else {
+        const err = await res.json().catch(() => ({}))
+        alert(`Error: ${err.error || "No se pudo aplicar el template"}`)
+      }
+    } finally {
+      setApplying(false)
+    }
+  }
+
+  const pendingMeta = SPECIALTY_OPTIONS.find((o) => o.id === pendingTemplate)
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h3 className="text-base font-semibold text-gray-900">System Prompt</h3>
-        <button onClick={() => setPrompt(defaultPrompt)}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition">
-          <RotateCcw className="w-3 h-3" /> Restaurar default
-        </button>
+    <div className="space-y-6">
+      {/* Template selector */}
+      <div className="bg-gradient-to-br from-blue-50 to-blue-50/40 border border-blue-100 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+            <Sparkles className="h-4 w-4" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="text-sm font-semibold text-gray-900">Cargar template de especialidad</h4>
+            <p className="text-xs text-gray-600 mt-0.5">
+              Pre-configura el bot con prompt, reglas de emergencia y mensajes según tu especialidad médica.
+            </p>
+            <div className="relative mt-3">
+              <select
+                value={pendingTemplate}
+                onChange={(e) => handleSelectTemplate(e.target.value)}
+                className="w-full appearance-none px-3 py-2 pr-9 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
+              >
+                <option value="">— Selecciona una especialidad —</option>
+                {SPECIALTY_OPTIONS.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.icon} {s.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+            </div>
+          </div>
+        </div>
       </div>
-      <textarea value={prompt} onChange={e => setPrompt(e.target.value)} rows={12}
-        className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-mono leading-relaxed resize-y focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition" />
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-400">{prompt.length} caracteres</span>
-        <button onClick={() => onSave({ systemPrompt: prompt })} disabled={saving}
-          className="px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
-          {saving ? "Guardando..." : "Guardar"}
-        </button>
+
+      {/* Confirmation modal */}
+      {confirming && pendingMeta && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+          onClick={() => !applying && setConfirming(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-3xl" aria-hidden>
+                {pendingMeta.icon}
+              </span>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">
+                  Aplicar template: {pendingMeta.name}
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Selecciona qué partes del template quieres aplicar.
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2 mb-4 text-sm">
+              {[
+                { key: 'systemPrompt' as const, label: 'System Prompt del bot' },
+                { key: 'botMessages' as const, label: 'Mensajes del bot (bienvenida, recordatorios, etc.)' },
+                { key: 'specialty' as const, label: 'Especialidad y duración de consulta' },
+                { key: 'services' as const, label: 'Servicios sugeridos (con precios MXN base)' },
+                { key: 'schedule' as const, label: 'Horarios sugeridos' },
+              ].map((opt) => (
+                <label
+                  key={opt.key}
+                  className="flex items-center gap-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition"
+                >
+                  <input
+                    type="checkbox"
+                    checked={applyOpts[opt.key]}
+                    onChange={(e) =>
+                      setApplyOpts((s) => ({ ...s, [opt.key]: e.target.checked }))
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-gray-700">{opt.label}</span>
+                </label>
+              ))}
+            </div>
+
+            <p className="text-xs text-gray-500 mb-4">
+              Por defecto, el template <strong>NO sobrescribe</strong> tu configuración existente —
+              sólo rellena los campos vacíos. Si quieres reemplazar todo, usa "Sobrescribir todo".
+            </p>
+
+            <div className="flex flex-col-reverse sm:flex-row gap-2 justify-end">
+              <button
+                onClick={() => setConfirming(false)}
+                disabled={applying}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => applyTemplate(true)}
+                disabled={applying}
+                className="px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition disabled:opacity-50"
+              >
+                Sobrescribir todo
+              </button>
+              <button
+                onClick={() => applyTemplate(false)}
+                disabled={applying}
+                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+              >
+                {applying ? 'Aplicando...' : 'Rellenar campos vacíos'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* System prompt editor */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-gray-900">System Prompt</h3>
+          <button
+            onClick={() => setPrompt(defaultPrompt)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+          >
+            <RotateCcw className="w-3 h-3" /> Restaurar default
+          </button>
+        </div>
+        <textarea
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          rows={12}
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm font-mono leading-relaxed resize-y focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition"
+        />
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-gray-400">{prompt.length} caracteres</span>
+          <button
+            onClick={() => onSave({ systemPrompt: prompt })}
+            disabled={saving}
+            className="px-6 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+          >
+            {saving ? 'Guardando...' : 'Guardar'}
+          </button>
+        </div>
       </div>
     </div>
   )
