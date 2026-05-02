@@ -46,11 +46,11 @@ export function PatientsTable() {
         />
       </div>
 
-      <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] overflow-hidden">
+      <div className="card-soft overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[var(--border)]">
+              <tr className="border-b border-[var(--border)] bg-[var(--bg-tertiary)]/40">
                 <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Paciente</th>
                 <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Tel\u00e9fono</th>
                 <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Email</th>
@@ -75,7 +75,7 @@ export function PatientsTable() {
                 </tr>
               ) : (
                 patients.map((p) => (
-                  <tr key={p.id} className="border-b border-[var(--border)] hover:bg-[var(--bg-elevated)] transition-colors">
+                  <tr key={p.id} className="row-alt border-b border-[var(--border)] transition-colors">
                     <td className="px-4 py-3">
                       <Link href={`/pacientes/${p.id}`} className="font-medium text-[var(--text-primary)] hover:text-[var(--accent)]">
                         {p.name}

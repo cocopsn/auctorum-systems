@@ -45,7 +45,7 @@ export function StatsCards({ stats }: { stats: Stats }) {
       {cards.map((card) => (
         <div
           key={card.label}
-          className="bg-[var(--bg-secondary)] border border-[var(--border)] rounded-xl p-5 hover:border-[var(--border-hover)] transition-colors"
+          className="card-soft card-soft-accent p-5"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1 min-w-0">
