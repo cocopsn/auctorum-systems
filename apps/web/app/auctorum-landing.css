@@ -14,9 +14,11 @@
 }
 
 /* ---------------- LANDING WRAPPER (provides scroll, contains sticky frame) ---------------- */
+/* Height controls scroll velocity — more height means each wheel tick
+   advances pathT less, giving a slower / more fluid camera motion. */
 .auc-landing-root {
   position: relative;
-  height: 800vh;
+  height: 1400vh;
   background: #020613;
   z-index: 1;
 }

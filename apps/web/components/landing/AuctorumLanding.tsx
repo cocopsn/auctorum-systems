@@ -922,10 +922,10 @@ function motifBuildTree(cx, cy, zoom) {
       let startT = performance.now();
       let scrollProgress = 0;      // 0..1 based on scroll position
 
-      // Scroll progress is relative to the scene's 800vh container, not
-      // the total document — downstream sections must not affect timing.
+      // Scroll progress is relative to the scene's 1400vh container.
+      // Larger value here = slower camera per scroll input = more fluid.
       function onScroll() {
-        const sceneScrollMax = Math.max(1, 7 * window.innerHeight); // 800vh content - 100vh viewport = 700vh of scrollable distance
+        const sceneScrollMax = Math.max(1, 13 * window.innerHeight); // 1400vh - 100vh = 1300vh
         scrollProgress = Math.min(1, Math.max(0, window.scrollY / sceneScrollMax));
       }
       window.addEventListener('scroll', onScroll, { passive: true });
@@ -956,6 +956,13 @@ function motifBuildTree(cx, cy, zoom) {
         return (s - 0.14) / 0.83;
       }
 
+      // FLUIDITY: ultra-light smoothing on scrollProgress only (NOT camera).
+      // Smoothing the scroll value at 0.35 lerp settles in ~3 frames (~50ms)
+      // — imperceptible as input lag, but kills the per-frame jitter that
+      // raw window.scrollY exposes from trackpad + high-refresh displays.
+      let scrollSmooth = 0;
+      let scrollSmoothInit = false;
+
       // ==========================================================
       // RENDER LOOP
       // ==========================================================
@@ -963,9 +970,9 @@ function motifBuildTree(cx, cy, zoom) {
         // PERF: skip frames when the tab is hidden — saves all CPU when
         // user has the page in a background tab.
         if (typeof document !== 'undefined' && document.hidden) return;
-        // PERF: skip rendering once user has scrolled past the 800vh scene.
+        // PERF: skip rendering once user has scrolled past the 1400vh scene.
         // Sticky zone is no longer on screen, no point updating the canvas.
-        if (window.scrollY > 8 * window.innerHeight) return;
+        if (window.scrollY > 14 * window.innerHeight) return;
 
         const elapsed = now - startT;
         const bangT = Math.min(1, elapsed / BANG_DURATION);
@@ -993,8 +1000,18 @@ function motifBuildTree(cx, cy, zoom) {
         // so the growing graph fills the view.
         let camX = 0, camY = 0, zoom = 0.38;
 
+        // FLUIDITY: smooth scrollProgress before consuming it. Settles in
+        // ~3 frames; below input-latency perception but kills micro-jitter.
+        if (!scrollSmoothInit) {
+          scrollSmooth = scrollProgress;
+          scrollSmoothInit = true;
+        } else {
+          scrollSmooth += (scrollProgress - scrollSmooth) * 0.35;
+        }
+        const sp = scrollSmooth;
+
         if (settled) {
-          const pathT = scrollToPathT(scrollProgress);
+          const pathT = scrollToPathT(sp);
           const p = sampleCurve(pathPoints, pathT);
           camX = p.x;
           camY = p.y;
@@ -1021,7 +1038,7 @@ function motifBuildTree(cx, cy, zoom) {
         // floater from flickering when pathT is exactly between two hubs
         // and lets each hub stay readable while scroll continues smoothly.
         if (settled) {
-          const pathT = scrollToPathT(scrollProgress);
+          const pathT = scrollToPathT(sp);
           let best = 0, bestD = 1e9;
           HUB_T.forEach((ht, i) => {
             const d = Math.abs(pathT - ht);
@@ -1138,7 +1155,7 @@ function motifBuildTree(cx, cy, zoom) {
           // as camera/activeHub so motifs stay locked onto the hub during
           // its dwell. Previously this was a separate linear formula and
           // motifs appeared/disappeared out of sync with the floater copy.
-          const curT = scrollToPathT(scrollProgress);
+          const curT = scrollToPathT(sp);
 
           for (let h = 1; h < HUBS.length; h++) {
             const hub = HUBS[h];
