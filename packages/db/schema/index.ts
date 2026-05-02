@@ -33,6 +33,7 @@ export { patientFiles, type PatientFile, type NewPatientFile } from './patient-f
 export { appointments, type Appointment, type NewAppointment } from './appointments';
 export { schedules, scheduleBlocks, type Schedule, type NewSchedule, type ScheduleBlock } from './schedules';
 export { clinicalRecords, type ClinicalRecord, type NewClinicalRecord } from "./clinical-records";
+export { informedConsents, type InformedConsent, type NewInformedConsent } from './informed-consents';
 export { appointmentEvents, type AppointmentEvent } from './appointment-events';
 export { intakeForms, intakeResponses, type IntakeField, type IntakeForm, type IntakeResponse } from './intake-forms';
 export { aiKnowledgeFiles, aiUsageEvents, type AiKnowledgeFile, type NewAiKnowledgeFile, type AiUsageEvent, type NewAiUsageEvent } from './ai';

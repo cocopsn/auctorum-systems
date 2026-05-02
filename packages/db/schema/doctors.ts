@@ -11,6 +11,10 @@ export const doctors = pgTable('doctors', {
   phone: varchar('phone', { length: 20 }),
   cedulaProfesional: varchar('cedula_profesional', { length: 20 }),
   cedulaEspecialidad: varchar('cedula_especialidad', { length: 20 }),
+  // ─── NOM-004-SSA3-2012 doctor credentials ───
+  university: varchar('university', { length: 255 }),
+  ssaRegistration: varchar('ssa_registration', { length: 50 }),
+  digitalSignature: text('digital_signature'),  // base64 PNG of doctor's signature
   consultationFee: varchar('consultation_fee', { length: 20 }),
   consultationDurationMin: integer('consultation_duration_min').default(30),
   bio: text('bio'),

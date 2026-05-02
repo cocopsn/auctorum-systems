@@ -19,6 +19,13 @@ const updateSchema = z.object({
   isPinned: z.boolean().optional(),
   isDraft: z.boolean().optional(),
   appointmentId: z.string().uuid().nullable().optional(),
+  // NOM-004 structured medical fields. None of these are locked-mutable —
+  // they're rejected at the lock check below.
+  vitalSigns: z.record(z.any()).optional(),
+  diagnosisIcd10: z.string().max(10).nullable().optional(),
+  diagnosisText: z.string().max(2000).nullable().optional(),
+  treatmentPlan: z.string().max(10000).nullable().optional(),
+  prognosis: z.string().max(2000).nullable().optional(),
 }).strict()
 
 type RouteCtx = { params: { id: string; recordId: string } }
@@ -87,6 +94,29 @@ export async function PATCH(request: NextRequest, { params }: RouteCtx) {
       .limit(1)
     if (!patient) return NextResponse.json({ error: "Paciente no encontrado" }, { status: 404 })
 
+    // NOM-004 §4.4 — once a record is locked (signed), it CANNOT be edited.
+    const [existing] = await db
+      .select({ id: clinicalRecords.id, isLocked: clinicalRecords.isLocked })
+      .from(clinicalRecords)
+      .where(and(
+        eq(clinicalRecords.id, params.recordId),
+        eq(clinicalRecords.tenantId, auth.tenant.id),
+        eq(clinicalRecords.patientId, params.id),
+      ))
+      .limit(1)
+
+    if (!existing) return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 })
+
+    if (existing.isLocked) {
+      return NextResponse.json(
+        {
+          error: 'Esta nota clínica ya fue firmada y no puede ser modificada (NOM-004-SSA3-2012, §4.4)',
+          code: 'RECORD_LOCKED',
+        },
+        { status: 403 },
+      )
+    }
+
     const body = await request.json()
     const parsed = updateSchema.safeParse(body)
     if (!parsed.success) {
@@ -134,6 +164,29 @@ export async function DELETE(request: NextRequest, { params }: RouteCtx) {
       .where(and(eq(patients.id, params.id), eq(patients.tenantId, auth.tenant.id)))
       .limit(1)
     if (!patient) return NextResponse.json({ error: "Paciente no encontrado" }, { status: 404 })
+
+    // NOM-004 §4.4 — locked records are immutable (no edit, no delete).
+    // Per the 5-year retention rule, we never hard-delete locked notes.
+    const [existing] = await db
+      .select({ id: clinicalRecords.id, isLocked: clinicalRecords.isLocked })
+      .from(clinicalRecords)
+      .where(and(
+        eq(clinicalRecords.id, params.recordId),
+        eq(clinicalRecords.tenantId, auth.tenant.id),
+        eq(clinicalRecords.patientId, params.id),
+      ))
+      .limit(1)
+    if (!existing) return NextResponse.json({ error: "Registro no encontrado" }, { status: 404 })
+
+    if (existing.isLocked) {
+      return NextResponse.json(
+        {
+          error: 'Las notas clínicas firmadas no pueden eliminarse (NOM-004-SSA3-2012, §4.4 y retención 5 años).',
+          code: 'RECORD_LOCKED',
+        },
+        { status: 403 },
+      )
+    }
 
     const files = await db
       .select({ storagePath: patientFiles.storagePath })

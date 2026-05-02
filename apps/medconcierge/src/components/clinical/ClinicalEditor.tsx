@@ -12,7 +12,7 @@ import { useDebounce } from "use-debounce"
 import {
   Bold, Italic, Underline as UnderlineIcon, Highlighter,
   List, ListOrdered, AlignLeft, AlignCenter, Heading2, Heading3,
-  Check, Loader2, AlertCircle, ImagePlus, Printer, Download, X,
+  Check, Loader2, AlertCircle, ImagePlus, Printer, Download, X, Lock, ShieldCheck,
 } from "lucide-react"
 import { ResizableImage } from "./ResizableImage"
 
@@ -52,6 +52,11 @@ type ClinicalRecord = {
   soapPlan: string | null
   isPinned: boolean
   isDraft: boolean
+  // ─── NOM-004 ───
+  isLocked?: boolean
+  lockedAt?: string | null
+  doctorName?: string | null
+  doctorCedula?: string | null
   createdAt: string
   updatedAt: string
   lastSavedAt: string
@@ -399,6 +404,45 @@ export default function ClinicalEditor({ record, patientId, patientName, doctorN
         >
           <Download className="w-4 h-4" />
         </button>
+
+        {/* NOM-004 §4.4 — Firmar y sellar la nota (irreversible) */}
+        {record.isLocked ? (
+          <span
+            className="ml-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-medium print:bg-transparent"
+            title={
+              record.doctorCedula
+                ? `Firmada por ${record.doctorName ?? 'el médico'}, Céd. ${record.doctorCedula}`
+                : 'Nota firmada'
+            }
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            Firmada
+          </span>
+        ) : (
+          <button
+            onClick={async () => {
+              if (!confirm(
+                '¿Firmar y sellar esta nota?\n\nUna vez firmada, NO podrá editarse ni eliminarse (NOM-004-SSA3-2012, §4.4).',
+              )) return
+              const res = await fetch(
+                `/api/dashboard/patients/${patientId}/records/${record.id}/lock`,
+                { method: 'POST', headers: { 'Content-Type': 'application/json' } },
+              )
+              if (!res.ok) {
+                const err = await res.json().catch(() => ({}))
+                alert(err.error || 'No se pudo firmar la nota')
+                return
+              }
+              // Reload to reflect locked state
+              window.location.reload()
+            }}
+            title="Firmar y sellar la nota — irreversible"
+            className="ml-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors print:hidden"
+          >
+            <Lock className="w-3.5 h-3.5" />
+            Firmar
+          </button>
+        )}
       </div>
 
       {isSOAP ? (

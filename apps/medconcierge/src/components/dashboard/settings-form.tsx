@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Save, Loader2 } from 'lucide-react'
 import type { TenantConfig } from '@quote-engine/db'
 
-type Tab = 'profile' | 'branding' | 'notifications'
+type Tab = 'profile' | 'credentials' | 'branding' | 'notifications'
 
 export function SettingsForm() {
   const [tab, setTab] = useState<Tab>('profile')
@@ -37,6 +37,12 @@ export function SettingsForm() {
           hospitalAffiliations: doctor.hospitalAffiliations,
           consultationFee: doctor.consultationFee,
           languages: doctor.languages,
+          // ─── NOM-004 credentials ───
+          cedulaProfesional: doctor.cedulaProfesional,
+          cedulaEspecialidad: doctor.cedulaEspecialidad,
+          university: doctor.university,
+          ssaRegistration: doctor.ssaRegistration,
+          digitalSignature: doctor.digitalSignature,
         },
       }),
     })
@@ -50,6 +56,7 @@ export function SettingsForm() {
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'profile', label: 'Perfil Médico' },
+    { id: 'credentials', label: 'Datos Profesionales' },
     { id: 'branding', label: 'Colores' },
     { id: 'notifications', label: 'Notificaciones' },
   ]
@@ -79,6 +86,64 @@ export function SettingsForm() {
             <Field label="Hospitales" multiline value={doctor.hospitalAffiliations ?? ''} onChange={(v) => setDoctor((d) => ({ ...d, hospitalAffiliations: v }))} />
             <Field label="Costo de consulta" value={doctor.consultationFee ?? ''} onChange={(v) => setDoctor((d) => ({ ...d, consultationFee: v }))} />
             <Field label="Idiomas" value={doctor.languages ?? ''} onChange={(v) => setDoctor((d) => ({ ...d, languages: v }))} />
+          </div>
+        )}
+
+        {tab === 'credentials' && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-amber-200 bg-amber-50/60 p-4 text-sm text-amber-900">
+              <p className="font-medium">Datos requeridos por NOM-004-SSA3-2012</p>
+              <p className="mt-1 text-amber-800">
+                Estos datos aparecerán en todas las notas clínicas firmadas y en los PDFs exportados.
+                La cédula profesional es <strong>obligatoria</strong> para firmar notas clínicas.
+              </p>
+            </div>
+            <Field
+              label="Cédula Profesional *"
+              value={doctor.cedulaProfesional ?? ''}
+              onChange={(v) => setDoctor((d) => ({ ...d, cedulaProfesional: v }))}
+            />
+            <Field
+              label="Cédula de Especialidad"
+              value={doctor.cedulaEspecialidad ?? ''}
+              onChange={(v) => setDoctor((d) => ({ ...d, cedulaEspecialidad: v }))}
+            />
+            <Field
+              label="Universidad"
+              value={doctor.university ?? ''}
+              onChange={(v) => setDoctor((d) => ({ ...d, university: v }))}
+            />
+            <Field
+              label="Registro SSA / COFEPRIS"
+              value={doctor.ssaRegistration ?? ''}
+              onChange={(v) => setDoctor((d) => ({ ...d, ssaRegistration: v }))}
+            />
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
+                Firma digital (PNG en base64)
+              </label>
+              <input
+                type="file"
+                accept="image/png"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = () => {
+                    const result = reader.result as string
+                    setDoctor((d) => ({ ...d, digitalSignature: result }))
+                  }
+                  reader.readAsDataURL(file)
+                }}
+                className="text-sm"
+              />
+              {doctor.digitalSignature && (
+                <div className="mt-2 inline-block rounded border border-[var(--border)] bg-white p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={doctor.digitalSignature} alt="Firma" className="h-16 object-contain" />
+                </div>
+              )}
+            </div>
           </div>
         )}
 

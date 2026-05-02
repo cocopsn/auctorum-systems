@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, date, decimal, integer, timestamp, unique } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, varchar, text, date, decimal, integer, timestamp, boolean, unique } from 'drizzle-orm/pg-core'
 import { tenants } from './tenants'
 
 export const patients = pgTable('patients', {
@@ -15,8 +15,17 @@ export const patients = pgTable('patients', {
   medications: text('medications'),
   emergencyContactName: varchar('emergency_contact_name', { length: 255 }),
   emergencyContactPhone: varchar('emergency_contact_phone', { length: 50 }),
+  emergencyContactRelationship: varchar('emergency_contact_relationship', { length: 50 }),
   insuranceProvider: varchar('insurance_provider', { length: 255 }),
   insurancePolicy: varchar('insurance_policy', { length: 100 }),
+  insurancePolicyNumber: varchar('insurance_policy_number', { length: 100 }),
+  // ─── NOM-004-SSA3-2012 demographics ───
+  curp: varchar('curp', { length: 18 }),
+  occupation: varchar('occupation', { length: 255 }),
+  maritalStatus: varchar('marital_status', { length: 20 }),
+  address: text('address'),
+  consentSigned: boolean('consent_signed').default(false),
+  consentSignedAt: timestamp('consent_signed_at', { withTimezone: true }),
   notes: text('notes'),
   avatarUrl: text('avatar_url'),
   portalToken: varchar('portal_token', { length: 36 }).notNull().$defaultFn(() => crypto.randomUUID()),

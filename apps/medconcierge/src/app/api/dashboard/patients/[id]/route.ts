@@ -70,8 +70,16 @@ const updateSchema = z
     bloodType: z.string().max(5).nullable().optional(),
     insuranceProvider: z.string().max(255).nullable().optional(),
     insurancePolicy: z.string().max(100).nullable().optional(),
+    insurancePolicyNumber: z.string().max(100).nullable().optional(),
     emergencyContactName: z.string().max(255).nullable().optional(),
     emergencyContactPhone: z.string().max(50).nullable().optional(),
+    emergencyContactRelationship: z.string().max(50).nullable().optional(),
+    // ─── NOM-004 demographics ───
+    curp: z.string().max(18).nullable().optional(),
+    occupation: z.string().max(255).nullable().optional(),
+    maritalStatus: z.string().max(20).nullable().optional(),
+    address: z.string().max(2000).nullable().optional(),
+    consentSigned: z.boolean().optional(),
   })
   .strict();
 
