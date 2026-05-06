@@ -69,7 +69,10 @@ export { subscriptions, type Subscription, type NewSubscription } from './subscr
 // Portal
 export { portalPages, type PortalPage, type NewPortalPage, type PortalSection, type PortalConfig } from "./portal-pages";
 
-// Notifications  
+// Notifications
 export { notifications, type Notification, type NewNotification } from "./notifications";
 export { knowledgeBase } from './knowledge-base';
 export { auditLogs } from './audit-logs';
+
+// Public API
+export { apiKeys, type ApiKey, type NewApiKey, type ApiPermission } from './api-keys';

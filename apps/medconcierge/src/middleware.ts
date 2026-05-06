@@ -17,7 +17,7 @@ function isDashboardRoute(pathname: string): boolean {
 
 const LEGAL_ROUTES = ['/privacy', '/terms', '/ai-policy', '/cookies', '/data-deletion']
 // Public marketing/payment pages — never rewritten to subdomain or auth-gated.
-const PUBLIC_FLAT_ROUTES = ['/pago-exitoso', '/pago-cancelado']
+const PUBLIC_FLAT_ROUTES = ['/pago-exitoso', '/pago-cancelado', '/api-docs']
 
 function isStaticOrApi(pathname: string): boolean {
   if (pathname.startsWith('/_next')) return true
