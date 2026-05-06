@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Search, X } from 'lucide-react'
-import { searchIcd10, findIcd10ByCode, type Icd10Entry } from '@quote-engine/ai'
+import { searchIcd10, findIcd10ByCode, type Icd10Entry } from '@quote-engine/ai/icd10-common'
 
 /**
  * ICD-10 picker — debounced search across the common-codes catalog.

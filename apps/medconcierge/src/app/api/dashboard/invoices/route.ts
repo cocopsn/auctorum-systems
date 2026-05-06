@@ -11,6 +11,7 @@ import { validateOrigin } from '@/lib/csrf'
 // GET /api/dashboard/invoices
 // ---------------------------------------------------------------------------
 export async function GET(request: NextRequest) {
+  try {
   const auth = await getAuthTenant();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
@@ -86,6 +87,10 @@ export async function GET(request: NextRequest) {
       totalAllTime: Number(kpis.total_all_time),
     },
   });
+  } catch (err) {
+    console.error('[GET /api/dashboard/invoices] error', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -113,6 +118,7 @@ const createInvoiceSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  try {
   if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
 
   const auth = await getAuthTenant();
@@ -166,4 +172,8 @@ export async function POST(request: NextRequest) {
     .returning();
 
   return NextResponse.json({ invoice }, { status: 201 });
+  } catch (err) {
+    console.error('[POST /api/dashboard/invoices] error', err);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

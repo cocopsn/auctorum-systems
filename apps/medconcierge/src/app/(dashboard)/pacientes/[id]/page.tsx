@@ -1,8 +1,9 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import Link from "next/link"
 import { useParams } from "next/navigation"
-import { Loader2, Phone, Mail, Calendar, FileText, Stethoscope, User } from "lucide-react"
+import { Loader2, Phone, Mail, Calendar, FileText, Stethoscope, User, ClipboardList, FileSignature } from "lucide-react"
 import { StatusBadge } from "@/components/dashboard/status-badge"
 import PatientDetailClient from "@/components/patients/PatientDetailClient"
 import PatientExpediente from "@/components/clinical/PatientExpediente"
@@ -12,7 +13,7 @@ type Tab = "expedientes" | "perfil" | "citas"
 
 export default function PatientDetailPage() {
   const params = useParams()
-  const id = params.id as string
+  const id = (params?.id ?? '') as string
 
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -99,6 +100,24 @@ export default function PatientDetailPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Quick links — NOM-004 */}
+        <div className="flex flex-wrap items-center gap-2 mt-4 pt-4 border-t border-[var(--border)]">
+          <Link
+            href={`/pacientes/${id}/historia-clinica`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 text-xs font-medium transition-colors"
+          >
+            <ClipboardList className="w-3.5 h-3.5" />
+            Historia clínica NOM-004
+          </Link>
+          <Link
+            href={`/pacientes/${id}/consentimiento`}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 hover:bg-amber-100 text-xs font-medium transition-colors"
+          >
+            <FileSignature className="w-3.5 h-3.5" />
+            Consentimientos informados
+          </Link>
         </div>
       </div>
 

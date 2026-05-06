@@ -22,6 +22,7 @@ import { AppShell, type DashboardNavItem } from '@quote-engine/ui'
 import { ToastContainer } from '@/components/ui/Toast'
 import { OnboardingGate } from '@/components/onboarding/onboarding-gate'
 import { DashboardRealtimeIndicator } from '@/components/DashboardRealtimeIndicator'
+import { GlobalSearch } from '@/components/global-search'
 import { DASHBOARD_THEMES, DEFAULT_THEME, type ThemeKey } from '@/lib/dashboard-themes'
 import { ALL_SIDEBAR_ITEMS, getVisibleItems } from '@/lib/sidebar-items'
 
@@ -87,6 +88,7 @@ export function DashboardShell({
         subtitle="Agenda, pacientes y concierge médico en un solo panel."
         ctaHref="/ai-settings"
         logoutAction="/api/auth/logout"
+        headerActions={<GlobalSearch />}
       >
         <OnboardingGate>{children}</OnboardingGate>
       </AppShell>

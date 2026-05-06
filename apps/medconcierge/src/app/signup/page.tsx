@@ -127,6 +127,7 @@ export default function SignupPage() {
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [apiError, setApiError] = useState('')
   const [showSuccess, setShowSuccess] = useState(false)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -210,7 +211,11 @@ export default function SignupPage() {
   }
 
   // ---- Submit signup ------------------------------------------------------
-  async function handleSelectPlan(plan: PlanKey) {
+  async function handleSelectPlan(plan: PlanKey, processor: 'mercadopago' | 'stripe' = 'mercadopago') {
+    if (!acceptedTerms) {
+      setApiError('Debes aceptar los Términos y el Aviso de Privacidad para continuar.')
+      return
+    }
     if (plan === 'enterprise') {
       updateField('plan', 'enterprise')
       setSubmitting(true)
@@ -219,7 +224,7 @@ export default function SignupPage() {
         const res = await fetch('/api/signup', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...formData, plan: 'enterprise', slug: formData.slug }),
+          body: JSON.stringify({ ...formData, plan: 'enterprise', slug: formData.slug, acceptedTerms: true, processor }),
         })
         const json = await res.json()
         if (!res.ok) {
@@ -235,7 +240,7 @@ export default function SignupPage() {
       return
     }
 
-    // Paid plan: submit and redirect to Stripe
+    // Paid plan: submit and redirect to MercadoPago (or Stripe if user chose so)
     updateField('plan', plan)
     setSubmitting(true)
     setApiError('')
@@ -243,7 +248,7 @@ export default function SignupPage() {
       const res = await fetch('/api/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...formData, plan, slug: formData.slug }),
+        body: JSON.stringify({ ...formData, plan, slug: formData.slug, acceptedTerms: true, processor }),
       })
       const json = await res.json()
       if (!res.ok && !json.ok) {
@@ -668,6 +673,34 @@ export default function SignupPage() {
           </div>
         )}
 
+        {/* Terms acceptance — required for adhesion contract validity (Art. 1803 CCF) */}
+        <div className="mb-6 rounded-lg border border-border bg-bg-secondary p-4">
+          <label className="flex items-start gap-3 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(e) => setAcceptedTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-border text-accent focus:ring-2 focus:ring-accent"
+              aria-label="Aceptar Términos y Condiciones"
+            />
+            <span className="text-text-secondary">
+              He leído y acepto los{' '}
+              <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-accent underline">
+                Términos y Condiciones
+              </a>
+              , el{' '}
+              <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-accent underline">
+                Aviso de Privacidad
+              </a>{' '}
+              y la{' '}
+              <a href="/ai-policy" target="_blank" rel="noopener noreferrer" className="text-accent underline">
+                Política de IA
+              </a>
+              . Entiendo que mi pago constituye aceptación de este contrato de adhesión digital.
+            </span>
+          </label>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {PLANS.map((plan) => (
             <div
@@ -719,30 +752,56 @@ export default function SignupPage() {
                   </li>
                 ))}
               </ul>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => handleSelectPlan(plan.key)}
-                className={`
-                  w-full py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed
-                  ${
-                    plan.highlight
-                      ? 'bg-accent text-white hover:bg-accent-hover shadow-sm'
-                      : plan.key === 'enterprise'
-                        ? 'border-2 border-border text-text-primary hover:border-accent hover:text-accent'
+              {plan.key === 'enterprise' ? (
+                <button
+                  type="button"
+                  disabled={submitting || !acceptedTerms}
+                  onClick={() => handleSelectPlan(plan.key)}
+                  className="w-full py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed border-2 border-border text-text-primary hover:border-accent hover:text-accent"
+                >
+                  {submitting ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                      Procesando...
+                    </span>
+                  ) : (
+                    plan.cta
+                  )}
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    disabled={submitting || !acceptedTerms}
+                    onClick={() => handleSelectPlan(plan.key, 'mercadopago')}
+                    className={`w-full py-2.5 rounded-lg text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                      plan.highlight
+                        ? 'bg-accent text-white hover:bg-accent-hover shadow-sm'
                         : 'bg-bg-tertiary text-text-primary hover:bg-accent/10 hover:text-accent'
-                  }
-                `}
-              >
-                {submitting ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
-                    Procesando...
-                  </span>
-                ) : (
-                  plan.cta
-                )}
-              </button>
+                    }`}
+                  >
+                    {submitting ? (
+                      <span className="flex items-center justify-center gap-2">
+                        <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                        Procesando...
+                      </span>
+                    ) : (
+                      'Pagar con MercadoPago'
+                    )}
+                  </button>
+                  <p className="text-center text-[10px] text-text-tertiary">
+                    Tarjeta · OXXO · SPEI · MercadoPago
+                  </p>
+                  <button
+                    type="button"
+                    disabled={submitting || !acceptedTerms}
+                    onClick={() => handleSelectPlan(plan.key, 'stripe')}
+                    className="w-full py-2 rounded-lg text-xs font-medium border border-border text-text-secondary hover:border-accent hover:text-accent transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Pagar con tarjeta internacional (Stripe)
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>

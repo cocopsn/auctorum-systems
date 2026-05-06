@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, date, decimal, integer, timestamp, boolean, unique } from 'drizzle-orm/pg-core'
+import { pgTable, uuid, varchar, text, date, decimal, integer, timestamp, boolean, jsonb, unique } from 'drizzle-orm/pg-core'
 import { tenants } from './tenants'
 
 export const patients = pgTable('patients', {
@@ -26,6 +26,9 @@ export const patients = pgTable('patients', {
   address: text('address'),
   consentSigned: boolean('consent_signed').default(false),
   consentSignedAt: timestamp('consent_signed_at', { withTimezone: true }),
+  // ─── NOM-004 Historia Clínica (10 secciones en un JSONB) ───
+  // Ver packages/db/migrations/0045_clinical_history.sql para el shape.
+  clinicalHistory: jsonb('clinical_history').default({}),
   notes: text('notes'),
   avatarUrl: text('avatar_url'),
   portalToken: varchar('portal_token', { length: 36 }).notNull().$defaultFn(() => crypto.randomUUID()),

@@ -1,0 +1,22 @@
+-- Historia Clínica NOM-004-SSA3-2012 — JSONB on patients.
+--
+-- All 10 sections of the medical history live in a single JSONB column
+-- so the multi-tab UI can do partial updates without touching multiple
+-- tables. Tab 1 (identificación) ALSO writes to the canonical columns
+-- on `patients` (curp, blood_type, etc.) for backwards compatibility.
+--
+-- Shape:
+-- {
+--   heredofamiliares: { diabetes: {presente:bool, parentesco:str}, ... },
+--   no_patologicos:   { tabaquismo: {activo:bool, cantidad:str, anos:str}, ... },
+--   patologicos:      { enfermedades_previas:str, cirugias:[], ..., alergias_medicamentos:str },
+--   gineco_obstetricos: { menarca:str, fum:str, gestas:int, ... } | null,
+--   padecimiento_actual: { motivo:str, inicio:str, evolucion:str, ... },
+--   exploracion_fisica:  { signos_vitales:{...}, cabeza_cuello:str, torax_pulmones:str, ... },
+--   diagnostico:         { principal:str, icd10_code:str, icd10_description:str, secundarios:[], diferenciales:str },
+--   tratamiento:         { medicamentos:[], indicaciones_no_farmacologicas:str, estudios_solicitados:str, ... },
+--   pronostico:          { tipo:'bueno'|'reservado'|'malo', para_la_vida:str, para_la_funcion:str, observaciones:str },
+--   updated_at:          ISO 8601 string
+-- }
+
+ALTER TABLE patients ADD COLUMN IF NOT EXISTS clinical_history JSONB DEFAULT '{}'::jsonb;

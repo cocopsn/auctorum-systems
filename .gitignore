@@ -44,3 +44,46 @@ New folder/
 /CLAUDE*.md
 /CLAUDE*.docx
 /AUCTORUM-*.docx
+
+# Cloud / OAuth credentials at repo root — NEVER commit
+/*.json
+!/package.json
+!/pnpm-workspace.yaml
+!/tsconfig*.json
+/auctorum-systems-*.json
+/client_secret_*.json
+
+# Personal/external assets at root level (kept out of repo)
+/*.docx
+/*.m4a
+/*.zip
+/*.csv.zip
+/*.html
+# Root-level images (project assets live in apps/*/public)
+/AUCTORUM*.png
+/AUCTORUM*.jpg
+/Nahual*.docx
+/Nahual*.pdf
+/Convenio*.docx
+/DOCTORES*.docx
+/TALLER*.docx
+/taller.docx
+/taller.pdf
+/tarea.pdf
+/file.pdf
+/INE.pdf
+/image_*.pdf
+/annotated-*.pdf
+/[0-9]*.jpg
+/a.png
+/armandozertuche.png
+/marcoimagen.png
+/imagen*.png
+/download.png
+/reporte-*.html
+
+# Backup files / patches at root
+/auctorum_v*_patch*.tar.gz
+/ecosystem.config.js.backup-*
+/web-build.log
+/*.backup-*
