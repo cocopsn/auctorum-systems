@@ -4,6 +4,7 @@ export const dynamic = 'force-dynamic';
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import StripeConnectCard from '@/components/dashboard/stripe-connect-card';
+import { UsageWidget } from '@/components/dashboard/usage-widget';
 import {
   Sparkles,
   Loader2,
@@ -286,6 +287,9 @@ export default function SubscriptionSettingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8 py-8 px-4">
+      {/* Usage + add-ons (shown for every plan including enterprise) */}
+      <UsageWidget />
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-50">

@@ -80,3 +80,9 @@ export { apiKeys, type ApiKey, type NewApiKey, type ApiPermission } from './api-
 // Resilience / fallbacks
 export { pendingCalendarOps, type PendingCalendarOp, type NewPendingCalendarOp } from './pending-calendar-ops';
 export { webhookFailures, type WebhookFailure, type NewWebhookFailure } from './webhook-failures';
+
+// Usage tracking + addons
+export {
+  tenantUsage, type TenantUsage, type NewTenantUsage,
+  usageAddons, type UsageAddon, type NewUsageAddon,
+} from './tenant-usage';

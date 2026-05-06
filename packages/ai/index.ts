@@ -425,3 +425,27 @@ export {
   CALENDAR_RETRY_MAX_ATTEMPTS,
   type CalendarOperation,
 } from './calendar-fallback';
+
+// --------------------------------------------------------------------------
+// Per-tenant usage tracking + add-on packs
+// --------------------------------------------------------------------------
+export {
+  PLAN_LIMITS,
+  ADDON_PACKAGES,
+  getPlanLimits,
+  getAddonPackage,
+  currentPeriod,
+  type PlanId,
+  type PlanLimits,
+  type AddonPackage,
+  type UsageMetric,
+} from './plan-limits';
+
+export {
+  checkAndTrackUsage,
+  getUsageSnapshot,
+  creditAddon,
+  type GatedMetric,
+  type UsageCheckResult,
+  type UsageSnapshot,
+} from './usage-tracker';
