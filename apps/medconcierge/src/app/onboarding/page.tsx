@@ -31,6 +31,7 @@ type OnboardingState = {
 type ConsultorioForm = {
   businessName: string
   specialty: string
+  customSpecialty?: string
   address: string
   phone: string
   primaryColor: string
@@ -65,6 +66,18 @@ type WhatsAppForm = {
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
+
+// Inline specialty list (mirrors packages/ai/specialty-templates.ts metadata)
+// Kept inline to avoid pulling the full ~30KB template payload into the client bundle.
+const SPECIALTY_OPTIONS: Array<{ id: string; name: string; icon: string }> = [
+  { id: 'odontologia',      name: 'Odontologia',      icon: '\u{1F9B7}' },
+  { id: 'medicina_general', name: 'Medicina General',  icon: '\u{1FA7A}' },
+  { id: 'dermatologia',     name: 'Dermatologia',      icon: '\u{1F9F4}' },
+  { id: 'cardiologia',      name: 'Cardiologia',       icon: '\u2764\uFE0F' },
+  { id: 'pediatria',        name: 'Pediatria',         icon: '\u{1F476}' },
+  { id: 'ginecologia',      name: 'Ginecologia',       icon: '\u{1FA77}' },
+  { id: 'traumatologia',    name: 'Traumatologia',     icon: '\u{1F9B4}' },
+]
 
 const DAY_LABELS = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo'] as const
 
@@ -112,6 +125,59 @@ export default function OnboardingPage() {
   })
 
   const [whatsappPhone, setWhatsappPhone] = useState('')
+  const [applyingTemplate, setApplyingTemplate] = useState(false)
+
+  /* Apply specialty template ------------------------------------------*/
+  const applySpecialtyTemplate = useCallback(
+    async (specialtyId: string) => {
+      if (!specialtyId || specialtyId === 'otra') return
+      setApplyingTemplate(true)
+      try {
+        const res = await fetch('/api/onboarding/apply-specialty', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ specialtyId }),
+        })
+        if (!res.ok) return
+        const data = await res.json()
+
+        // Pre-fill step 2 (horarios) from template
+        if (data.suggestedSchedule) {
+          const sched = data.suggestedSchedule
+          const newDays: Record<string, DaySchedule> = {}
+          DAY_LABELS.forEach((day, i) => {
+            if (i < 5) {
+              // Weekdays
+              newDays[day] = { enabled: true, start: sched.weekdays.start, end: sched.weekdays.end }
+            } else if (i === 5 && sched.saturday) {
+              // Saturday
+              newDays[day] = { enabled: true, start: sched.saturday.start, end: sched.saturday.end }
+            } else {
+              // Sunday or Saturday when null
+              newDays[day] = { enabled: false, start: '09:00', end: '18:00' }
+            }
+          })
+          setHorarios({ days: newDays, duration: sched.consultDuration || 30 })
+        }
+
+        // Pre-fill step 3 (servicios) from template
+        if (data.services && data.services.length > 0) {
+          setServicios({
+            services: data.services.map((s: { name: string; duration: number; price?: number }) => ({
+              name: s.name,
+              price: s.price ? String(s.price) : '',
+              duration: String(s.duration),
+            })),
+          })
+        }
+      } catch {
+        // Silent — template pre-fill is optional enhancement
+      } finally {
+        setApplyingTemplate(false)
+      }
+    },
+    []
+  )
 
   /* Fetch onboarding state -------------------------------------------*/
   useEffect(() => {
@@ -254,7 +320,7 @@ export default function OnboardingPage() {
 
           {/* Step content */}
           <div className="bg-white rounded-xl border shadow-sm p-6 md:p-8 mb-6">
-            {activeStep === 0 && <StepConsultorio form={consultorio} onChange={setConsultorio} />}
+            {activeStep === 0 && <StepConsultorio form={consultorio} onChange={setConsultorio} onSpecialtyApply={applySpecialtyTemplate} applyingTemplate={applyingTemplate} />}
             {activeStep === 1 && <StepHorarios form={horarios} onChange={setHorarios} />}
             {activeStep === 2 && <StepServicios form={servicios} onChange={setServicios} />}
             {activeStep === 3 && <StepGoogleCalendar />}
@@ -302,12 +368,26 @@ export default function OnboardingPage() {
 function StepConsultorio({
   form,
   onChange,
+  onSpecialtyApply,
+  applyingTemplate,
 }: {
   form: ConsultorioForm
   onChange: (f: ConsultorioForm) => void
+  onSpecialtyApply: (specialtyId: string) => void
+  applyingTemplate: boolean
 }) {
   const set = (key: keyof ConsultorioForm, val: string) =>
     onChange({ ...form, [key]: val })
+
+  const isKnownSpecialty = SPECIALTY_OPTIONS.some((s) => s.id === form.specialty)
+  const showCustomInput = form.specialty === 'otra'
+
+  const handleSpecialtyChange = (value: string) => {
+    set('specialty', value)
+    if (value && value !== 'otra') {
+      onSpecialtyApply(value)
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -318,7 +398,35 @@ function StepConsultorio({
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Nombre del consultorio" value={form.businessName} onChange={(v) => set('businessName', v)} placeholder="Ej: Consultorio Dra. Martinez" />
-        <Field label="Especialidad" value={form.specialty} onChange={(v) => set('specialty', v)} placeholder="Ej: Medicina General" />
+
+        {/* Specialty dropdown */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Especialidad</label>
+          <select
+            value={isKnownSpecialty || showCustomInput ? form.specialty : ''}
+            onChange={(e) => handleSpecialtyChange(e.target.value)}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+          >
+            <option value="">Seleccione su especialidad...</option>
+            {SPECIALTY_OPTIONS.map((s) => (
+              <option key={s.id} value={s.id}>{s.icon} {s.name}</option>
+            ))}
+            <option value="otra">Otra especialidad</option>
+          </select>
+          {showCustomInput && (
+            <input
+              type="text"
+              placeholder="Escriba su especialidad"
+              value={form.customSpecialty || ''}
+              onChange={(e) => onChange({ ...form, customSpecialty: e.target.value })}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mt-2 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+            />
+          )}
+          {applyingTemplate && (
+            <p className="text-xs text-teal-600 mt-1 animate-pulse">Configurando template...</p>
+          )}
+        </div>
+
         <Field label="Direccion" value={form.address} onChange={(v) => set('address', v)} placeholder="Calle, Colonia, Ciudad" className="md:col-span-2" />
         <Field label="Telefono" value={form.phone} onChange={(v) => set('phone', v)} placeholder="+52 55 1234 5678" />
       </div>
@@ -656,6 +764,11 @@ function StepPortal({ consultorio }: { consultorio: ConsultorioForm }) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '')
 
+  // Resolve specialty display name from ID
+  const specialtyDisplay = consultorio.specialty === 'otra'
+    ? (consultorio.customSpecialty || 'Especialidad')
+    : (SPECIALTY_OPTIONS.find((s) => s.id === consultorio.specialty)?.name || consultorio.specialty || 'Especialidad')
+
   return (
     <div className="space-y-6">
       <div>
@@ -676,7 +789,7 @@ function StepPortal({ consultorio }: { consultorio: ConsultorioForm }) {
               {consultorio.businessName || 'Nombre del consultorio'}
             </h4>
             <p className="text-sm opacity-90">
-              {consultorio.specialty || 'Especialidad'}
+              {specialtyDisplay}
             </p>
           </div>
         </div>
