@@ -504,7 +504,8 @@ ${selectedInfo}
       await notifyDoctorDevices(tenantId, {
         title: 'Nuevo mensaje WhatsApp',
         body: `${from}: ${text.slice(0, 80)}${text.length > 80 ? '…' : ''}`,
-        data: { screen: 'conversation', conversationId: conversation.id },
+        url: `/conversaciones?cid=${conversation.id}`,
+        data: { screen: 'conversation', conversationId: conversation.id, tag: `conv-${conversation.id}` },
       })
     } catch (err) {
       console.warn('[worker] push notify failed (non-fatal):', err instanceof Error ? err.message : err)

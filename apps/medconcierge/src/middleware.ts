@@ -23,7 +23,11 @@ function isStaticOrApi(pathname: string): boolean {
   if (pathname.startsWith('/_next')) return true
   if (pathname.startsWith('/api/')) return true
   if (pathname === '/api') return true
-  if (/\.(ico|png|jpg|jpeg|svg|gif|webp|css|js|woff2?)$/.test(pathname)) return true
+  // PWA: manifest, service worker, icons must be reachable from any host
+  // without auth gating, otherwise the browser silently fails to install.
+  if (pathname === '/manifest.json' || pathname === '/sw.js') return true
+  if (pathname.startsWith('/icons/') || pathname.startsWith('/screenshots/')) return true
+  if (/\.(ico|png|jpg|jpeg|svg|gif|webp|css|js|json|woff2?)$/.test(pathname)) return true
   return false
 }
 

@@ -23,6 +23,8 @@ import { ToastContainer } from '@/components/ui/Toast'
 import { OnboardingGate } from '@/components/onboarding/onboarding-gate'
 import { DashboardRealtimeIndicator } from '@/components/DashboardRealtimeIndicator'
 import { GlobalSearch } from '@/components/global-search'
+import { InstallPrompt } from '@/components/install-prompt'
+import { PushBootstrap } from '@/components/push-bootstrap'
 import { DASHBOARD_THEMES, DEFAULT_THEME, type ThemeKey } from '@/lib/dashboard-themes'
 import { ALL_SIDEBAR_ITEMS, getVisibleItems } from '@/lib/sidebar-items'
 
@@ -95,6 +97,8 @@ export function DashboardShell({
         <OnboardingGate>{children}</OnboardingGate>
       </AppShell>
       <ToastContainer />
+      <PushBootstrap />
+      <InstallPrompt />
     </div>
   )
 }
