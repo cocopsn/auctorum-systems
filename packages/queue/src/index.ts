@@ -85,3 +85,14 @@ export async function closeAll() {
 }
 
 export { Queue, Worker, Job } from 'bullmq';
+
+// Resilience helpers
+export { isRedisHealthy, snapshotRedisHealth } from './health';
+export {
+  recordWebhookFailure,
+  processPendingWebhooks,
+  WEBHOOK_RETRY_BACKOFF_MS,
+  WEBHOOK_RETRY_MAX_ATTEMPTS,
+  type WebhookSource,
+  type WebhookFailure,
+} from './webhook-retry';

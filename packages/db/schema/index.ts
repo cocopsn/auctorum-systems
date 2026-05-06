@@ -76,3 +76,7 @@ export { auditLogs } from './audit-logs';
 
 // Public API
 export { apiKeys, type ApiKey, type NewApiKey, type ApiPermission } from './api-keys';
+
+// Resilience / fallbacks
+export { pendingCalendarOps, type PendingCalendarOp, type NewPendingCalendarOp } from './pending-calendar-ops';
+export { webhookFailures, type WebhookFailure, type NewWebhookFailure } from './webhook-failures';
