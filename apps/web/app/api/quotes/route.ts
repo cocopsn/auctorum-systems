@@ -219,7 +219,9 @@ export async function POST(request: NextRequest) {
       console.error('PDF generation error (non-blocking):', pdfErr);
     }
 
-    // TODO: Upload PDF to Supabase Storage and get public URL
+    // The PDF is rendered on-demand by the signed /api/quotes/[id]/pdf route
+    // (HMAC-gated by PDF_SIGNING_SECRET) so we don't pre-upload it to Storage.
+    // Email + WhatsApp share the signed URL directly.
     const baseUrl = process.env.NEXT_PUBLIC_APP_DOMAIN
       ? `https://${data.tenantSlug}.${process.env.NEXT_PUBLIC_APP_DOMAIN}`
       : '';

@@ -95,3 +95,34 @@ export function apiForbidden(needed: ApiPermission) {
     { status: 403 },
   )
 }
+
+/**
+ * Per-tenant rate limit gate for the v1 API. Call this AFTER authenticateApiKey
+ * succeeds and BEFORE doing the expensive work. Returns either a 429 response
+ * (caller should `return` it directly) or null when the request is within budget.
+ *
+ * Wired through the same usage tracker that meters WhatsApp, so plan caps and
+ * add-on packs apply consistently across the surface.
+ */
+export async function apiRateLimit(tenantId: string, plan: string | null | undefined) {
+  const { checkAndTrackUsage } = await import('@quote-engine/ai')
+  const usage = await checkAndTrackUsage(tenantId, plan, 'api_calls', 1)
+  if (usage.allowed) return null
+  return NextResponse.json(
+    {
+      error: 'Rate limit exceeded',
+      limit: usage.totalLimit,
+      current: usage.current,
+      remaining: 0,
+      upgrade_url: 'https://portal.auctorum.com.mx/settings/subscription',
+    },
+    {
+      status: 429,
+      headers: {
+        'Retry-After': '3600',
+        'X-RateLimit-Limit': String(usage.totalLimit),
+        'X-RateLimit-Remaining': '0',
+      },
+    },
+  )
+}

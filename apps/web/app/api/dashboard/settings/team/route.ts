@@ -36,11 +36,10 @@ const inviteSchema = z.object({
 })
 
 export async function POST(request: NextRequest) {
-  // TODO: M8 — The placeholder user ID created during team invite does not match
-  // the Supabase UID that the invited user gets when they actually sign up.
-  // Need a "claim" flow: when an invited user logs in for the first time, match
-  // them by email and update the users table record to use their real Supabase UID.
-  // Ref: pentest finding M8 — Team invite UUID mismatch
+  // Known limitation (pentest finding M8): the placeholder user ID created
+  // here does not match the Supabase UID that the invited user gets when
+  // they actually sign up. A future "claim" flow should match by email at
+  // first login and update the users row to point at the real Supabase UID.
   try {
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })

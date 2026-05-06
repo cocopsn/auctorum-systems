@@ -1,11 +1,7 @@
 import { Tabs } from 'expo-router'
-import { Text, View, StyleSheet } from 'react-native'
-import { colors, spacing } from '@/lib/theme'
+import { Ionicons } from '@expo/vector-icons'
+import { colors } from '@/lib/theme'
 
-/**
- * Bottom tab navigator. Icons are minimal text glyphs to avoid an extra
- * icon library dependency at MVP. Replace with @expo/vector-icons later.
- */
 export default function TabsLayout() {
   return (
     <Tabs
@@ -27,42 +23,38 @@ export default function TabsLayout() {
         name="index"
         options={{
           title: 'Inicio',
-          tabBarIcon: ({ color }) => <TabGlyph color={color} char="◉" />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="agenda"
         options={{
           title: 'Agenda',
-          tabBarIcon: ({ color }) => <TabGlyph color={color} char="🗓" />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="conversations"
         options={{
           title: 'Chats',
-          tabBarIcon: ({ color }) => <TabGlyph color={color} char="💬" />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'chatbubbles' : 'chatbubbles-outline'} size={22} color={color} />
+          ),
         }}
       />
       <Tabs.Screen
         name="patients"
         options={{
           title: 'Pacientes',
-          tabBarIcon: ({ color }) => <TabGlyph color={color} char="👥" />,
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'people' : 'people-outline'} size={22} color={color} />
+          ),
         }}
       />
     </Tabs>
   )
 }
-
-function TabGlyph({ color, char }: { color: string; char: string }) {
-  return (
-    <View style={styles.glyph}>
-      <Text style={{ color, fontSize: 18 }}>{char}</Text>
-    </View>
-  )
-}
-
-const styles = StyleSheet.create({
-  glyph: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
-})

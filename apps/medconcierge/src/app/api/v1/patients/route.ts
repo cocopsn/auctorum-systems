@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { and, desc, eq, ilike, or, sql } from 'drizzle-orm'
 import { db, patients } from '@quote-engine/db'
-import { authenticateApiKey, apiUnauthorized, apiForbidden } from '@/lib/api-auth'
+import { authenticateApiKey, apiUnauthorized, apiForbidden, apiRateLimit } from '@/lib/api-auth'
 
 // ---------------------------------------------------------------------------
 // GET /api/v1/patients
@@ -15,6 +15,8 @@ export async function GET(req: NextRequest) {
     const auth = await authenticateApiKey(req)
     if (!auth) return apiUnauthorized()
     if (!auth.permissions.includes('read')) return apiForbidden('read')
+    const rl = await apiRateLimit(auth.tenant.id, auth.tenant.plan)
+    if (rl) return rl
 
     const sp = req.nextUrl.searchParams
     const page = Math.max(1, parseInt(sp.get('page') ?? '1', 10) || 1)
@@ -84,6 +86,8 @@ export async function POST(req: NextRequest) {
     const auth = await authenticateApiKey(req)
     if (!auth) return apiUnauthorized()
     if (!auth.permissions.includes('write')) return apiForbidden('write')
+    const rl = await apiRateLimit(auth.tenant.id, auth.tenant.plan)
+    if (rl) return rl
 
     let body: unknown
     try {

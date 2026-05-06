@@ -628,17 +628,9 @@ export default function CampaignsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-1">
-                      {campaign.status === 'draft' && (
-                        <button
-                          onClick={() => {
-                            /* TODO: open edit form */
-                          }}
-                          className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-                          title="Editar"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                      )}
+                      {/* Edit-in-place is intentionally not offered: drafts are
+                          short-lived; the workflow is delete + recreate from
+                          the form at the top of the page. */}
                       {(campaign.status === 'draft' ||
                         campaign.status === 'scheduled') && (
                         <button

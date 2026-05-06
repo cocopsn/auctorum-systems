@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { eq } from 'drizzle-orm'
 import { db, doctors } from '@quote-engine/db'
-import { authenticateApiKey, apiUnauthorized, apiForbidden } from '@/lib/api-auth'
+import { authenticateApiKey, apiUnauthorized, apiForbidden, apiRateLimit } from '@/lib/api-auth'
 
 /**
  * GET /api/v1/doctors — list doctors registered in the tenant.
@@ -13,6 +13,8 @@ export async function GET(req: NextRequest) {
     const auth = await authenticateApiKey(req)
     if (!auth) return apiUnauthorized()
     if (!auth.permissions.includes('read')) return apiForbidden('read')
+    const rl = await apiRateLimit(auth.tenant.id, auth.tenant.plan)
+    if (rl) return rl
 
     const rows = await db
       .select()

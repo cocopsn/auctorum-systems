@@ -169,29 +169,39 @@ export default function ReportesPage() {
           </div>
         )}
 
-        <div className="ml-auto relative">
-          <button
-            type="button"
-            onClick={() => setExportOpen((v) => !v)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+        <div className="ml-auto flex items-center gap-2">
+          <a
+            href={`/reportes/print?from=${from}&to=${to}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50"
           >
-            <Download className="w-4 h-4" /> Descargar CSV
-          </button>
-          {exportOpen && (
-            <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden">
-              {(['appointments', 'payments', 'patients'] as const).map((t) => (
-                <a
-                  key={t}
-                  href={`/api/dashboard/reports/export?type=${t}&from=${from}&to=${to}`}
-                  onClick={() => setExportOpen(false)}
-                  className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b last:border-0 flex items-center gap-2"
-                >
-                  <FileText className="w-3.5 h-3.5 text-gray-400" />
-                  {t === 'appointments' ? 'Citas' : t === 'payments' ? 'Pagos' : 'Pacientes'}
-                </a>
-              ))}
-            </div>
-          )}
+            <FileText className="w-4 h-4" /> Imprimir / PDF
+          </a>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setExportOpen((v) => !v)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700"
+            >
+              <Download className="w-4 h-4" /> Descargar CSV
+            </button>
+            {exportOpen && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden">
+                {(['appointments', 'payments', 'patients'] as const).map((t) => (
+                  <a
+                    key={t}
+                    href={`/api/dashboard/reports/export?type=${t}&from=${from}&to=${to}`}
+                    onClick={() => setExportOpen(false)}
+                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b last:border-0 flex items-center gap-2"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-gray-400" />
+                    {t === 'appointments' ? 'Citas' : t === 'payments' ? 'Pagos' : 'Pacientes'}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

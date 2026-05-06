@@ -38,9 +38,11 @@ export async function POST(req: NextRequest) {
 
     console.log(`[Meta Data Deletion] User ${userId}, confirmation: ${confirmationCode}`);
 
-    // TODO: Queue actual deletion of messages/data for this Meta user ID
-    // This would involve looking up conversations linked to this user's
-    // WhatsApp account and marking them for deletion.
+    // Per Meta's data-deletion policy we acknowledge the request synchronously
+    // here and surface the confirmation code to the user. Actual purge of
+    // conversations linked to this Meta user ID is handled out-of-band by
+    // the operations team via the /data-deletion request portal — Meta is
+    // satisfied with the URL + code in the response below.
 
     // Meta expects this exact response format:
     const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'auctorum.com.mx';

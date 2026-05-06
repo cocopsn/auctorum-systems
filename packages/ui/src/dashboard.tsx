@@ -205,6 +205,8 @@ export function AppShell({
   logoutAction = '/api/auth/logout',
   logoUrl,
   headerActions,
+  showSearch = true,
+  showBell = true,
 }: {
   children: ReactNode;
   navItems: DashboardNavItem[];
@@ -218,6 +220,10 @@ export function AppShell({
   logoutAction?: string;
   logoUrl?: string;
   headerActions?: ReactNode;
+  /** Render the decorative search input in the top header. Default true. */
+  showSearch?: boolean;
+  /** Render the notification bell in the top header. Default true. */
+  showBell?: boolean;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -314,14 +320,28 @@ export function AppShell({
       </aside>
 
       <div className="min-h-screen lg:pl-64">
-        <TopHeader greeting={greeting} subtitle={subtitle} ctaHref={ctaHref} headerActions={headerActions} />
+        <TopHeader greeting={greeting} subtitle={subtitle} ctaHref={ctaHref} headerActions={headerActions} showSearch={showSearch} showBell={showBell} />
         <main className="min-h-screen bg-slate-50 p-6 sm:p-8">{children}</main>
       </div>
     </div>
   );
 }
 
-export function TopHeader({ greeting, subtitle, ctaHref, headerActions }: { greeting: string; subtitle: string; ctaHref: string; headerActions?: ReactNode }) {
+export function TopHeader({
+  greeting,
+  subtitle,
+  ctaHref,
+  headerActions,
+  showSearch = true,
+  showBell = true,
+}: {
+  greeting: string;
+  subtitle: string;
+  ctaHref: string;
+  headerActions?: ReactNode;
+  showSearch?: boolean;
+  showBell?: boolean;
+}) {
   return (
     <header className="sticky top-0 z-30 border-b border-slate-200 bg-white">
       <div className="flex min-h-16 flex-col gap-4 px-5 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
@@ -329,11 +349,13 @@ export function TopHeader({ greeting, subtitle, ctaHref, headerActions }: { gree
           <p className="text-sm text-[var(--theme-sidebar-text,#64748b)]">Dashboard / <span className="text-slate-700">{greeting}</span></p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex h-11 min-w-[220px] flex-1 items-center gap-2 rounded-full bg-slate-100 px-4 text-sm text-[var(--theme-sidebar-text,#64748b)] lg:flex-none">
-            <Search className="h-4 w-4" />
-            <input className="w-full bg-transparent outline-none placeholder:text-[var(--theme-sidebar-text,#94a3b8)]" placeholder="Search here..." />
-          </label>
-          <NotificationBell />
+          {showSearch ? (
+            <label className="flex h-11 min-w-[220px] flex-1 items-center gap-2 rounded-full bg-slate-100 px-4 text-sm text-[var(--theme-sidebar-text,#64748b)] lg:flex-none">
+              <Search className="h-4 w-4" />
+              <input className="w-full bg-transparent outline-none placeholder:text-[var(--theme-sidebar-text,#94a3b8)]" placeholder="Search here..." />
+            </label>
+          ) : null}
+          {showBell ? <NotificationBell /> : null}
           {headerActions}
         </div>
       </div>

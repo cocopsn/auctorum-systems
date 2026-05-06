@@ -88,6 +88,8 @@ export function DashboardShell({
         subtitle="Agenda, pacientes y concierge médico en un solo panel."
         ctaHref="/ai-settings"
         logoutAction="/api/auth/logout"
+        showSearch={false}
+        showBell={false}
         headerActions={<GlobalSearch />}
       >
         <OnboardingGate>{children}</OnboardingGate>

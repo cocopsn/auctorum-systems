@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm"
 import { db, appointments, patients, appointmentEvents } from "@quote-engine/db"
 import { getAuthTenant } from "@/lib/auth"
 import { updateCalendarEvent, isGoogleCalendarConfigured } from "@/lib/google-calendar"
+import { calendarWithFallback } from "@quote-engine/ai"
 import { sendWhatsAppMessage } from "@/lib/whatsapp"
 import { z } from "zod"
 import { validateOrigin } from '@/lib/csrf'
@@ -73,9 +74,17 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         gcalUpdates.endDateTime = `${data.date || current.appt.date}T${data.endTime || current.appt.endTime}`
       }
       if (data.reason) gcalUpdates.description = data.reason
-      updateCalendarEvent(current.appt.googleEventId, gcalUpdates, tenantConfig).catch(e =>
-        console.error("[appt update] gcal sync error:", e)
-      )
+      // Update on Google Calendar; on failure queue in pending_calendar_ops
+      // so the cron can retry once Google is reachable again.
+      void calendarWithFallback({
+        tenantId: auth.tenant.id,
+        appointmentId: current.appt.id,
+        operation: 'update',
+        data: { googleEventId: current.appt.googleEventId, ...gcalUpdates },
+        call: () => updateCalendarEvent(current.appt.googleEventId!, gcalUpdates, tenantConfig),
+      }).then((r) => {
+        if (!r.ok) console.warn(`[appt update] gcal queued for retry: ${r.queuedId}`)
+      })
     }
 
     if (data.date || data.startTime) {

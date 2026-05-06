@@ -32,6 +32,29 @@ export async function POST(req: NextRequest) {
         const customerId = session.customer as string;
         const subscriptionId = session.subscription as string;
 
+        // ─── Add-on pack purchase (extra WhatsApp / API / storage capacity) ───
+        // Sessions created with metadata.type='addon_purchase' and
+        // metadata.package_id='whatsapp_500' etc. creditAddon is idempotent
+        // by (processor, externalPaymentId) so a duplicate webhook delivery
+        // does not double-credit.
+        if (session.metadata?.type === 'addon_purchase' && tenantId && session.metadata.package_id) {
+          try {
+            const { creditAddon } = await import('@quote-engine/ai')
+            const result = await creditAddon({
+              tenantId,
+              packageId: String(session.metadata.package_id),
+              paymentProcessor: 'stripe',
+              externalPaymentId: session.id,
+            })
+            console.log(
+              `[Stripe Addon] tenant=${tenantId} package=${session.metadata.package_id} ${result.created ? 'credited' : 'duplicate'}`,
+            )
+          } catch (err) {
+            console.error(`[Stripe Addon] credit failed for tenant=${tenantId}:`, err)
+          }
+          break;
+        }
+
         // ─── Patient payment (Stripe Connect destination charge) ───
         // These sessions don't have a planId; their type metadata is set
         // to 'patient_payment' when we created them in patient-payments/checkout.

@@ -205,6 +205,23 @@ module.exports = {
       error_file: '/var/log/auctorum/cron-webhook-retries-error.log',
       out_file: '/var/log/auctorum/cron-webhook-retries-out.log',
       merge_logs: true
+    },
+    {
+      // Resilience cron: drains pending_calendar_ops — Google Calendar
+      // operations that previously failed (5xx, network, expired token).
+      // See packages/ai/calendar-fallback.ts. Runs every 5 minutes.
+      name: 'cron-calendar-pending',
+      cwd: '/opt/auctorum-systems/repo',
+      script: 'npx',
+      args: 'tsx scripts/cron-calendar-pending.ts',
+      cron_restart: '*/5 * * * *',
+      autorestart: false,
+      watch: false,
+      env: { ...cronEnv, TZ: 'America/Monterrey' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/cron-calendar-pending-error.log',
+      out_file: '/var/log/auctorum/cron-calendar-pending-out.log',
+      merge_logs: true
     }
   ]
 };

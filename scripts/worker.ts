@@ -29,6 +29,12 @@ import {
   buildTenantSystemPrompt,
   checkTenantBudget,
   setDoctorContext,
+  // Resilience + metering
+  isCircuitOpen,
+  recordSuccess,
+  recordFailure,
+  generateFallbackResponse,
+  checkAndTrackUsage,
 } from '../packages/ai/index';
 
 const DEFAULT_TIMEZONE = process.env.DEFAULT_TIMEZONE || 'America/Monterrey'
@@ -397,19 +403,72 @@ ${selectedInfo}
     customInstructions: (settings.systemPrompt ?? '') + contextInjection + multiDoctorPrompt,
   });
 
-  // Call OpenAI with function calling tools
-  console.log(`[worker] calling OpenAI (tools) for tenant=${tenant.slug} phone=${normalized}`);
-  const toolResult = await runWhatsAppReplyWithTools({
-    tenant,
-    systemPrompt: systemPromptOverride,
-    messageHistory: history.map((m) => ({
-      role: m.direction === 'inbound' ? ('user' as const) : ('assistant' as const),
-      content: m.content,
-    })),
-    incomingMessage: text,
-  });
-  const { answer, model, latencyMs, toolCalls, rounds } = toolResult;
-  console.log(`[worker] OpenAI responded in ${latencyMs}ms model=${model} rounds=${rounds} toolCalls=${toolCalls.length}`);
+  // ── Rate limit gate (per-tenant whatsapp_messages cap) ────────────────
+  const tenantConfig = (tenant.config ?? {}) as Record<string, unknown>
+  const usage = await checkAndTrackUsage(tenantId, tenant.plan, 'whatsapp_messages', 1)
+  if (!usage.allowed) {
+    console.warn(`[worker] tenant ${tenant.slug} over WhatsApp cap ${usage.current}/${usage.totalLimit}`)
+    const limitMsg = `Lo sentimos, este consultorio alcanzó su límite mensual de mensajes. Por favor llame directamente al consultorio para continuar la atención.`
+    await sendWhatsAppMessage(from, limitMsg)
+    await db.insert(messages).values({
+      conversationId: conversation.id,
+      direction: 'outbound',
+      senderType: 'system',
+      content: limitMsg,
+    }).catch(() => {})
+    return
+  }
+
+  // ── Call OpenAI through circuit breaker; fall back to canned reply ────
+  const fallbackHint = {
+    specialty: typeof tenantConfig.specialty === 'string' ? (tenantConfig.specialty as string) : undefined,
+    businessName: tenant.name ?? undefined,
+    doctorName: tenantDoctors[0]?.name ?? undefined,
+    address: typeof tenantConfig.address === 'string' ? (tenantConfig.address as string) : undefined,
+  }
+
+  let answer: string
+  let model: string
+  let latencyMs: number
+  let toolCalls: Array<{ tool: string; success: boolean; error?: string }> = []
+  let rounds = 0
+  let usedFallback = false
+
+  if (isCircuitOpen()) {
+    console.warn(`[worker] OpenAI circuit OPEN — serving canned fallback for tenant=${tenant.slug}`)
+    answer = generateFallbackResponse(text, fallbackHint)
+    model = 'fallback'
+    latencyMs = 0
+    usedFallback = true
+  } else {
+    console.log(`[worker] calling OpenAI (tools) for tenant=${tenant.slug} phone=${normalized}`)
+    try {
+      const toolResult = await runWhatsAppReplyWithTools({
+        tenant,
+        systemPrompt: systemPromptOverride,
+        messageHistory: history.map((m) => ({
+          role: m.direction === 'inbound' ? ('user' as const) : ('assistant' as const),
+          content: m.content,
+        })),
+        incomingMessage: text,
+      })
+      answer = toolResult.answer
+      model = toolResult.model
+      latencyMs = toolResult.latencyMs
+      toolCalls = toolResult.toolCalls
+      rounds = toolResult.rounds
+      recordSuccess()
+    } catch (err) {
+      recordFailure(err)
+      console.error(`[worker] OpenAI failed for tenant=${tenant.slug}, using fallback:`, err instanceof Error ? err.message : err)
+      answer = generateFallbackResponse(text, fallbackHint)
+      model = 'fallback-after-error'
+      latencyMs = 0
+      usedFallback = true
+    }
+  }
+
+  console.log(`[worker] reply ready in ${latencyMs}ms model=${model} rounds=${rounds} toolCalls=${toolCalls.length}${usedFallback ? ' (FALLBACK)' : ''}`);
   if (toolCalls.length > 0) {
     for (const tc of toolCalls) {
       console.log(`[worker]   - ${tc.tool} success=${tc.success}${tc.error ? ` error=${tc.error}` : ''}`);
@@ -430,13 +489,27 @@ ${selectedInfo}
     .set({ lastMessageAt: new Date(), updatedAt: new Date() })
     .where(eq(conversations.id, conversation.id));
 
-  // Create notification
+  // Create notification (in-app bell)
   await db.insert(notifications).values({
     tenantId,
     type: 'new_message',
     title: 'Nuevo mensaje WhatsApp',
     message: `${from}: ${text.slice(0, 100)}${text.length > 100 ? '...' : ''}`,
   }).catch((err) => { console.error('Notification insert failed:', err) });
+
+  // Mobile push (best-effort, never blocks worker)
+  void (async () => {
+    try {
+      const { notifyDoctorDevices } = await import('../apps/medconcierge/src/lib/notify-doctor')
+      await notifyDoctorDevices(tenantId, {
+        title: 'Nuevo mensaje WhatsApp',
+        body: `${from}: ${text.slice(0, 80)}${text.length > 80 ? '…' : ''}`,
+        data: { screen: 'conversation', conversationId: conversation.id },
+      })
+    } catch (err) {
+      console.warn('[worker] push notify failed (non-fatal):', err instanceof Error ? err.message : err)
+    }
+  })()
 
   // Send via WhatsApp (H-6: use per-tenant phone_number_id)
   const perTenantPhoneId = await getPhoneNumberIdForTenant(tenantId);
