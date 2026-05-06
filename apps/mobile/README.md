@@ -9,6 +9,17 @@ React Native + Expo Router app para que el doctor vea su agenda, conversaciones,
 3. **Conversaciones** — lista tipo WhatsApp + chat individual
 4. **Pacientes** — buscador + lista + ficha con teléfono / WhatsApp / expediente
 
+Iconografía con `@expo/vector-icons` (Ionicons), no emojis. Cada tab usa una
+variante outlined para inactiva y filled para activa.
+
+## Alternativa: PWA en celular
+
+Para doctores que no quieran instalar app nativa, `med.auctorum.com.mx` es
+también una **PWA instalable** (Add to Home Screen) con notificaciones push
+en Android y iOS 16.4+. Ver `docs/PWA.md` en la raíz del repo. La app nativa
+existe para experiencias que requieren capacidades específicas de mobile
+(SecureStore, biométrica, push silencioso, etc.).
+
 ## Setup local (primera vez)
 
 ```bash
@@ -54,6 +65,8 @@ La app habla con la API de medconcierge en `portal.auctorum.com.mx`:
 - `GET  /api/dashboard/patients?search=...` — pacientes
 - `GET  /api/dashboard/conversations` — lista de conversaciones
 - `POST /api/dashboard/me/push-token` — registrar el Expo push token del dispositivo
+  (la fan-out de push hacia mobile + PWA vive en `apps/medconcierge/src/lib/notify-doctor.ts` —
+  `notifyDoctorDevices(tenantId, payload)` envía a Expo y Web Push en paralelo)
 
 `apiBaseUrl` se configura en `app.json` → `extra.apiBaseUrl`. Para apuntar a un staging local cambia ese valor.
 
