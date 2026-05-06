@@ -41,7 +41,7 @@ export function PatientsTable() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Buscar por nombre o tel\u00e9fono..."
+          placeholder="Buscar por nombre o teléfono..."
           className="w-full pl-9 pr-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)]/30"
         />
       </div>
@@ -52,13 +52,13 @@ export function PatientsTable() {
             <thead>
               <tr className="border-b border-[var(--border)] bg-[var(--bg-tertiary)]/40">
                 <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Paciente</th>
-                <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Tel\u00e9fono</th>
+                <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Teléfono</th>
                 <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Email</th>
                 <th className="text-right px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Citas</th>
                 <th className="text-right px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Notas</th>
                 <th className="text-right px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">No-shows</th>
                 <th className="text-right px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Total</th>
-                <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">\u00daltima visita</th>
+                <th className="text-left px-4 py-3 text-[11px] font-mono uppercase tracking-wide text-[var(--text-tertiary)]">Última visita</th>
               </tr>
             </thead>
             <tbody>

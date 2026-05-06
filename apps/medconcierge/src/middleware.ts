@@ -147,7 +147,7 @@ async function handleRequest(request: NextRequest) {
 
   // 6. /dashboard redirect
   if (pathname === '/dashboard' || pathname === '/dashboard/') {
-    return NextResponse.redirect(new URL('/agenda', realOrigin))
+    return NextResponse.redirect(new URL("/", realOrigin))
   }
 
   // 7. Dashboard routes - require auth
