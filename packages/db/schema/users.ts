@@ -16,6 +16,10 @@ export const users = pgTable('users', {
   twoFactorEnabled: boolean('two_factor_enabled').default(false),
   twoFactorSecret: text('two_factor_secret'),
   twoFactorVerifiedAt: timestamp('two_factor_verified_at', { withTimezone: true }),
+  // Mobile app push notifications
+  expoPushToken: varchar('expo_push_token', { length: 255 }),
+  pushPlatform: varchar('push_platform', { length: 20 }),
+  pushTokenUpdatedAt: timestamp('push_token_updated_at', { withTimezone: true }),
 });
 
 export type User = typeof users.$inferSelect;
