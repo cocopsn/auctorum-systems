@@ -10,8 +10,33 @@ export default function TermsPage() {
     <div className="space-y-8 text-gray-700 leading-relaxed">
       <div className="border-b border-gray-200 pb-6">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Términos y Condiciones de Servicio</h1>
-        <p className="text-sm text-gray-500">Versión 1.0 — Abril 2026</p>
-        <p className="text-sm text-gray-500">Última actualización: 19 de abril de 2026</p>
+        <p className="text-sm text-gray-500">Versión 2.0 — Mayo 2026</p>
+        <p className="text-sm text-gray-500">Última actualización: 5 de mayo de 2026</p>
+      </div>
+
+      {/* Banner — Contrato de adhesión digital */}
+      <div className="bg-teal-50 border border-teal-200 rounded-lg p-5">
+        <h2 className="text-lg font-semibold text-teal-900 mb-2">Contrato de Adhesión Digital</h2>
+        <p className="text-sm text-teal-800 mb-3">
+          Los presentes Términos y Condiciones constituyen un <strong>contrato de adhesión digital</strong> celebrado
+          entre AUCTORUM SYSTEMS y toda persona física o moral que acceda, se registre o utilice la Plataforma.
+        </p>
+        <p className="text-sm text-teal-800 mb-3">
+          <strong>Forma de aceptación (Art. 1803 del Código Civil Federal):</strong> el consentimiento se manifiesta
+          de forma expresa por medios electrónicos al realizar cualquiera de las siguientes acciones:
+        </p>
+        <ol className="list-decimal pl-6 space-y-1 text-sm text-teal-800 mb-3">
+          <li>Marcar la casilla de aceptación durante el registro.</li>
+          <li>Completar el proceso de alta en la Plataforma.</li>
+          <li>Realizar el primer pago del servicio (aceptación tácita conforme al Art. 1803 fracción II CCF).</li>
+          <li>Utilizar cualquier funcionalidad de la Plataforma después del registro.</li>
+        </ol>
+        <p className="text-sm text-teal-800">
+          La aceptación por cualquiera de estos medios tiene la misma validez que una firma autógrafa conforme al
+          Código Civil Federal, el Código de Comercio (Arts. 89 a 94) y la NOM-151-SCFI-2016. Al registrarse y/o
+          realizar un pago, usted acepta estos Términos en su totalidad, así como el Aviso de Privacidad, la
+          Política de IA y la Política de Cookies.
+        </p>
       </div>
 
       {/* Cláusula 1 */}
@@ -50,8 +75,23 @@ export default function TermsPage() {
       <section>
         <h2 className="text-xl font-semibold text-gray-900 mb-4">3. Aceptación de los Términos</h2>
         <p className="mb-3">
-          Al registrarse, acceder o utilizar la Plataforma, el Cliente acepta estos Términos y Condiciones en su totalidad.
-          Si el Cliente no está de acuerdo con alguna disposición, deberá abstenerse de utilizar la Plataforma.
+          Conforme al artículo 1803 del Código Civil Federal, el consentimiento del Cliente se manifiesta de forma
+          expresa por medios electrónicos al realizar cualquiera de las siguientes acciones:
+        </p>
+        <ol className="list-decimal pl-6 space-y-1 mb-3">
+          <li>Marcar la casilla de aceptación de Términos durante el proceso de registro.</li>
+          <li>Completar el proceso de alta en la Plataforma.</li>
+          <li>Realizar el primer pago del servicio (aceptación tácita conforme al Art. 1803 fracción II CCF).</li>
+          <li>Utilizar cualquier funcionalidad de la Plataforma después del registro.</li>
+        </ol>
+        <p className="mb-3">
+          La aceptación electrónica tiene la misma validez que una firma autógrafa conforme al Código Civil Federal,
+          el Código de Comercio (Arts. 89 a 94) y la NOM-151-SCFI-2016. AUCTORUM conserva los registros electrónicos
+          de aceptación, pago y uso como prueba del consentimiento del Cliente.
+        </p>
+        <p className="mb-3">
+          El Cliente declara que ha leído, entendido y aceptado la totalidad de estos Términos y Condiciones, así
+          como el Aviso de Privacidad, la Política de Uso de Inteligencia Artificial y la Política de Cookies.
         </p>
         <p>
           AUCTORUM se reserva el derecho de modificar estos Términos. Las modificaciones serán notificadas por correo
@@ -98,12 +138,30 @@ export default function TermsPage() {
           </table>
         </div>
 
-        <h3 className="text-lg font-medium text-gray-800 mt-6 mb-3">5.2 Facturación</h3>
+        <h3 className="text-lg font-medium text-gray-800 mt-6 mb-3">5.2 Facturación y métodos de pago</h3>
         <ul className="list-disc pl-6 space-y-1">
           <li>La facturación es mensual, con cargo al inicio de cada período.</li>
-          <li>Los precios están expresados en Pesos Mexicanos (MXN) más IVA.</li>
-          <li>Los pagos se procesan a través de Stripe.</li>
+          <li>Los precios están expresados en Pesos Mexicanos (MXN). El IVA se traslada cuando aplique conforme a la situación fiscal del prestador.</li>
+          <li>
+            Métodos de pago aceptados:
+            <ul className="list-disc pl-6 mt-1 space-y-0.5">
+              <li><strong>MercadoPago Checkout Pro</strong> (procesador principal): tarjetas de crédito/débito, OXXO, transferencia SPEI y saldo MercadoPago.</li>
+              <li><strong>Stripe</strong> (procesador secundario): tarjetas de crédito/débito internacionales.</li>
+              <li>Transferencia bancaria directa, previa solicitud al equipo de AUCTORUM.</li>
+            </ul>
+          </li>
+          <li>El pago debe realizarse de forma anticipada dentro de los primeros 5 días naturales de cada período mensual.</li>
           <li>AUCTORUM se reserva el derecho de ajustar precios con al menos 60 días de aviso previo.</li>
+          <li>
+            En caso de falta de pago: día 5 — recordatorio automático; día 10 — segundo recordatorio; día 15 —
+            suspensión temporal del servicio (los datos se conservan); día 30 — terminación del servicio (el Cliente
+            tiene 30 días adicionales para descargar sus datos); día 60 — eliminación definitiva conforme al Aviso
+            de Privacidad.
+          </li>
+          <li>
+            Los pagos no son reembolsables, salvo (a) incumplimiento del SLA por parte de AUCTORUM superior al 5%
+            mensual, (b) doble cobro comprobado, o (c) cargo no autorizado.
+          </li>
         </ul>
       </section>
 
@@ -381,6 +439,26 @@ export default function TermsPage() {
         </div>
       </section>
 
+      {/* Cláusula 25 — Evidencia electrónica */}
+      <section>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">25. Validez de Comunicaciones y Evidencia Electrónica</h2>
+        <p className="mb-3">
+          Las partes reconocen que las comunicaciones realizadas por correo electrónico, mensajería de WhatsApp al
+          número <a href="tel:+528445387404" className="text-teal-600 hover:underline">+52 844 538 7404</a> o a
+          través de la Plataforma tienen plena validez legal.
+        </p>
+        <p className="mb-3">
+          Los registros electrónicos de la Plataforma — incluyendo logs de acceso, registros de pago, confirmaciones
+          de servicio, y los timestamps de aceptación de Términos — constituyen evidencia válida del consentimiento
+          y de las obligaciones de las partes, conforme al Código de Comercio (Arts. 89 a 94) y la NOM-151-SCFI-2016.
+        </p>
+        <p>
+          El Cliente acepta que la confirmación de pago emitida por MercadoPago, Stripe o el procesador
+          correspondiente, junto con el registro de activación del servicio en la Plataforma, constituyen prueba
+          suficiente de la celebración del presente contrato.
+        </p>
+      </section>
+
       {/* Anexo A — SLA */}
       <section className="border-t border-gray-200 pt-8">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Anexo A — Acuerdo de Nivel de Servicio (SLA)</h2>
@@ -450,7 +528,7 @@ export default function TermsPage() {
       </section>
 
       <div className="border-t border-gray-200 pt-6 mt-8 text-center text-sm text-gray-400">
-        <p>Documento publicado y vigente a partir del 19 de abril de 2026.</p>
+        <p>Documento publicado y vigente a partir del 5 de mayo de 2026 (Versión 2.0).</p>
       </div>
     </div>
   );

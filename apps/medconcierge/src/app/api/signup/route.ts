@@ -18,8 +18,15 @@ import {
   type TenantConfig,
   DEFAULT_TENANT_CONFIG,
 } from '@quote-engine/db'
-import { createCheckoutSession, type PlanId } from '@quote-engine/payments'
+import { createCheckoutSession, createMPPreference, type PlanId } from '@quote-engine/payments'
 import { rateLimit, getClientIP } from '@/lib/rate-limit'
+
+// MXN amounts mirroring STRIPE_PLANS in @quote-engine/payments. Kept inline
+// because MercadoPago Checkout Pro receives the amount directly (no priceId).
+const PLAN_AMOUNTS_MXN: Record<'basico' | 'auctorum', { name: string; amount: number }> = {
+  basico:   { name: 'Plan Básico',   amount: 1400 },
+  auctorum: { name: 'Plan Auctorum', amount: 1800 },
+}
 
 // ---------------------------------------------------------------------------
 // Supabase Admin (service-role) — for creating auth users during signup
@@ -45,6 +52,12 @@ const bodySchema = z.object({
   doctorTitlePrefix: z.enum(['dr', 'dra', 'doc']).optional(),
   specialty: z.string().max(255).optional(),
   city: z.string().max(255).optional(),
+  /** User must tick the T&C / Privacy checkbox in the signup UI. Required for adhesion contract validity (Art. 1803 CCF). */
+  acceptedTerms: z.literal(true, {
+    errorMap: () => ({ message: 'Debe aceptar los Términos y Condiciones para continuar.' }),
+  }),
+  /** Payment processor for the first checkout. MercadoPago is primary (no RFC needed); Stripe is secondary. */
+  processor: z.enum(['mercadopago', 'stripe']).default('mercadopago'),
 })
 
 // ---------------------------------------------------------------------------
@@ -412,7 +425,47 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // ---- Paid plans: create Stripe checkout session -----------------------
+    // ---- Paid plans: route to MercadoPago (primary) or Stripe ------------
+    const planKey = data.plan as 'basico' | 'auctorum'
+    const planMeta = PLAN_AMOUNTS_MXN[planKey]
+    if (data.processor === 'mercadopago') {
+      try {
+        const preference = await createMPPreference({
+          tenantId,
+          planId: data.plan,
+          planName: planMeta.name,
+          amount: planMeta.amount,
+          payerEmail: data.email,
+          successUrl: `https://portal.auctorum.com.mx/login?signup=success&payment=mercadopago&tenant=${tenantId}`,
+          failureUrl: 'https://portal.auctorum.com.mx/signup?payment=failed',
+          pendingUrl: 'https://portal.auctorum.com.mx/signup?payment=pending',
+          webhookUrl: 'https://portal.auctorum.com.mx/api/webhooks/mercadopago',
+        })
+
+        // init_point is the hosted checkout URL; sandbox_init_point exists for test
+        const checkoutUrl =
+          (preference as { init_point?: string; sandbox_init_point?: string }).init_point ??
+          (preference as { sandbox_init_point?: string }).sandbox_init_point ??
+          null
+        if (!checkoutUrl) throw new Error('MercadoPago preference returned no init_point')
+
+        return NextResponse.json({ ok: true, tenantId, checkoutUrl, processor: 'mercadopago' })
+      } catch (mpErr) {
+        console.error('[signup] MercadoPago checkout error:', mpErr)
+        return NextResponse.json(
+          {
+            ok: true,
+            tenantId,
+            error:
+              'Cuenta creada pero hubo un error al conectar con MercadoPago. Intenta desde tu perfil o usa Stripe.',
+            redirect: '/login',
+          },
+          { status: 200 },
+        )
+      }
+    }
+
+    // Fallback / explicit Stripe selection
     try {
       const session = await createCheckoutSession({
         tenantId,
@@ -426,6 +479,7 @@ export async function POST(request: NextRequest) {
         ok: true,
         tenantId,
         checkoutUrl: session.url,
+        processor: 'stripe',
       })
     } catch (stripeErr) {
       console.error('[signup] Stripe checkout error:', stripeErr)
