@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMPPayment, verifyMPWebhook, STRIPE_PLANS } from "@quote-engine/payments";
 import { db } from "@quote-engine/db";
 import { sql } from "drizzle-orm";
+import { creditAddon } from "@quote-engine/ai";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
         }
 
         const tenantId = extRef.tenant_id as string | undefined;
-        const planId = extRef.plan_id as keyof typeof STRIPE_PLANS | undefined;
+        const planIdRaw = extRef.plan_id as string | undefined;
 
         // Validate tenant_id is a proper UUID before using in SQL
         if (tenantId && !UUID_RE.test(tenantId)) {
@@ -59,6 +60,28 @@ export async function POST(req: NextRequest) {
           );
         }
 
+        // ── Add-on purchase: plan_id starts with "addon-<packageId>" ──────
+        // Crediting is idempotent on (processor, externalPaymentId) so duplicate
+        // webhook deliveries don't double-grant.
+        if (tenantId && planIdRaw && planIdRaw.startsWith('addon-')) {
+          const packageId = planIdRaw.slice('addon-'.length);
+          try {
+            const result = await creditAddon({
+              tenantId,
+              packageId,
+              paymentProcessor: 'mercadopago',
+              externalPaymentId: String((payment as any).id),
+            });
+            console.log(
+              `[MP] Tenant ${tenantId} purchased addon ${packageId} (${result.created ? 'credited' : 'duplicate'})`,
+            );
+          } catch (addonErr) {
+            console.error(`[MP] Addon credit failed for ${tenantId}/${packageId}:`, addonErr);
+          }
+          return NextResponse.json({ received: true, kind: 'addon' }, { status: 200 });
+        }
+
+        const planId = planIdRaw as keyof typeof STRIPE_PLANS | undefined;
         if (tenantId && planId) {
           const plan = STRIPE_PLANS[planId];
           const amount = plan?.amount ?? (payment as any).transaction_amount ?? 0;

@@ -404,3 +404,48 @@ export type { RunWithToolsParams, RunWithToolsResult } from './run-with-tools';
 export { WHATSAPP_TOOLS } from './tools';
 export { setDoctorContext } from './tool-executors';
 export type { ToolCallResult, ToolName } from './tools';
+
+// --------------------------------------------------------------------------
+// Resilience — circuit breaker + canned fallback responses
+// --------------------------------------------------------------------------
+export {
+  recordSuccess,
+  recordFailure,
+  isCircuitOpen,
+  getCircuitStatus,
+  generateFallbackResponse,
+  withAiFallback,
+  type FallbackTenantHint,
+} from './fallback';
+
+export {
+  calendarWithFallback,
+  processPendingCalendarOps,
+  CALENDAR_RETRY_BACKOFF_MS,
+  CALENDAR_RETRY_MAX_ATTEMPTS,
+  type CalendarOperation,
+} from './calendar-fallback';
+
+// --------------------------------------------------------------------------
+// Per-tenant usage tracking + add-on packs
+// --------------------------------------------------------------------------
+export {
+  PLAN_LIMITS,
+  ADDON_PACKAGES,
+  getPlanLimits,
+  getAddonPackage,
+  currentPeriod,
+  type PlanId,
+  type PlanLimits,
+  type AddonPackage,
+  type UsageMetric,
+} from './plan-limits';
+
+export {
+  checkAndTrackUsage,
+  getUsageSnapshot,
+  creditAddon,
+  type GatedMetric,
+  type UsageCheckResult,
+  type UsageSnapshot,
+} from './usage-tracker';

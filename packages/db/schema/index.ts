@@ -69,7 +69,20 @@ export { subscriptions, type Subscription, type NewSubscription } from './subscr
 // Portal
 export { portalPages, type PortalPage, type NewPortalPage, type PortalSection, type PortalConfig } from "./portal-pages";
 
-// Notifications  
+// Notifications
 export { notifications, type Notification, type NewNotification } from "./notifications";
 export { knowledgeBase } from './knowledge-base';
 export { auditLogs } from './audit-logs';
+
+// Public API
+export { apiKeys, type ApiKey, type NewApiKey, type ApiPermission } from './api-keys';
+
+// Resilience / fallbacks
+export { pendingCalendarOps, type PendingCalendarOp, type NewPendingCalendarOp } from './pending-calendar-ops';
+export { webhookFailures, type WebhookFailure, type NewWebhookFailure } from './webhook-failures';
+
+// Usage tracking + addons
+export {
+  tenantUsage, type TenantUsage, type NewTenantUsage,
+  usageAddons, type UsageAddon, type NewUsageAddon,
+} from './tenant-usage';

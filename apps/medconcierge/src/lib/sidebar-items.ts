@@ -29,7 +29,7 @@ export type SidebarItemDef = {
 
 export const ALL_SIDEBAR_ITEMS: SidebarItemDef[] = [
   // PRINCIPAL
-  { id: 'dashboard', label: 'Dashboard', href: '/agenda', icon: LayoutDashboard, required: true, group: 'PRINCIPAL' },
+  { id: 'dashboard', label: 'Dashboard', href: '/', icon: LayoutDashboard, required: true, group: 'PRINCIPAL' },
   { id: 'funnel', label: 'Embudo', href: '/funnel', icon: GitBranch, required: false, group: 'PRINCIPAL' },
   { id: 'citas', label: 'Citas', href: '/citas', icon: CalendarCheck, required: false, group: 'PRINCIPAL' },
   { id: 'conversaciones', label: 'Conversaciones', href: '/conversaciones', icon: MessageSquare, required: false, group: 'PRINCIPAL' },

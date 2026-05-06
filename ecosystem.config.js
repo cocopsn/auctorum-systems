@@ -59,7 +59,9 @@ module.exports = {
       merge_logs: true,
       watch: false,
       max_restarts: 10,
+      min_uptime: '10s',
       restart_delay: 5000,
+      exp_backoff_restart_delay: 200,
       kill_timeout: 5000,
       listen_timeout: 10000
     },
@@ -82,7 +84,9 @@ module.exports = {
       merge_logs: true,
       watch: false,
       max_restarts: 10,
+      min_uptime: '10s',
       restart_delay: 5000,
+      exp_backoff_restart_delay: 200,
       kill_timeout: 5000,
       listen_timeout: 10000
     },
@@ -183,6 +187,23 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: '/var/log/auctorum/cron-campaigns-error.log',
       out_file: '/var/log/auctorum/cron-campaigns-out.log',
+      merge_logs: true
+    },
+    {
+      // Resilience cron: re-deliver webhooks (Stripe / MercadoPago / Meta)
+      // that hit transient errors. See packages/queue/src/webhook-retry.ts
+      // and scripts/cron-webhook-retries.ts. Runs every minute, exits clean.
+      name: 'cron-webhook-retries',
+      cwd: '/opt/auctorum-systems/repo',
+      script: 'npx',
+      args: 'tsx scripts/cron-webhook-retries.ts',
+      cron_restart: '* * * * *',
+      autorestart: false,
+      watch: false,
+      env: { ...cronEnv, TZ: 'America/Monterrey' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/cron-webhook-retries-error.log',
+      out_file: '/var/log/auctorum/cron-webhook-retries-out.log',
       merge_logs: true
     }
   ]

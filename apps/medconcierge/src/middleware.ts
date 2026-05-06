@@ -6,7 +6,7 @@ import { withAuthCookieDomain } from '@/lib/auth-cookie'
 const DASHBOARD_ROUTES = [
   '/citas', '/pacientes', '/horarios', '/notas', '/settings',
   '/agenda', '/ai-settings', '/portal', '/integrations', '/conversaciones',
-  '/recordatorios', '/funnel', '/reports', '/follow-ups', '/budgets',
+  '/recordatorios', '/funnel', '/reports', '/reportes', '/follow-ups', '/budgets',
   '/payments', '/invoices', '/campaigns', '/dashboard', '/admin', '/onboarding',
   '/pagos',
 ]
@@ -17,7 +17,7 @@ function isDashboardRoute(pathname: string): boolean {
 
 const LEGAL_ROUTES = ['/privacy', '/terms', '/ai-policy', '/cookies', '/data-deletion']
 // Public marketing/payment pages — never rewritten to subdomain or auth-gated.
-const PUBLIC_FLAT_ROUTES = ['/pago-exitoso', '/pago-cancelado']
+const PUBLIC_FLAT_ROUTES = ['/pago-exitoso', '/pago-cancelado', '/api-docs']
 
 function isStaticOrApi(pathname: string): boolean {
   if (pathname.startsWith('/_next')) return true
@@ -147,7 +147,7 @@ async function handleRequest(request: NextRequest) {
 
   // 6. /dashboard redirect
   if (pathname === '/dashboard' || pathname === '/dashboard/') {
-    return NextResponse.redirect(new URL('/agenda', realOrigin))
+    return NextResponse.redirect(new URL("/", realOrigin))
   }
 
   // 7. Dashboard routes - require auth
