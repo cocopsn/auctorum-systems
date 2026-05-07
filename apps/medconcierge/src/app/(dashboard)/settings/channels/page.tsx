@@ -85,15 +85,9 @@ const CHANNELS: ChannelDefinition[] = [
       { key: 'page_access_token', label: 'Page Access Token', type: 'password', placeholder: 'Token de acceso de tu pagina de Facebook' },
     ],
   },
-  {
-    key: 'instagram',
-    name: 'Instagram',
-    description: 'DMs de Instagram',
-    icon: Camera,
-    fields: [
-      { key: 'access_token', label: 'Access Token', type: 'password', placeholder: 'Token de acceso de Instagram API' },
-    ],
-  },
+  // Instagram DMs config lives at /settings/instagram (writes to the
+  // integrations table, consumed by /api/webhooks/instagram + the unified
+  // Conversaciones inbox). The channels JSONB had no consumer.
   {
     key: 'webchat',
     name: 'Chat Web',

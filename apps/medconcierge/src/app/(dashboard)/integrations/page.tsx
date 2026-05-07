@@ -72,19 +72,10 @@ const INTEGRATION_CARDS: IntegrationCardDef[] = [
     icon: <Database className="h-6 w-6 text-indigo-600" />,
     hasConfig: true,
   },
-  {
-    type: 'mercadopago',
-    label: 'MercadoPago',
-    description: 'Procesa pagos con MercadoPago',
-    icon: <CreditCard className="h-6 w-6 text-indigo-600" />,
-  },
-  {
-    type: 'whatsapp',
-    label: 'WhatsApp Business',
-    description: 'Ya conectado via API',
-    icon: <MessageCircle className="h-6 w-6 text-indigo-600" />,
-    alwaysConnected: true,
-  },
+  // MercadoPago config lives at /settings/payments (canonical — writes to
+  // tenants.paymentConfig, consumed by the checkout flow + webhooks).
+  // WhatsApp Business credentials live at /settings/channels and the
+  // bot-instances table. Both were duplicated here as decorative tiles.
   {
     type: 'facturapi',
     label: 'Facturapi',

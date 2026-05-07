@@ -64,6 +64,21 @@ export function buildLandingData(tenant: Tenant): TenantLandingData {
   const words = doctorName.replace(/^(Dra?\.\s*)/i, '').split(/\s+/)
   const initials = words.map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()
 
+  // Infer doctor gender from the name prefix (Spanish): "Dra." → female,
+  // "Dr." → male. Override available via tenant.config.medical.gender.
+  // Used by the Hero to pick the right SVG silhouette when no real
+  // photo (config.landing.portrait_url) is uploaded.
+  const explicitGender = (medical.gender as string | undefined)?.toLowerCase()
+  const inferredGender = /^dra\.?/i.test(doctorName)
+    ? 'female'
+    : /^dr\.?/i.test(doctorName)
+      ? 'male'
+      : undefined
+  const portraitGender: 'female' | 'male' =
+    explicitGender === 'female' || explicitGender === 'male'
+      ? (explicitGender as 'female' | 'male')
+      : (inferredGender as 'female' | 'male' | undefined) ?? 'female'
+
   return {
     doctorName,
     specialty: medical.specialty || 'Medicina',
@@ -85,5 +100,7 @@ export function buildLandingData(tenant: Tenant): TenantLandingData {
       : '/agendar',
     ctaLink: '/agendar',
     initials,
+    portraitUrl: typeof landing.portrait_url === 'string' ? landing.portrait_url : undefined,
+    portraitGender,
   }
 }

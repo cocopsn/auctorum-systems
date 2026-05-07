@@ -31,6 +31,8 @@ export default function LandingPage({ data }: Props) {
           consultationFee={data.consultationFee}
           ctaLink={data.ctaLink}
           initials={data.initials}
+          portraitUrl={data.portraitUrl}
+          portraitGender={data.portraitGender}
         />
         <Stats
           yearsExperience={data.yearsExperience}

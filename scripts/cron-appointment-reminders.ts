@@ -9,6 +9,7 @@ import { db, appointments, patients, tenants } from '@quote-engine/db'
 import type { TenantConfig } from '@quote-engine/db'
 import { eq, and, sql } from 'drizzle-orm'
 import { sendWhatsAppMessage } from '@quote-engine/notifications/whatsapp'
+import { formatBotMessage } from '../apps/medconcierge/src/lib/bot-messages'
 
 const MAX_REMINDER_RETRIES = 3  // L-5: Max retries before giving up
 const DEFAULT_TIMEZONE = 'America/Monterrey'
@@ -90,15 +91,17 @@ async function sendReminders() {
 
       let sent = false
       if (patient.phone) {
+        // Doctor's customizable 24h reminder template (tenant.config.bot_messages
+        // .appointment_reminder_24h). Falls back to DEFAULT_BOT_MESSAGES when
+        // the doctor hasn't customized.
+        const baseMessage = formatBotMessage(tenant, 'appointment_reminder_24h', {
+          nombre: patient.name,
+          fecha: displayDate,
+          hora: displayTime,
+        })
         sent = await sendWhatsAppMessage({
           to: patient.phone,
-          message: [
-            `Hola ${patient.name}, le recordamos que tiene cita manana ${displayDate} a las ${displayTime} con ${tenant.name}.`,
-            ``,
-            `Consultorio: ${address}`,
-            ``,
-            `Confirma su asistencia? Responda SI para confirmar o NO para cancelar.`,
-          ].join('\n'),
+          message: `${baseMessage}\n\nConsultorio: ${address}`,
         })
 
         if (sent) {
@@ -166,10 +169,15 @@ async function sendReminders() {
 
       let sent = false
       if (patient.phone) {
+        // Same per-tenant customizable template approach as the 24h reminder.
+        const baseMessage = formatBotMessage(tenant, 'appointment_reminder_1h', {
+          nombre: patient.name,
+          hora: displayTime,
+        })
         sent = await sendWhatsAppMessage({
           to: patient.phone,
           message: [
-            `Hola ${patient.name}, su cita es en 1 hora (${displayTime}) con ${tenant.name}.`,
+            baseMessage,
             ``,
             `Consultorio: ${address}`,
             ``,
