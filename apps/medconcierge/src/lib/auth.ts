@@ -12,16 +12,24 @@ function createSupabaseServerClient() {
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // Use the getAll API so chunked auth cookies (`sb-xxx-auth-token.0`,
+      // `.1`, …) are visible. The legacy single-`get` API silently dropped
+      // chunks > 4 KB and made `getUser()` return null on real sessions.
       cookies: {
-        get(name: string) {
+        getAll() {
           try {
-            return safeGetAuthCookie(cookieStore.get(name)?.value)
+            return cookieStore.getAll().map((c) => ({ name: c.name, value: c.value }))
           } catch {
-            return undefined
+            return []
           }
         },
+        // No setAll — server components can't write cookies; the middleware
+        // and the /api/auth/callback route handle session writes.
+        setAll() {
+          /* noop */
+        },
       },
-    }
+    },
   )
 }
 

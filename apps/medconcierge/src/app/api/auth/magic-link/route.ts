@@ -58,28 +58,24 @@ export async function POST(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
+        // getAll/setAll API for @supabase/ssr@0.10.x — handles chunked
+        // auth cookies that exceed the per-cookie size limit.
         cookies: {
-          get(name: string) {
+          getAll() {
             try {
-              return safeGetAuthCookie(request.cookies.get(name)?.value)
+              return request.cookies.getAll().map((c) => ({ name: c.name, value: c.value }))
             } catch {
-              return undefined
+              return []
             }
           },
-          set(name: string, value: string, options: Record<string, unknown>) {
-            try {
-              const opts = withAuthCookieDomain(options ?? {}, host)
-              response.cookies.set({ name, value, ...opts })
-            } catch (e) {
-              console.error("[magic-link] cookie set error:", e)
-            }
-          },
-          remove(name: string, options: Record<string, unknown>) {
-            try {
-              const opts = withAuthCookieDomain(options ?? {}, host)
-              response.cookies.set({ name, value: "", ...opts, maxAge: 0 })
-            } catch (e) {
-              console.error("[magic-link] cookie remove error:", e)
+          setAll(cookiesToSet) {
+            for (const { name, value, options } of cookiesToSet) {
+              try {
+                const opts = withAuthCookieDomain(options ?? {}, host)
+                response.cookies.set({ name, value, ...opts })
+              } catch (e) {
+                console.error("[magic-link] cookie set error:", e)
+              }
             }
           },
         },

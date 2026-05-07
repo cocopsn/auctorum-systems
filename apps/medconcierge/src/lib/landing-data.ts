@@ -32,6 +32,21 @@ export type TenantLandingData = {
   whatsappLink: string
   ctaLink: string
   initials: string
+  /**
+   * Optional URL to a doctor portrait. Read from
+   * `tenant.config.landing.portraitUrl`. When present the Hero swaps the
+   * initials avatar for a real image. When absent the Hero falls back to a
+   * stylized SVG silhouette (NOT initials-only) so the landing never looks
+   * empty.
+   */
+  portraitUrl?: string
+  /**
+   * Doctor gender hint for the SVG silhouette fallback. Read from
+   * `tenant.config.medical.gender` ('female' | 'male'). Defaults to 'female'
+   * because the seed tenant (Dra. Martínez) is female and most current
+   * customers are women dermatologists/dentists.
+   */
+  portraitGender?: 'female' | 'male'
 }
 
 export function buildLandingData(tenant: Tenant): TenantLandingData {

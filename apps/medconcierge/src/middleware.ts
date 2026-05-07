@@ -163,30 +163,28 @@ async function handleRequest(request: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
+        // @supabase/ssr@0.10.x prefers getAll/setAll because the auth-token
+        // can chunk into multiple cookies (`sb-xxx-auth-token.0`, `.1`, …)
+        // when the session payload is large. The old get/set API only saw
+        // ONE chunk so the session looked corrupt and the middleware
+        // redirected to /login forever (the actual user-visible bug).
         cookies: {
-          get(name: string) {
+          getAll() {
             try {
-              return safeGetAuthCookie(request.cookies.get(name)?.value)
+              return request.cookies.getAll().map((c) => ({ name: c.name, value: c.value }))
             } catch {
-              return undefined
+              return []
             }
           },
-          set(name: string, value: string, options: Record<string, unknown>) {
-            try {
-              const opts = withAuthCookieDomain(options ?? {}, host)
-              request.cookies.set({ name, value, ...opts })
-              response.cookies.set({ name, value, ...opts })
-            } catch {
-              // Cookie set failures are not fatal
-            }
-          },
-          remove(name: string, options: Record<string, unknown>) {
-            try {
-              const opts = withAuthCookieDomain(options ?? {}, host)
-              request.cookies.set({ name, value: '', ...opts })
-              response.cookies.set({ name, value: '', ...opts })
-            } catch {
-              // Cookie remove failures are not fatal
+          setAll(cookiesToSet) {
+            for (const { name, value, options } of cookiesToSet) {
+              try {
+                const opts = withAuthCookieDomain(options ?? {}, host)
+                request.cookies.set({ name, value, ...opts })
+                response.cookies.set({ name, value, ...opts })
+              } catch {
+                // Cookie set failures are not fatal
+              }
             }
           },
         },

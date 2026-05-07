@@ -7,6 +7,7 @@ import { getAuthTenant } from "@/lib/auth"
 import { updateCalendarEvent, isGoogleCalendarConfigured } from "@/lib/google-calendar"
 import { calendarWithFallback } from "@quote-engine/ai"
 import { sendWhatsAppMessage } from "@/lib/whatsapp"
+import { formatBotMessage } from "@/lib/bot-messages"
 import { z } from "zod"
 import { validateOrigin } from '@/lib/csrf'
 
@@ -92,10 +93,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         weekday: "long", day: "numeric", month: "long",
       })
       const newTime = (data.startTime || oldTime).slice(0, 5)
-      sendWhatsAppMessage(
-        current.patient.phone,
-        `Su cita ha sido reprogramada para ${newDate} a las ${newTime}. Si tiene alguna duda, responda a este mensaje.`
-      ).catch(e => console.error("[appt update] whatsapp error:", e))
+      const message = formatBotMessage(auth.tenant, 'appointment_rescheduled', {
+        nombre: current.patient.name,
+        fecha: newDate,
+        hora: newTime,
+      })
+      sendWhatsAppMessage(current.patient.phone, message).catch((e) =>
+        console.error("[appt update] whatsapp error:", e),
+      )
     }
 
     return NextResponse.json({ appointment: updated })

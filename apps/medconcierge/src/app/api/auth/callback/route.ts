@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { safeGetAuthCookie } from '@/lib/safe-cookie-get'
 import { withAuthCookieDomain } from '@/lib/auth-cookie'
 
 function makeSupabaseClient(request: NextRequest, response: NextResponse, host: string) {
@@ -8,16 +7,20 @@ function makeSupabaseClient(request: NextRequest, response: NextResponse, host: 
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
+      // getAll/setAll API — needed for chunked auth-token cookies under
+      // @supabase/ssr@0.10.x. The legacy get/set API only saw the .0 chunk
+      // so exchangeCodeForSession failed on real-world (large) sessions.
       cookies: {
-        get(name: string) { return safeGetAuthCookie(request.cookies.get(name)?.value) },
-        set(name: string, value: string, options: Record<string, unknown>) {
-          response.cookies.set({ name, value, ...withAuthCookieDomain(options ?? {}, host) })
+        getAll() {
+          return request.cookies.getAll().map((c) => ({ name: c.name, value: c.value }))
         },
-        remove(name: string, options: Record<string, unknown>) {
-          response.cookies.set({ name, value: '', ...withAuthCookieDomain(options ?? {}, host) })
+        setAll(cookiesToSet) {
+          for (const { name, value, options } of cookiesToSet) {
+            response.cookies.set({ name, value, ...withAuthCookieDomain(options ?? {}, host) })
+          }
         },
       },
-    }
+    },
   )
 }
 

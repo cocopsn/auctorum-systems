@@ -8,6 +8,7 @@ import { cancelCalendarEvent, isGoogleCalendarConfigured } from "@/lib/google-ca
 import { calendarWithFallback } from "@quote-engine/ai"
 import { sendWhatsAppMessage } from "@/lib/whatsapp"
 import { validateOrigin } from '@/lib/csrf'
+import { formatBotMessage } from '@/lib/bot-messages'
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   if (!validateOrigin(req)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
@@ -58,10 +59,16 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     const displayDate = new Date(current.appt.date + "T12:00:00").toLocaleDateString("es-MX", {
       weekday: "long", day: "numeric", month: "long",
     })
-    sendWhatsAppMessage(
-      current.patient.phone,
-      `Su cita del ${displayDate} ha sido cancelada. Para reagendar, responda a este mensaje.`
-    ).catch(e => console.error("[cancel] whatsapp error:", e))
+    // Use the doctor's customizable cancellation message from /settings/messages
+    // (tenant.config.bot_messages.appointment_cancelled). Falls back to the
+    // default copy in DEFAULT_BOT_MESSAGES if the doctor never customized.
+    const message = formatBotMessage(auth.tenant, 'appointment_cancelled', {
+      nombre: current.patient.name,
+      fecha: displayDate,
+    })
+    sendWhatsAppMessage(current.patient.phone, message).catch((e) =>
+      console.error("[cancel] whatsapp error:", e),
+    )
 
     return NextResponse.json({ success: true })
   } catch (error) {
