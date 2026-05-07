@@ -4,7 +4,7 @@
  *   GET  /api/dashboard/documents  → list paginado con filtros
  *   POST /api/dashboard/documents  → multipart upload + AI analyze + auto-assign
  *
- * El POST hace TODO en el mismo request: upload a Storage, extracción de texto
+ * El POST hace todo en el mismo request: upload a Storage, extracción de texto
  * (PDF), análisis con gpt-4o-mini, fuzzy match a paciente por nombre, INSERT.
  * Si no encuentra paciente, status='pending_assignment' y la UI le da al
  * doctor opciones para asignar manualmente.
