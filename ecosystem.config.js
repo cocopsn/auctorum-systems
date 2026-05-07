@@ -241,6 +241,24 @@ module.exports = {
       error_file: '/var/log/auctorum/cron-weekly-report-error.log',
       out_file: '/var/log/auctorum/cron-weekly-report-out.log',
       merge_logs: true
+    },
+    {
+      // Daily DB integrity audit. 16 SELECT-COUNT-must-be-zero invariants
+      // covering tenant_id consistency, FK orphans, NOM-004 cedula snapshots,
+      // and uniqueness rules. Logs JSON one-liners; exits non-zero on fatal
+      // failures so PM2 records a restart we can alert on.
+      name: 'cron-data-integrity',
+      cwd: '/opt/auctorum-systems/repo',
+      script: 'npx',
+      args: 'tsx scripts/check-data-integrity.ts',
+      cron_restart: '0 6 * * *',
+      autorestart: false,
+      watch: false,
+      env: { ...cronEnv, TZ: 'America/Monterrey' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/cron-data-integrity-error.log',
+      out_file: '/var/log/auctorum/cron-data-integrity-out.log',
+      merge_logs: true
     }
   ]
 };
