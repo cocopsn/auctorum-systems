@@ -113,9 +113,33 @@ Rutas estáticas que el middleware DEBE excluir del rewrite:
 | 7  | cron-campaigns           | Disparador de campañas   | cada 10min |
 | 9  | cron-webhook-retries     | Reintenta webhooks 5xx   | cada 5min |
 | 10 | cron-calendar-pending    | Drena pending_calendar_ops | cada 5min |
+| 11 | cron-weekly-report       | Reporte semanal WhatsApp | lunes 8am |
 | 8  | pm2-logrotate            | Module                   | — |
 
 `ecosystem.config.js` carga `.env.local` de cada app dinámicamente al arrancar.
+
+## Med CRM features (mayo 2026)
+
+5 features médico-CRM integrados al dashboard:
+- **Help bot** — `/api/dashboard/help-bot` + `<HelpBot/>` flotante. gpt-4o-mini
+  con prompt scoped al producto. Rate-limit 30 mensajes/tenant/5min vía Redis.
+- **Reporte semanal** — `cron-weekly-report` (PM2 `0 8 * * 1`
+  America/Monterrey). KPIs por tenant vía WhatsApp. Skip si no-phone, opted-out
+  o cero actividad.
+- **Instagram inbox** — `/api/webhooks/instagram` (HMAC con `META_APP_SECRET`),
+  resuelve tenant por `integrations.config->>'pageId'` con `type='instagram_dm'`.
+  Outbound vía `sendInstagramMessage` cuando `conversations.channel='instagram'`.
+  Sin auto-reply IA por ahora (worker solo soporta WA — lo añadimos cuando se
+  pida).
+- **Smart documents** — `/documentos`. Drag-drop PDF/image → bucket `documents`
+  bootstrapped con service-role → pdf-parse + gpt-4o-mini classify → match
+  paciente fuzzy. `documents` table 0053. Tipos: `lab_result | radiology |
+  prescription | referral | insurance | other`.
+- **Comms timeline** — `patient_communications` table 0054. `sendEmail` ya
+  acepta `{ tenantId, patientId, createdBy }` opcional y trackea automático.
+  Ledger append-only (`note | call | email_* | whatsapp_*`).
+
+Ver `docs/MED-CRM-FEATURES.md` para flow diagrams + setup completo.
 
 ## Lead Ads CRM
 
@@ -161,6 +185,8 @@ Ver `docs/ADS-LEADS.md` para setup completo en Meta App + Google Ads.
 - `docs/DEPLOYMENT.md` — VPS, Nginx, PM2, SSL, DNS, flujo de deploy
 - `docs/PWA.md` — PWA, service worker, Web Push, VAPID, generación de íconos
 - `docs/ADS-LEADS.md` — Lead Ads CRM (Meta + Google webhooks, pipeline, settings)
+- `docs/MED-CRM-FEATURES.md` — Help bot, reporte semanal, Instagram inbox,
+  documents AI, patient comms timeline
 - `docs/CLOUDFLARE-EMAIL-ROUTING.md` — rutas de email entrante
 - `docs/SUPABASE-AUTH-TEMPLATES.md` — plantillas de magic link
 - `brand-identity.md` — identidad, paleta, tipografía, copy

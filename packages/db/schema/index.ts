@@ -65,6 +65,7 @@ export {
   type GoogleCalendarConfig,
   type MetaAdsConfig,
   type GoogleAdsConfig,
+  type InstagramDmConfig,
 } from './integrations';
 export { subscriptions, type Subscription, type NewSubscription } from './subscriptions';
 
@@ -104,3 +105,23 @@ export {
   type LeadSource,
   type LeadStatus,
 } from './ad-leads';
+
+// Documents (lab results, radiology, prescriptions, referrals, etc.)
+export {
+  documents,
+  DOCUMENT_TYPES,
+  DOCUMENT_STATUSES,
+  type Document,
+  type NewDocument,
+  type DocumentType,
+  type DocumentStatus,
+} from './documents';
+
+// Per-patient communication ledger (timeline of emails / WA / calls / notes)
+export {
+  patientCommunications,
+  COMM_TYPES,
+  type PatientCommunication,
+  type NewPatientCommunication,
+  type CommType,
+} from './patient-communications';

@@ -129,6 +129,7 @@ auctorum-systems/
 | `docs/DEPLOYMENT.md`                   | VPS, Nginx, PM2, SSL, DNS, deploy step-by-step |
 | `docs/PWA.md`                          | Service worker, Web Push, íconos, VAPID        |
 | `docs/ADS-LEADS.md`                    | Lead Ads CRM (Meta + Google + auto-contacto)   |
+| `docs/MED-CRM-FEATURES.md`             | Help bot, weekly report, IG inbox, docs, comms |
 | `docs/CLOUDFLARE-EMAIL-ROUTING.md`     | Rutas de email entrante                        |
 | `docs/SUPABASE-AUTH-TEMPLATES.md`      | Plantillas de magic link                       |
 | `brand-identity.md`                    | Paleta, tipografía, copy                       |
@@ -139,10 +140,12 @@ auctorum-systems/
 
 - 4 apps en producción, 8 packages compartidos
 - 10 procesos PM2 + logrotate, todos `online` con cero errores
-- 51 migraciones aplicadas (la última es `0051_ads_leads`)
+- 54 migraciones aplicadas (la última es `0054_patient_communications`)
 - Cero `TODO/FIXME/XXX/HACK` markers en código fuente
 - PWA instalable en iOS 16.4+, Android, Desktop con Web Push activo
 - Lead Ads CRM activo (captura Meta + Google → WhatsApp en menos de 60s)
+- Help bot, weekly KPI report, Instagram unified inbox, smart document
+  classification, patient comms timeline
 
 ## Licencia y autoría
 

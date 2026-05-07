@@ -16,6 +16,7 @@ import {
   Settings,
   LayoutDashboard,
   Sparkles,
+  FolderOpen,
 } from 'lucide-react'
 import type { ComponentType } from 'react'
 
@@ -35,6 +36,7 @@ export const ALL_SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'citas', label: 'Citas', href: '/citas', icon: CalendarCheck, required: false, group: 'PRINCIPAL' },
   { id: 'conversaciones', label: 'Conversaciones', href: '/conversaciones', icon: MessageSquare, required: false, group: 'PRINCIPAL' },
   { id: 'pacientes', label: 'Pacientes', href: '/pacientes', icon: Users, required: false, group: 'PRINCIPAL' },
+  { id: 'documentos', label: 'Documentos', href: '/documentos', icon: FolderOpen, required: false, group: 'PRINCIPAL' },
   // GESTIÓN
   { id: 'agenda', label: 'Agenda', href: '/agenda', icon: CalendarDays, required: true, group: 'GESTIÓN' },
   { id: 'reports', label: 'Reportes', href: '/reports', icon: BarChart3, required: false, group: 'GESTIÓN' },

@@ -3,7 +3,24 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { MessageCircle, Send, Bot, User, Pause, Play, Phone, Search, Pencil, Check, X } from 'lucide-react'
+import { MessageCircle, Send, Bot, User, Pause, Play, Phone, Search, Pencil, Check, X, Instagram } from 'lucide-react'
+
+// Color-coded indicator for the inbox channel.
+function ChannelBadge({ channel }: { channel: string }) {
+  if (channel === 'instagram') {
+    return (
+      <span title="Instagram" className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-gradient-to-br from-pink-500 via-fuchsia-500 to-orange-400 text-white">
+        <Instagram className="h-3 w-3" />
+      </span>
+    )
+  }
+  // WhatsApp default
+  return (
+    <span title="WhatsApp" className="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-emerald-500 text-white">
+      <MessageCircle className="h-3 w-3" />
+    </span>
+  )
+}
 
 interface ConversationItem {
   id: string
@@ -56,6 +73,7 @@ export default function ConversationsPage() {
   const [sending, setSending] = useState(false)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [channelFilter, setChannelFilter] = useState<'all' | 'whatsapp' | 'instagram'>('all')
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   const fetchConvos = useCallback(async () => {
@@ -164,6 +182,7 @@ export default function ConversationsPage() {
   }
 
   const filtered = convos.filter(c => {
+    if (channelFilter !== 'all' && c.channel !== channelFilter) return false
     if (!search) return true
     const q = search.toLowerCase()
     return (
@@ -193,6 +212,22 @@ export default function ConversationsPage() {
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:border-indigo-300 focus:ring-1 focus:ring-indigo-300"
             />
+          </div>
+          <div className="mt-2 flex gap-1 rounded-lg border border-gray-100 bg-gray-50 p-0.5 text-xs">
+            {(['all', 'whatsapp', 'instagram'] as const).map(opt => (
+              <button
+                key={opt}
+                type="button"
+                onClick={() => setChannelFilter(opt)}
+                className={`flex-1 rounded-md px-2 py-1 font-medium transition-colors ${
+                  channelFilter === opt
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {opt === 'all' ? 'Todos' : opt === 'whatsapp' ? 'WhatsApp' : 'Instagram'}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -224,11 +259,14 @@ export default function ConversationsPage() {
                   {(c.clientName || '?')[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {c.clientName || 'Sin nombre'}
-                    </p>
-                    <span className="text-[11px] text-gray-400 flex-shrink-0 ml-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <ChannelBadge channel={c.channel} />
+                      <p className="text-sm font-medium text-gray-900 truncate">
+                        {c.clientName || (c.channel === 'instagram' ? 'Instagram' : 'Sin nombre')}
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-gray-400 flex-shrink-0">
                       {formatRelative(c.lastMessageAt || c.createdAt)}
                     </span>
                   </div>

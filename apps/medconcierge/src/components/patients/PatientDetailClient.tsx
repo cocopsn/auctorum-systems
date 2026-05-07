@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, Download, Trash2, FileText, Image as ImageIcon, AlertCircle } from 'lucide-react';
 import type { Patient, PatientFile } from '@quote-engine/db';
+import { PatientCommunicationsTab } from '@/components/dashboard/patient-communications-tab';
 
 // ============================================================
 // Editable clinical-records section + file attachments list.
@@ -322,6 +323,11 @@ export default function PatientDetailClient({ patient, files }: Props) {
             </ul>
           )}
         </div>
+      </div>
+
+      {/* Communication timeline */}
+      <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border)] p-6 mb-6">
+        <PatientCommunicationsTab patientId={patient.id} />
       </div>
     </>
   );

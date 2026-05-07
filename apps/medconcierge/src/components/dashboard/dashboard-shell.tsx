@@ -25,6 +25,7 @@ import { DashboardRealtimeIndicator } from '@/components/DashboardRealtimeIndica
 import { GlobalSearch } from '@/components/global-search'
 import { InstallPrompt } from '@/components/install-prompt'
 import { PushBootstrap } from '@/components/push-bootstrap'
+import { HelpBot } from '@/components/help-bot'
 import { DASHBOARD_THEMES, DEFAULT_THEME, type ThemeKey } from '@/lib/dashboard-themes'
 import { ALL_SIDEBAR_ITEMS, getVisibleItems } from '@/lib/sidebar-items'
 
@@ -99,6 +100,7 @@ export function DashboardShell({
       <ToastContainer />
       <PushBootstrap />
       <InstallPrompt />
+      <HelpBot />
     </div>
   )
 }

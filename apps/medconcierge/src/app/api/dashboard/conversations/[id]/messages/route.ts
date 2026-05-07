@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, conversations, messages, clients } from '@quote-engine/db'
+import {
+  db,
+  conversations,
+  messages,
+  clients,
+  integrations,
+  type InstagramDmConfig,
+} from '@quote-engine/db'
 import { eq, and, lt, desc } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { sendWhatsAppMessage } from '@/lib/whatsapp'
+import { sendInstagramMessage } from '@/lib/instagram'
 import { z } from 'zod';
 import { validateOrigin } from '@/lib/csrf'
 
@@ -101,18 +109,50 @@ export async function POST(
       return NextResponse.json({ error: 'Conversación no encontrada' }, { status: 404 })
     }
 
-    // Lookup client phone to send via WhatsApp Cloud API
-    const [client] = conv.clientId
-      ? await db.select({ phone: clients.phone }).from(clients).where(eq(clients.id, conv.clientId)).limit(1)
-      : [null as any]
-
     const content = body.content.trim()
     let sent = false
-    if (client?.phone) {
-      try {
-        sent = await sendWhatsAppMessage(client.phone, content)
-      } catch (e) {
-        console.error('manual send WA error:', e)
+
+    if (conv.channel === 'instagram') {
+      // Route via Instagram Graph API: need the tenant's IG integration row
+      // for pageId+token, and the conversation's external_id is the recipient PSID.
+      if (!conv.externalId) {
+        console.warn('[conv send] instagram convo missing external_id', conv.id)
+      } else {
+        const [integ] = await db
+          .select({ config: integrations.config })
+          .from(integrations)
+          .where(
+            and(
+              eq(integrations.tenantId, auth.tenant.id),
+              eq(integrations.type, 'instagram_dm'),
+            ),
+          )
+          .limit(1)
+        const cfg = (integ?.config ?? {}) as InstagramDmConfig
+        if (cfg.pageId && cfg.accessToken) {
+          const result = await sendInstagramMessage({
+            pageId: cfg.pageId,
+            recipientId: conv.externalId,
+            text: content,
+            accessToken: cfg.accessToken,
+          })
+          sent = result.ok
+          if (!result.ok) {
+            console.warn('[conv send] instagram error:', result.error?.slice(0, 200))
+          }
+        }
+      }
+    } else {
+      // Default channel: WhatsApp via the client's phone
+      const [client] = conv.clientId
+        ? await db.select({ phone: clients.phone }).from(clients).where(eq(clients.id, conv.clientId)).limit(1)
+        : [null as any]
+      if (client?.phone) {
+        try {
+          sent = await sendWhatsAppMessage(client.phone, content)
+        } catch (e) {
+          console.error('manual send WA error:', e)
+        }
       }
     }
 

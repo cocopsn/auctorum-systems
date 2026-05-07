@@ -222,6 +222,25 @@ module.exports = {
       error_file: '/var/log/auctorum/cron-calendar-pending-error.log',
       out_file: '/var/log/auctorum/cron-calendar-pending-out.log',
       merge_logs: true
+    },
+    {
+      // Weekly KPI summary delivered by WhatsApp every Monday at 8:00 AM
+      // (America/Monterrey). Skips tenants with no phone or with the
+      // tenant.config.notifications.weekly_report_enabled = false flag.
+      // Also skips weeks of zero activity to avoid spammy "0 / 0 / 0"
+      // messages.
+      name: 'cron-weekly-report',
+      cwd: '/opt/auctorum-systems/repo',
+      script: 'npx',
+      args: 'tsx scripts/cron-weekly-report.ts',
+      cron_restart: '0 8 * * 1',
+      autorestart: false,
+      watch: false,
+      env: { ...cronEnv, TZ: 'America/Monterrey' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/cron-weekly-report-error.log',
+      out_file: '/var/log/auctorum/cron-weekly-report-out.log',
+      merge_logs: true
     }
   ]
 };

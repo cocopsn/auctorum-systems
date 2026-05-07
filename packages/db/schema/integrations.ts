@@ -59,11 +59,32 @@ export interface GoogleAdsConfig {
   connectedAt?: string
 }
 
+/**
+ * Instagram DMs — distinct from `meta_ads` (Lead Ads) and `meta_business`
+ * (WhatsApp). One row per tenant. The `pageId` is the Facebook Page that
+ * owns the IG account (Meta requires the IG account be linked to a Page).
+ *
+ * MVP scope: inbound DMs land in the unified inbox; the doctor replies
+ * manually from the conversations page. AI auto-reply for Instagram is NOT
+ * wired yet — adding it requires widening the BullMQ payload to carry a
+ * `channel` discriminator and teaching `scripts/worker.ts` to dispatch
+ * outbound by channel. That'll ship as a focused follow-up; until then
+ * we don't expose a half-working toggle.
+ */
+export interface InstagramDmConfig {
+  pageId?: string
+  pageName?: string
+  igAccountId?: string
+  accessToken?: string
+  connectedAt?: string
+}
+
 export type IntegrationConfig =
   | MetaBusinessConfig
   | GoogleCalendarConfig
   | MetaAdsConfig
   | GoogleAdsConfig
+  | InstagramDmConfig
   | Record<string, unknown>
 
 export const integrations = pgTable('integrations', {

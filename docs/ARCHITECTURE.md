@@ -106,6 +106,17 @@ Grupos:
   `web_push_subscriptions` (PWA + browsers)
 - **Lead Ads CRM**: `ad_leads` (origen + status pipeline + UTM + raw_data),
   config de Meta/Google en `integrations` con `type='meta_ads'` o `'google_ads'`
+- **Documentos**: `documents` (lab_result/radiology/etc, AI summary, signed-URL
+  storage). Bucket `documents` en Supabase Storage, bootstrapped con
+  service-role en el primer upload.
+- **Comms timeline**: `patient_communications` (append-only ledger de
+  email/WA/call/note por paciente). Agregado por `sendEmail` cuando recibe
+  `{tenantId, patientId}` opcional, o manualmente desde la tab "Comunicaciones"
+  en la ficha del paciente.
+- **Conversations multi-channel**: `conversations.external_id` permite
+  identificar a quien escribe por canales sin teléfono (Instagram PSID,
+  Telegram chat_id, etc). UNIQUE `(tenant_id, channel, external_id)` para
+  upsert idempotente desde webhooks.
 
 ### Migraciones
 
