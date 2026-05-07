@@ -20,7 +20,7 @@ export async function POST(
     }
 
     // Rate limit: 1/minute per tenant
-    const rl = rateLimit(`campaign-send:${auth.tenant.id}`, 1, 60_000);
+    const rl = await rateLimit(`campaign-send:${auth.tenant.id}`, 1, 60_000);
     if (!rl.success) {
       return NextResponse.json({ error: 'Solo puedes enviar una campana por minuto' }, { status: 429 });
     }

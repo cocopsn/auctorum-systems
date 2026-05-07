@@ -41,7 +41,7 @@ export async function GET(
 
     // Rate limit by IP: 60/minute per IP
     const ip = _request.headers.get('x-forwarded-for') ?? 'unknown';
-    const { success: rlOk } = rateLimit(`tracking-pixel:${ip}`, 60, 60_000);
+    const { success: rlOk } = await rateLimit(`tracking-pixel:${ip}`, 60, 60_000);
     if (!rlOk) return pixelResponse();
 
     const [quote] = await db

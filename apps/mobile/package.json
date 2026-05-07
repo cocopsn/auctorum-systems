@@ -16,11 +16,7 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
-    "@react-navigation/bottom-tabs": "^6.6.0",
-    "@react-navigation/native": "^6.1.18",
     "@tanstack/react-query": "^5.51.0",
-    "axios": "^1.7.4",
-    "date-fns": "^3.6.0",
     "expo": "~51.0.28",
     "expo-constants": "~16.0.2",
     "expo-device": "~6.0.2",

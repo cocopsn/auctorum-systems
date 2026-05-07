@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
   try {
     // Rate limiting: 30 req/min
     const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
-    const { success: rateLimitOk } = rateLimit(`products:${ip}`, 30, 60_000);
+    const { success: rateLimitOk } = await rateLimit(`products:${ip}`, 30, 60_000);
     if (!rateLimitOk) {
       return Response.json({ error: 'Too many requests' }, { status: 429 });
     }

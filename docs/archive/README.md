@@ -18,6 +18,7 @@ Para el estado actual ver:
 | `QA-FINAL-REPORT-2026-04-21.md`          | 2026-04-21     | QA exhaustivo de rutas y dashboard           |
 | `QA-AUTHENTICATED-REPORT-2026-04.md`     | 2026-04        | QA con sesión autenticada                    |
 | `DEMO-SCRIPT-2026-04.md`                 | 2026-04-14     | Script de demo a Marco — branch v2-premium   |
+| `AUDIT-REPORT-2026-05-06.md`             | 2026-05-06     | Codebase audit — dead code removal + dep prune |
 
 **Detalles desactualizados conocidos en estos archivos:**
 - IP del VPS (los reports mencionan `142.93.199.126` o `164.92.84.127` —

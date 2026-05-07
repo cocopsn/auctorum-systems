@@ -10,7 +10,6 @@ import {
   Copy,
   CheckCircle2,
   XCircle,
-  Monitor,
 } from 'lucide-react';
 
 export default function SecuritySettingsPage() {
@@ -352,22 +351,6 @@ export default function SecuritySettingsPage() {
         </div>
       </div>
 
-      {/* Active sessions section — placeholder */}
-      <div className="rounded-xl border border-gray-100 bg-white shadow-sm">
-        <div className="px-6 py-5">
-          <div className="flex items-center gap-3 mb-1">
-            <Monitor className="h-5 w-5 text-gray-700" />
-            <h2 className="text-lg font-semibold text-gray-900">Sesiones activas</h2>
-          </div>
-          <div className="mt-4 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-6 py-8 text-center">
-            <Monitor className="mx-auto h-8 w-8 text-gray-300 mb-2" />
-            <p className="text-sm font-medium text-gray-500">
-              Administra tus sesiones activas
-            </p>
-            <p className="text-xs text-gray-400 mt-1">Proximamente</p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { CalendarDays, List, QrCode, Plus, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { CalendarDays, List, Plus, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { AppointmentsTable } from '@/components/dashboard/appointments-table'
 
-type ViewMode = 'list' | 'calendar' | 'qr'
+type ViewMode = 'list' | 'calendar'
 
 type AppointmentRow = {
   id: string
@@ -291,7 +291,6 @@ export function CitasClient({ tenantId }: { tenantId: string }) {
   const viewButtons: { key: ViewMode; label: string; icon: any }[] = [
     { key: 'list', label: 'Lista', icon: List },
     { key: 'calendar', label: 'Calendario', icon: CalendarDays },
-    { key: 'qr', label: 'QR Check-in', icon: QrCode },
   ]
 
   return (
@@ -339,18 +338,6 @@ export function CitasClient({ tenantId }: { tenantId: string }) {
 
       {view === 'calendar' && (
         <CalendarView tenantId={tenantId} onNewAppointment={handleNewFromCalendar} />
-      )}
-
-      {view === 'qr' && (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
-            <QrCode className="h-7 w-7 text-gray-400" />
-          </div>
-          <p className="text-sm font-medium text-gray-900 mb-1">QR Check-in</p>
-          <p className="text-xs text-gray-500 max-w-sm">
-            Genera códigos QR únicos por cita para que los pacientes confirmen su llegada escaneando al entrar. Disponible próximamente.
-          </p>
-        </div>
       )}
 
       {showNewModal && (

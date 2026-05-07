@@ -44,7 +44,7 @@ const bodySchema = z.object({
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get('x-forwarded-for') ?? 'unknown'
-  const rl = rateLimit(`signup:${ip}`, 3, 3_600_000)
+  const rl = await rateLimit(`signup:${ip}`, 3, 3_600_000)
   if (!rl.success) {
     return NextResponse.json(
       { error: 'Demasiados intentos. Intente en una hora.' },

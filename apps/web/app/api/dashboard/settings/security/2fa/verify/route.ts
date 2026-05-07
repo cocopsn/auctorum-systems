@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Rate limit: 5 attempts/minute per user (FIX 4.1a)
-    const rl = rateLimit(`2fa-verify:${auth.user.id}`, 5, 60_000);
+    const rl = await rateLimit(`2fa-verify:${auth.user.id}`, 5, 60_000);
     if (!rl.success) {
       return NextResponse.json({ error: 'Demasiados intentos. Espera un minuto.' }, { status: 429 });
     }

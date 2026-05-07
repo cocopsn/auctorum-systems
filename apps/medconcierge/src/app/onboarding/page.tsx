@@ -431,15 +431,6 @@ function StepConsultorio({
         <Field label="Telefono" value={form.phone} onChange={(v) => set('phone', v)} placeholder="+52 55 1234 5678" />
       </div>
 
-      {/* Logo placeholder */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Logo</label>
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center text-gray-400 text-sm">
-          Arrastra tu logo aqui o haz clic para seleccionar
-          <br />
-          <span className="text-xs">(Proximamente)</span>
-        </div>
-      </div>
 
       {/* Color pickers */}
       <div>

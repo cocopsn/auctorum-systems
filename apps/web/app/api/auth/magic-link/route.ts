@@ -13,7 +13,7 @@ const magicLinkSchema = z.object({
 export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get('x-forwarded-for') ?? 'unknown';
-    const { success: rateLimitOk } = rateLimit(`magic-link:${ip}`, 5, 60_000);
+    const { success: rateLimitOk } = await rateLimit(`magic-link:${ip}`, 5, 60_000);
     if (!rateLimitOk) {
       return Response.json({ error: 'Too many requests' }, { status: 429 });
     }
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     const { email } = parsed.data;
 
     // Rate limit by email: 3/minute per email address
-    const { success: emailRlOk } = rateLimit(`magic-link-email:${email.toLowerCase()}`, 3, 60_000);
+    const { success: emailRlOk } = await rateLimit(`magic-link-email:${email.toLowerCase()}`, 3, 60_000);
     if (!emailRlOk) {
       return NextResponse.json({ error: 'Demasiados intentos para este correo. Espera un minuto.' }, { status: 429 });
     }

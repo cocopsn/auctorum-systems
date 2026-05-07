@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     // Rate limit: 10/minute per tenant
-    const rl = rateLimit(`payments-create:${auth.tenant.id}`, 10, 60_000);
+    const rl = await rateLimit(`payments-create:${auth.tenant.id}`, 10, 60_000);
     if (!rl.success) {
       return NextResponse.json({ error: 'Demasiados intentos' }, { status: 429 });
     }
