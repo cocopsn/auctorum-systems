@@ -89,6 +89,9 @@ Rutas estáticas que el middleware DEBE excluir del rewrite:
   `deletedAt`/`isActive`. La excepción es `web_push_subscriptions` cuando el
   endpoint devuelve 410/404 (la subscripción ya está muerta upstream).
 - SIEMPRE verificar que `pnpm build` pasa ANTES de commit/push.
+- SIEMPRE correr `pnpm test:run` antes de cada push. Tests viven en `tests/`
+  con vitest, ver `docs/TESTING.md`. Cero placeholders (`expect(true).toBe(true)`)
+  permitidos — un test que no falla cuando debería es peor que no tener test.
 - SIEMPRE usar `zod` para validar inputs en API routes.
 - SIEMPRE wrappear handlers en `try/catch` y devolver 500 limpio (no stack).
 - SIEMPRE wrappear llamadas a Google Calendar con `calendarWithFallback` para
@@ -187,6 +190,8 @@ Ver `docs/ADS-LEADS.md` para setup completo en Meta App + Google Ads.
 - `docs/ADS-LEADS.md` — Lead Ads CRM (Meta + Google webhooks, pipeline, settings)
 - `docs/MED-CRM-FEATURES.md` — Help bot, reporte semanal, Instagram inbox,
   documents AI, patient comms timeline
+- `docs/TESTING.md` — vitest unit/integration/ai/e2e-vps + integrity script,
+  cómo agregar tests sin caer en placebos
 - `docs/CLOUDFLARE-EMAIL-ROUTING.md` — rutas de email entrante
 - `docs/SUPABASE-AUTH-TEMPLATES.md` — plantillas de magic link
 - `brand-identity.md` — identidad, paleta, tipografía, copy

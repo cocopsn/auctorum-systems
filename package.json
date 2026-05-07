@@ -14,7 +14,16 @@
     "db:migrate": "pnpm --filter @quote-engine/db migrate",
     "db:seed": "pnpm --filter @quote-engine/db seed",
     "tenant:create": "bash scripts/create-tenant.sh",
-    "deploy": "bash scripts/deploy.sh"
+    "deploy": "bash scripts/deploy.sh",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:ai": "vitest run tests/ai",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts",
+    "test:integrity": "tsx scripts/check-data-integrity.ts",
+    "test:coverage": "vitest run --coverage",
+    "test:ci": "vitest run --reporter=verbose"
   },
   "engines": {
     "node": ">=20.0.0"
@@ -26,5 +35,9 @@
     "postgres": "^3.4.8",
     "sharp": "^0.34.5",
     "tsx": "^4.21.0"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^1.6.1",
+    "vitest": "^1.6.1"
   }
 }

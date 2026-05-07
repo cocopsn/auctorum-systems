@@ -81,6 +81,55 @@ export type FallbackTenantHint = {
 }
 
 /**
+ * Pure function. Returns true if the user's message contains any keyword
+ * suggesting a medical emergency. Combines specialty-specific keywords (when
+ * a template id is provided) with a baseline general-medical set that
+ * applies to every specialty.
+ *
+ * This is the canonical emergency check — `generateFallbackResponse` calls
+ * it, and the WhatsApp worker imports it directly to short-circuit the AI
+ * pipeline before paying for an OpenAI call on a literal "no puedo respirar".
+ */
+const BASELINE_EMERGENCY_KEYWORDS = [
+  'emergencia',
+  'urgente',
+  'urgencia',
+  'dolor fuerte',
+  'sangr',                  // sangrado / sangrando / sangra
+  'no puedo respirar',
+  'convulsion',
+  'convulsión',
+  'desmay',                 // desmayo / desmayada / desmayándose
+  'inconsciente',
+  'no responde',
+  'no despierta',
+  'perdió el conocimiento',
+  'perdi el conocimiento',
+  'pierde el conocimiento',
+  'morado',
+  'azul',                   // morado/azul = cyanosis indicators
+  'suicid',
+  'matarme',
+  'reaccion alergica',
+  'reacción alérgica',
+  'anafilac',
+] as const
+
+export function isEmergency(
+  message: string,
+  specialty?: SpecialtyId | string | null,
+): boolean {
+  if (!message) return false
+  const lower = message.toLowerCase()
+  const tpl = specialty ? getSpecialtyTemplate(specialty as SpecialtyId) : null
+  const keywords = [
+    ...(tpl?.emergencyKeywords ?? []),
+    ...BASELINE_EMERGENCY_KEYWORDS,
+  ].map((k) => k.toLowerCase())
+  return keywords.some((k) => lower.includes(k))
+}
+
+/**
  * Build a canned response based on the tenant's specialty template plus
  * lightweight keyword detection over the user's message. Always returns
  * a string — never throws.
@@ -92,11 +141,7 @@ export function generateFallbackResponse(message: string, tenant: FallbackTenant
   const tpl = getSpecialtyTemplate((tenant.specialty as SpecialtyId | undefined) ?? 'medicina_general' as SpecialtyId)
 
   // 1. Emergency intent — always wins
-  const emergencyKeywords = [
-    ...(tpl?.emergencyKeywords ?? []),
-    'emergencia', 'urgente', 'urgencia', 'dolor fuerte', 'sangrado', 'no puedo respirar',
-  ].map((k) => k.toLowerCase())
-  if (emergencyKeywords.some((k) => lower.includes(k))) {
+  if (isEmergency(message, tenant.specialty as SpecialtyId | undefined)) {
     return `⚠️ Si está en una emergencia médica, llame al 911 o acuda a urgencias inmediatamente.\n\nNuestro asistente está temporalmente con intermitencia. Si no es emergencia, intente de nuevo en unos minutos o llame directo al consultorio. — ${businessName}`
   }
 

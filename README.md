@@ -130,6 +130,7 @@ auctorum-systems/
 | `docs/PWA.md`                          | Service worker, Web Push, íconos, VAPID        |
 | `docs/ADS-LEADS.md`                    | Lead Ads CRM (Meta + Google + auto-contacto)   |
 | `docs/MED-CRM-FEATURES.md`             | Help bot, weekly report, IG inbox, docs, comms |
+| `docs/TESTING.md`                      | Vitest layout, what's covered, how to add tests|
 | `docs/CLOUDFLARE-EMAIL-ROUTING.md`     | Rutas de email entrante                        |
 | `docs/SUPABASE-AUTH-TEMPLATES.md`      | Plantillas de magic link                       |
 | `brand-identity.md`                    | Paleta, tipografía, copy                       |
@@ -146,6 +147,9 @@ auctorum-systems/
 - Lead Ads CRM activo (captura Meta + Google → WhatsApp en menos de 60s)
 - Help bot, weekly KPI report, Instagram unified inbox, smart document
   classification, patient comms timeline
+- 188 vitest assertions (unit + integration + AI guard) running in ~2 s,
+  plus an e2e suite against the deployed VPS and a daily SQL integrity
+  audit (`pnpm test:integrity`)
 
 ## Licencia y autoría
 
