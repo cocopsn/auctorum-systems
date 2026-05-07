@@ -27,9 +27,43 @@ export interface GoogleCalendarConfig {
   sync_status?: 'pending' | 'connected' | 'error'
 }
 
+/**
+ * Facebook / Instagram Lead Ads — separate from `meta_business` (which is
+ * WhatsApp Business). This row holds the Page that runs the lead form and
+ * the access token used to fetch the lead's field_data when the leadgen
+ * webhook fires. `pageId` is what the webhook payload provides; we look up
+ * the tenant via `WHERE type='meta_ads' AND config->>'pageId' = ?`.
+ */
+export interface MetaAdsConfig {
+  pageId?: string
+  pageName?: string
+  accessToken?: string
+  formIds?: string[]
+  autoContact?: boolean
+  autoContactMessage?: string
+  autoContactDelaySec?: number
+  connectedAt?: string
+}
+
+/**
+ * Google Ads Lead Form Extensions — webhook-token based.
+ * The doctor configures the webhook URL + token in their Google Ads UI; we
+ * resolve the tenant via `WHERE type='google_ads' AND config->>'webhookToken' = ?`.
+ */
+export interface GoogleAdsConfig {
+  webhookToken?: string
+  customerId?: string
+  autoContact?: boolean
+  autoContactMessage?: string
+  autoContactDelaySec?: number
+  connectedAt?: string
+}
+
 export type IntegrationConfig =
   | MetaBusinessConfig
   | GoogleCalendarConfig
+  | MetaAdsConfig
+  | GoogleAdsConfig
   | Record<string, unknown>
 
 export const integrations = pgTable('integrations', {

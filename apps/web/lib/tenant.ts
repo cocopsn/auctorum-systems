@@ -1,11 +1,15 @@
 import { headers } from 'next/headers';
 import { db, tenants, type Tenant, type TenantConfig } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
-import { cache } from 'react';
+import * as React from 'react';
 
-// Cached per-request tenant resolution
-export const getTenant = cache(async (): Promise<Tenant | null> => {
-  const headersList = await headers();
+// Cached per-request tenant resolution. `React.cache` is exported at runtime
+// from React 18.3+ but its types only land in @types/react@19. Cast through
+// any so we get the runtime memoization without depending on the newer types.
+const reactCache = (React as unknown as { cache: <T extends (...args: any[]) => any>(fn: T) => T }).cache
+
+export const getTenant = reactCache(async (): Promise<Tenant | null> => {
+  const headersList = headers();
   const slug = headersList.get('x-tenant-slug');
 
   if (!slug) return null;

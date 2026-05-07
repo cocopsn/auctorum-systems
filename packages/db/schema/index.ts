@@ -63,6 +63,8 @@ export {
   type IntegrationConfig,
   type MetaBusinessConfig,
   type GoogleCalendarConfig,
+  type MetaAdsConfig,
+  type GoogleAdsConfig,
 } from './integrations';
 export { subscriptions, type Subscription, type NewSubscription } from './subscriptions';
 
@@ -91,3 +93,14 @@ export {
   tenantUsage, type TenantUsage, type NewTenantUsage,
   usageAddons, type UsageAddon, type NewUsageAddon,
 } from './tenant-usage';
+
+// Ads → Leads CRM
+export {
+  adLeads,
+  LEAD_SOURCES,
+  LEAD_STATUSES,
+  type AdLead,
+  type NewAdLead,
+  type LeadSource,
+  type LeadStatus,
+} from './ad-leads';

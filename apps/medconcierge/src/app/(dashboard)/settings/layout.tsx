@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Settings, MessageSquare, Bot, Users, CreditCard, FileText, Radio, Shield, Sparkles, Palette, KeyRound } from 'lucide-react'
+import { Settings, MessageSquare, Bot, Users, CreditCard, FileText, Radio, Shield, Sparkles, Palette, KeyRound, Megaphone } from 'lucide-react'
 
 const settingsNav = [
   { href: '/settings', label: 'General', icon: Settings, exact: true },
@@ -12,6 +12,7 @@ const settingsNav = [
   { href: '/settings/payments', label: 'Pagos', icon: CreditCard },
   { href: '/settings/billing', label: 'Facturacion', icon: FileText },
   { href: '/settings/channels', label: 'Canales', icon: Radio },
+  { href: '/settings/ads', label: 'Publicidad', icon: Megaphone },
   { href: '/settings/security', label: 'Seguridad', icon: Shield },
   { href: '/settings/subscription', label: 'Suscripcion', icon: Sparkles },
   { href: '/settings/appearance', label: 'Apariencia', icon: Palette },

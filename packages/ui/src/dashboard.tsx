@@ -22,7 +22,12 @@ export type DashboardNavItem = {
   key?: string;
   href: string;
   label: string;
-  icon: ComponentType<{ className?: string }>;
+  // `any` because lucide-react ForwardRefExoticComponent doesn't
+  // structurally match React's ComponentType across @types/react minor
+  // versions. Both apps (web/medconcierge) consume this and we don't want
+  // to force `as any` at every callsite.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  icon: any;
 };
 
 const NAV_GROUP_LABELS: Record<number, string> = {
@@ -45,7 +50,9 @@ type NotificationItem = {
   createdAt: string | null;
 };
 
-const NOTIFICATION_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+// `any` icon type — see DashboardNavItem.icon comment above.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const NOTIFICATION_ICONS: Record<string, any> = {
   appointment: Calendar,
   message: MessageSquare,
   patient: UserPlus,

@@ -93,17 +93,21 @@ export function OnboardingChecklist({ initialSteps, completedAt, tenantName }: P
 
   async function skipAll() {
     setError(null);
-    startTransition(async () => {
-      try {
-        const res = await fetch('/api/onboarding', { method: 'POST' });
-        const json = await res.json();
-        if (!res.ok || !json?.data) {
-          throw new Error(json?.error ?? 'Error al saltar');
+    // React 18 typed startTransition rejects async callbacks; wrap the awaitable
+    // in a fire-and-forget IIFE so the transition fn itself stays synchronous.
+    startTransition(() => {
+      void (async () => {
+        try {
+          const res = await fetch('/api/onboarding', { method: 'POST' });
+          const json = await res.json();
+          if (!res.ok || !json?.data) {
+            throw new Error(json?.error ?? 'Error al saltar');
+          }
+          setCompleted(json.data.completedAt ?? null);
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'Error desconocido');
         }
-        setCompleted(json.data.completedAt ?? null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error desconocido');
-      }
+      })();
     });
   }
 

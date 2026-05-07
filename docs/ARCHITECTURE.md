@@ -104,6 +104,8 @@ Grupos:
 - **Usage tracking**: `tenant_usage`, `usage_addons`
 - **Push**: `users.expoPushToken` (mobile nativa) +
   `web_push_subscriptions` (PWA + browsers)
+- **Lead Ads CRM**: `ad_leads` (origen + status pipeline + UTM + raw_data),
+  config de Meta/Google en `integrations` con `type='meta_ads'` o `'google_ads'`
 
 ### Migraciones
 
@@ -214,6 +216,30 @@ medconcierge :3001
    │      └─ si falla: encola en pending_calendar_ops
    └─ dispara WhatsApp confirmación al paciente
 ```
+
+### Lead de Facebook/Instagram entra al CRM
+
+```
+Paciente completa Lead Form en IG/FB
+   │ Meta dispara webhook
+   ▼
+medconcierge :3001
+   POST /api/webhooks/meta-leads
+   ├─ verifica HMAC con META_APP_SECRET
+   ├─ por cada change.value con field=='leadgen':
+   │     ├─ resuelve tenant: integrations WHERE type='meta_ads' AND config->>'pageId'=page_id
+   │     ├─ fetch a https://graph.facebook.com/v19.0/{leadgen_id} con accessToken
+   │     ├─ extrae name/phone/email/message del field_data
+   │     ├─ INSERT INTO ad_leads (source='facebook'|'instagram', ...)
+   │     └─ if config.autoContact !== false:
+   │           autoContactLead(tenant, lead) → sendWhatsAppMessage
+   │           → status = 'contacted', whatsapp_sent_at = NOW()
+   └─ devuelve { success: true, persisted, autoContacted, errors }
+```
+
+Google Ads sigue el mismo patrón pero el webhook se autentica con un token
+generado en el dashboard (`/settings/ads`) en lugar de HMAC. Detalle completo
+en `ADS-LEADS.md`.
 
 ### Pago aceptado (Stripe addon o MercadoPago)
 

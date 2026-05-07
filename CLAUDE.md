@@ -117,6 +117,27 @@ Rutas estáticas que el middleware DEBE excluir del rewrite:
 
 `ecosystem.config.js` carga `.env.local` de cada app dinámicamente al arrancar.
 
+## Lead Ads CRM
+
+Webhooks públicos en `apps/medconcierge/src/app/api/webhooks/`:
+- `/api/webhooks/meta-leads` — Facebook/Instagram Lead Ads (HMAC `META_APP_SECRET`,
+  resuelve tenant por `integrations.config->>'pageId'` con `type='meta_ads'`)
+- `/api/webhooks/google-leads` — Google Ads Lead Forms (token-gated,
+  resuelve por `integrations.config->>'webhookToken'` con `type='google_ads'`)
+
+Ambos insertan en `ad_leads` y disparan `autoContactLead(tenant, lead)`
+(`apps/medconcierge/src/lib/lead-autocontact.ts`) — best-effort, nunca rompen
+la captura.
+
+Pipeline visible: `new → contacted → responded → appointed → converted` (con
+`lost` como side branch). El doctor maneja el kanban en `/leads`.
+
+Settings UI en `/settings/ads` permite conectar/desconectar Meta + Google,
+rotar el token de Google, y editar el mensaje de auto-contacto. La config
+vive en `integrations` (UNIQUE por `tenant_id+type`), NO en `tenants.config`.
+
+Ver `docs/ADS-LEADS.md` para setup completo en Meta App + Google Ads.
+
 ## Resiliencia
 
 - **Circuit breaker** — `isCircuitOpen/recordSuccess/recordFailure` en
@@ -139,6 +160,7 @@ Rutas estáticas que el middleware DEBE excluir del rewrite:
 - `docs/ARCHITECTURE.md` — diagrama completo de cómo se conectan las piezas
 - `docs/DEPLOYMENT.md` — VPS, Nginx, PM2, SSL, DNS, flujo de deploy
 - `docs/PWA.md` — PWA, service worker, Web Push, VAPID, generación de íconos
+- `docs/ADS-LEADS.md` — Lead Ads CRM (Meta + Google webhooks, pipeline, settings)
 - `docs/CLOUDFLARE-EMAIL-ROUTING.md` — rutas de email entrante
 - `docs/SUPABASE-AUTH-TEMPLATES.md` — plantillas de magic link
 - `brand-identity.md` — identidad, paleta, tipografía, copy

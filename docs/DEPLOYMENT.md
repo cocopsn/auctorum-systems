@@ -241,6 +241,10 @@ VAPID_PUBLIC_KEY="B..."
 VAPID_PRIVATE_KEY="..."
 VAPID_SUBJECT="mailto:contacto@auctorum.com.mx"
 
+# Meta Lead Ads (medconcierge — opcional, requerido si conectas Lead Ads)
+META_APP_SECRET="..."                  # comparte con WhatsApp si misma Meta App
+META_LEADS_VERIFY_TOKEN="..."          # token elegido en Meta App webhook setup
+
 # Google Calendar (per-tenant — guardado en DB, no aquí)
 ```
 

@@ -15,6 +15,7 @@ import {
   Plug,
   Settings,
   LayoutDashboard,
+  Sparkles,
 } from 'lucide-react'
 import type { ComponentType } from 'react'
 
@@ -42,6 +43,7 @@ export const ALL_SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'pagos', label: 'Pagos en línea', href: '/pagos', icon: CreditCard, required: false, group: 'GESTIÓN' },
   { id: 'invoices', label: 'Facturas', href: '/invoices', icon: FileText, required: false, group: 'GESTIÓN' },
   // MARKETING
+  { id: 'leads', label: 'Leads', href: '/leads', icon: Sparkles, required: false, group: 'MARKETING' },
   { id: 'campaigns', label: 'Campañas', href: '/campaigns', icon: Megaphone, required: false, group: 'MARKETING' },
   { id: 'integrations', label: 'Integraciones', href: '/integrations', icon: Plug, required: false, group: 'MARKETING' },
   // MÉDICO

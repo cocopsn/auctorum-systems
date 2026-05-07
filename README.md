@@ -128,6 +128,7 @@ auctorum-systems/
 | `docs/ARCHITECTURE.md`                 | Diagrama detallado del sistema y data flow     |
 | `docs/DEPLOYMENT.md`                   | VPS, Nginx, PM2, SSL, DNS, deploy step-by-step |
 | `docs/PWA.md`                          | Service worker, Web Push, íconos, VAPID        |
+| `docs/ADS-LEADS.md`                    | Lead Ads CRM (Meta + Google + auto-contacto)   |
 | `docs/CLOUDFLARE-EMAIL-ROUTING.md`     | Rutas de email entrante                        |
 | `docs/SUPABASE-AUTH-TEMPLATES.md`      | Plantillas de magic link                       |
 | `brand-identity.md`                    | Paleta, tipografía, copy                       |
@@ -138,9 +139,10 @@ auctorum-systems/
 
 - 4 apps en producción, 8 packages compartidos
 - 10 procesos PM2 + logrotate, todos `online` con cero errores
-- 50 migraciones aplicadas (la última es `0050_web_push_subscriptions`)
+- 51 migraciones aplicadas (la última es `0051_ads_leads`)
 - Cero `TODO/FIXME/XXX/HACK` markers en código fuente
 - PWA instalable en iOS 16.4+, Android, Desktop con Web Push activo
+- Lead Ads CRM activo (captura Meta + Google → WhatsApp en menos de 60s)
 
 ## Licencia y autoría
 
