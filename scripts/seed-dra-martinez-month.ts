@@ -212,13 +212,19 @@ async function wipeSeeded(): Promise<void> {
     DELETE FROM patients
     WHERE tenant_id = ${TENANT_ID}::uuid AND phone LIKE ${SEED_PHONE_PREFIX + '%'}
   `)
+  // clients matched by phone prefix — referenced by conversations.client_id
+  // (separate FK from patients.id, not handled by patient cascade).
+  await db.execute(sql`
+    DELETE FROM clients
+    WHERE tenant_id = ${TENANT_ID}::uuid AND phone LIKE ${SEED_PHONE_PREFIX + '%'}
+  `)
   console.log('  ✓ wiped')
 }
 
 // ----------------------------------------------------------------------
 // Insert helpers — each returns the new ids.
 // ----------------------------------------------------------------------
-type SeededPatient = { id: string; name: string; phone: string; gender: string }
+type SeededPatient = { id: string; clientId: string; name: string; phone: string; gender: string }
 
 async function seedPatients(count: number): Promise<SeededPatient[]> {
   console.log(`→ Inserting ${count} patients…`)
@@ -252,7 +258,27 @@ async function seedPatients(count: number): Promise<SeededPatient[]> {
       )
       RETURNING id::text
     `)) as unknown as Array<{ id: string }>
-    out.push({ id: r[0].id, name: fullName, phone, gender: isFemale ? 'female' : 'male' })
+    // Mirror to clients (the table conversations.client_id points at —
+    // separate from patients). Without this, every WhatsApp conversation
+    // shows "Sin nombre" in the inbox.
+    const c = (await db.execute(sql`
+      INSERT INTO clients (
+        tenant_id, name, email, phone, status, notes, created_at, updated_at
+      )
+      VALUES (
+        ${TENANT_ID}::uuid, ${fullName}, ${email}, ${phone}, ${'lead'},
+        ${'SEED-MONTH cliente ' + i},
+        ${isoMinus(createdAgo)}::timestamptz, ${isoMinus(createdAgo)}::timestamptz
+      )
+      RETURNING id::text
+    `)) as unknown as Array<{ id: string }>
+    out.push({
+      id: r[0].id,
+      clientId: c[0].id,
+      name: fullName,
+      phone,
+      gender: isFemale ? 'female' : 'male',
+    })
   }
   console.log(`  ✓ ${out.length} patients`)
   return out
@@ -428,11 +454,11 @@ async function seedConversationsAndMessages(patients: SeededPatient[]): Promise<
     const status = Math.random() < 0.7 ? 'open' : 'closed'
     const convRows = (await db.execute(sql`
       INSERT INTO conversations (
-        tenant_id, channel, external_id, status, bot_paused,
+        tenant_id, client_id, channel, external_id, status, bot_paused,
         last_message_at, unread_count, created_at, updated_at
       )
       VALUES (
-        ${TENANT_ID}::uuid, ${channel}, ${externalId}, ${status},
+        ${TENANT_ID}::uuid, ${p.clientId}::uuid, ${channel}, ${externalId}, ${status},
         ${false}, ${isoMinus(lastMsgAgo)}::timestamptz,
         ${rand(0, 3)}, ${isoMinus(createdAgo)}::timestamptz,
         ${isoMinus(lastMsgAgo)}::timestamptz

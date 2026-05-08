@@ -14,6 +14,11 @@ type BotInstanceConfig = {
   phone_number_id?: string
   business_account_id?: string
   webhook_path?: string
+  // 'shared' = all tenants on this VPS share a single Meta WABA + app
+  //   secret loaded from env (the seed config from migration 0040).
+  // 'dedicated' = per-tenant Meta WABA — verify_token + app_secret live
+  //   in bot_instances.config. (Future, not used yet.)
+  channel_mode?: 'shared' | 'dedicated'
 }
 
 type ResolvedBot = {
@@ -65,11 +70,17 @@ async function resolveTenantAndToken(slug: string): Promise<ResolvedBot | null> 
   if (!row) return null
 
   const cfg = (row.config as BotInstanceConfig) ?? {}
+  // Shared-mode tenants (the default per migration 0040) inherit the
+  // verify_token + app_secret from env. Dedicated-mode tenants store
+  // their own credentials in bot_instances.config. The env is the
+  // fallback in BOTH cases — without this, the migration row (which
+  // only sets channel_mode + external_business_id) makes every webhook
+  // 403 "invalid HMAC signature" because cfg.app_secret is undefined.
   return {
     tenantId: row.tenantId,
     botInstanceId: row.botInstanceId,
-    verifyToken: cfg.verify_token,
-    appSecret: cfg.app_secret,
+    verifyToken: cfg.verify_token ?? process.env.WHATSAPP_VERIFY_TOKEN,
+    appSecret: cfg.app_secret ?? process.env.WHATSAPP_APP_SECRET,
   }
 }
 

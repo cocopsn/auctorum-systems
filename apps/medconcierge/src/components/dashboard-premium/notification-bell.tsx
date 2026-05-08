@@ -5,7 +5,11 @@ import { useEffect, useRef, useState } from 'react'
 type Notification = {
   id: string
   title: string
-  body: string | null
+  // DB column is `message` (notifications.message TEXT NOT NULL); the
+  // earlier `body` field was a phantom — the bell rendered title + date
+  // only, dropping the actual content. Camel-cased because the API
+  // returns drizzle-style.
+  message: string | null
   type: string | null
   read: boolean
   createdAt: string
@@ -83,7 +87,7 @@ export function NotificationBell() {
               {items.slice(0, 10).map((n) => (
                 <li key={n.id} className={`notif-bell__item ${n.read ? 'is-read' : ''}`}>
                   <p className="notif-bell__title">{n.title}</p>
-                  {n.body ? <p className="notif-bell__body">{n.body}</p> : null}
+                  {n.message ? <p className="notif-bell__body">{n.message}</p> : null}
                   <p className="notif-bell__time">{relativeTime(n.createdAt)}</p>
                 </li>
               ))}

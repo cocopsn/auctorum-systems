@@ -45,6 +45,7 @@ export async function GET() {
       activityQ,
       botInstanceQ,
       botProcessedTodayQ,
+      botLastSeenQ,
     ] = await Promise.all([
       db.execute(sql`SELECT COUNT(*)::int AS n FROM appointments WHERE tenant_id = ${tenantId}::uuid AND date = ${today}`),
       db.execute(sql`SELECT COUNT(*)::int AS n FROM appointments WHERE tenant_id = ${tenantId}::uuid AND date = ${yesterday}`),
@@ -153,10 +154,13 @@ export async function GET() {
       `),
       // bot_instances has: id, tenant_id, channel, provider, external_bot_id,
       // external_phone_number_id, status, config (jsonb), created_at, updated_at.
-      // We use updated_at as a heartbeat proxy — the worker bumps it when it
-      // touches the row. There's no explicit last_seen_at column.
+      // No explicit last_seen_at column — the real heartbeat lives in
+      // `messages` (outbound + sender_type='bot'). We resolve "online" via
+      // status='active' (the only enabled state in the codebase) AND a
+      // recent bot-sent message; the bot_instances row gives us the
+      // configured/enabled flag.
       db.execute(sql`
-        SELECT id, status, updated_at, (config ? 'verify_token') AS has_verify
+        SELECT id, status, (config ? 'verify_token') AS has_verify
         FROM bot_instances
         WHERE tenant_id = ${tenantId}::uuid
         ORDER BY created_at DESC LIMIT 1
@@ -166,6 +170,16 @@ export async function GET() {
         FROM messages m
         INNER JOIN conversations c ON c.id = m.conversation_id
         WHERE c.tenant_id = ${tenantId}::uuid AND m.created_at::date = CURRENT_DATE
+      `),
+      // Real heartbeat — most recent outbound bot message across any
+      // conversation for this tenant. NULL when the bot has never spoken.
+      db.execute(sql`
+        SELECT MAX(m.created_at) AS last_seen_at
+        FROM messages m
+        INNER JOIN conversations c ON c.id = m.conversation_id
+        WHERE c.tenant_id = ${tenantId}::uuid
+          AND m.direction = 'outbound'
+          AND m.sender_type = 'bot'
       `),
     ])
 
@@ -249,20 +263,25 @@ export async function GET() {
       bot: (() => {
         const row = rowsAsArray(botInstanceQ)[0]
         const processed = first(botProcessedTodayQ).n ?? 0
+        const lastSeenAt = first(botLastSeenQ).last_seen_at as string | null | undefined
         if (!row) {
           return { online: false, status: 'no_bot', processedToday: processed, lastSeenAt: null }
         }
-        // online ≡ status === 'live' AND updated within the last 30 minutes
-        // (updated_at acts as a soft heartbeat — bumped on every config save
-        //  + every webhook touch; not a perfect "last message" timestamp).
-        const lastSeen = row.updated_at ? new Date(row.updated_at) : null
-        const fresh = lastSeen ? Date.now() - lastSeen.getTime() < 1000 * 60 * 30 : false
-        const isOnline = row.status === 'live' && fresh
+        // "online" === bot is configured + enabled.
+        //
+        // The worker process is always running on the VPS; once a tenant's
+        // bot_instances row is `active` (the only enabled value in the
+        // codebase — see scripts/worker.ts and scripts/campaign-worker.ts),
+        // the bot is functionally online. `lastSeenAt` (most recent
+        // outbound bot message) is the freshness signal shown to the user
+        // in the pill, but it doesn't gate the online/offline boolean —
+        // a brand-new bot that hasn't replied yet should still show online.
+        const isOnline = row.status === 'active'
         return {
           online: isOnline,
           status: row.status ?? 'unknown',
           processedToday: processed,
-          lastSeenAt: row.updated_at ?? null,
+          lastSeenAt: lastSeenAt ?? null,
         }
       })(),
     })
