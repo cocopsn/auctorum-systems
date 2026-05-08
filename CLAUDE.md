@@ -94,6 +94,14 @@ Rutas estáticas que el middleware DEBE excluir del rewrite:
   permitidos — un test que no falla cuando debería es peor que no tener test.
 - SIEMPRE usar `zod` para validar inputs en API routes.
 - SIEMPRE wrappear handlers en `try/catch` y devolver 500 limpio (no stack).
+- SIEMPRE usar el API `cookies: { getAll, setAll }` con `@supabase/ssr@0.10+`
+  (NO el legacy `get/set/remove` — falla silenciosamente con sessions chunked
+  > 4 KB). Patrón en `apps/medconcierge/src/middleware.ts`.
+- SIEMPRE usar `supabase.auth.getUser()` (server-validado) en lugar de
+  `getSession()` (cookie-trusted) en server routes y server components.
+- SIEMPRE proveer fallback `OBJ[key] ?? OBJ.default` cuando indexes un
+  Record-style enum-keyed map en una página dashboard. Un valor enum nuevo
+  + UI vieja → undefined.tone → "Application error" en blanco.
 - SIEMPRE wrappear llamadas a Google Calendar con `calendarWithFallback` para
   que las fallas se cuelen en `pending_calendar_ops` y el cron las re-intente.
 - SIEMPRE pasar acciones rate-limit-sensibles por `checkAndTrackUsage` con

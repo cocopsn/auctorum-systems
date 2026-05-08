@@ -150,6 +150,19 @@ auctorum-systems/
 - 188 vitest assertions (unit + integration + AI guard) running in ~2 s,
   plus an e2e suite against the deployed VPS and a daily SQL integrity
   audit (`pnpm test:integrity`)
+- Mayo 7 audit pass (6 reports en `docs/archive/*-2026-05-07.md`):
+  - Login bug arreglado (cookies API → `getAll/setAll` para chunked
+    sessions de `@supabase/ssr@0.10`)
+  - `/leads` + `/documentos` "Application error" arreglado (StatusBadge
+    con fallback + dashboard `error.tsx` boundary + DASHBOARD_ROUTES)
+  - 4 fixes críticos de seguridad: `/api/admin/queue` gated,
+    `/superadmin` gated, MercadoPago webhook timestamp freshness,
+    web auth `getUser()` en lugar de cookie-trusted `getSession()`
+  - ~1,544 LOC de código muerto eliminado (`packages/ai/src/` abandonado,
+    `ai-with-functions.ts`, `whatsapp-functions.ts`, `safe-cookie-get.ts`,
+    `apps/web/lib/{tenant-cache,image-validation,pdf-signature,cn}.ts`)
+  - Bot messages + FAQs cableados end-to-end al cron de recordatorios y al
+    RAG `knowledge_base`
 
 ## Licencia y autoría
 

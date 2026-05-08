@@ -19,6 +19,12 @@ Para el estado actual ver:
 | `QA-AUTHENTICATED-REPORT-2026-04.md`     | 2026-04        | QA con sesión autenticada                    |
 | `DEMO-SCRIPT-2026-04.md`                 | 2026-04-14     | Script de demo a Marco — branch v2-premium   |
 | `AUDIT-REPORT-2026-05-06.md`             | 2026-05-06     | Codebase audit — dead code removal + dep prune |
+| `ROUTE-AUDIT-2026-05-07.md`              | 2026-05-07     | 63 UI pages + 150 API routes inventoried     |
+| `INCOMPLETE-FEATURES-AUDIT-2026-05-07.md`| 2026-05-07     | Portal builder + 3 duplicate bot config surfaces |
+| `AI-AGENT-WIRING-AUDIT-2026-05-07.md`    | 2026-05-07     | Prompt UI → DB → worker chain trace          |
+| `DASHBOARD-CRASH-AUDIT-2026-05-07.md`    | 2026-05-07     | Root cause for /leads /documentos crash      |
+| `SECURITY-AUDIT-2026-05-07.md`           | 2026-05-07     | Auth bypass + CSRF gaps + replay attacks     |
+| `DEAD-CODE-2026-05-07.md`                | 2026-05-07     | Orphaned helpers — 1,544 LOC removed         |
 
 **Detalles desactualizados conocidos en estos archivos:**
 - IP del VPS (los reports mencionan `142.93.199.126` o `164.92.84.127` —
