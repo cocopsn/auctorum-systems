@@ -151,8 +151,12 @@ export async function GET() {
         ORDER BY at DESC
         LIMIT 10
       `),
+      // bot_instances has: id, tenant_id, channel, provider, external_bot_id,
+      // external_phone_number_id, status, config (jsonb), created_at, updated_at.
+      // We use updated_at as a heartbeat proxy — the worker bumps it when it
+      // touches the row. There's no explicit last_seen_at column.
       db.execute(sql`
-        SELECT id, status, last_seen_at, verify_token IS NOT NULL AS has_verify
+        SELECT id, status, updated_at, (config ? 'verify_token') AS has_verify
         FROM bot_instances
         WHERE tenant_id = ${tenantId}::uuid
         ORDER BY created_at DESC LIMIT 1
@@ -182,7 +186,6 @@ export async function GET() {
 
     return NextResponse.json({
       greeting: greetingFor(new Date()),
-      today,
       tenantName: auth.tenant.name,
       kpis: {
         citasHoy: {
@@ -249,13 +252,17 @@ export async function GET() {
         if (!row) {
           return { online: false, status: 'no_bot', processedToday: processed, lastSeenAt: null }
         }
-        const lastSeen = row.last_seen_at ? new Date(row.last_seen_at) : null
-        const isOnline = lastSeen ? Date.now() - lastSeen.getTime() < 1000 * 60 * 30 : false
+        // online ≡ status === 'live' AND updated within the last 30 minutes
+        // (updated_at acts as a soft heartbeat — bumped on every config save
+        //  + every webhook touch; not a perfect "last message" timestamp).
+        const lastSeen = row.updated_at ? new Date(row.updated_at) : null
+        const fresh = lastSeen ? Date.now() - lastSeen.getTime() < 1000 * 60 * 30 : false
+        const isOnline = row.status === 'live' && fresh
         return {
           online: isOnline,
           status: row.status ?? 'unknown',
           processedToday: processed,
-          lastSeenAt: row.last_seen_at,
+          lastSeenAt: row.updated_at ?? null,
         }
       })(),
     })
