@@ -4,10 +4,28 @@ import { db, users, tenants } from '@quote-engine/db'
 import type { User, Tenant } from '@quote-engine/db'
 import { createSupabaseServer } from './supabase-ssr'
 
+/**
+ * Returns a session-like object validated against Supabase Auth (NOT
+ * trusted from cookie alone).
+ *
+ *   - `auth.getSession()` reads the cookie and parses it locally — fast
+ *     but trusts the contents. A leaked / forged token is accepted.
+ *   - `auth.getUser()` calls Supabase's `/auth/v1/user` over HTTPS with
+ *     the access_token, so the server-side cryptographic check happens.
+ *
+ * The medconcierge app already uses getUser() (see apps/medconcierge/src/
+ * lib/auth.ts). The web app was the last consumer of the unsafe path.
+ */
 export async function getSession() {
   const supabase = createSupabaseServer()
-  const { data: { session } } = await supabase.auth.getSession()
-  return session
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return null
+    // Mimic the prior session shape so call sites stay unchanged.
+    return { user } as unknown as { user: { id: string; email: string | null } }
+  } catch {
+    return null
+  }
 }
 
 export async function requireAuth(): Promise<{ user: User; tenant: Tenant }> {

@@ -322,7 +322,7 @@ export default function DocumentsPage() {
                     <p className="text-sm font-medium text-slate-900">{r.fileName}</p>
                     <p className="text-xs text-slate-500">
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-700">
-                        {TYPE_LABEL[r.analysisType]}
+                        {TYPE_LABEL[r.analysisType] ?? 'Otro'}
                       </span>{' '}
                       {r.summary}
                     </p>
@@ -477,7 +477,7 @@ export default function DocumentsPage() {
                             : 'bg-amber-100 text-amber-700'
                       }`}
                     >
-                      {STATUS_LABEL[d.status]}
+                      {STATUS_LABEL[d.status] ?? d.status}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-500">

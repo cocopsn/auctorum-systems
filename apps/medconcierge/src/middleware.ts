@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
-import { safeGetAuthCookie } from '@/lib/safe-cookie-get'
 import { withAuthCookieDomain } from '@/lib/auth-cookie'
 
 const DASHBOARD_ROUTES = [
@@ -9,6 +8,11 @@ const DASHBOARD_ROUTES = [
   '/recordatorios', '/funnel', '/reports', '/reportes', '/follow-ups', '/budgets',
   '/payments', '/invoices', '/campaigns', '/dashboard', '/admin', '/onboarding',
   '/pagos',
+  // Newer dashboard surfaces — without these in the list, on a tenant
+  // subdomain (`dr-*.auctorum.com.mx`) the middleware rewrites `/leads`
+  // to `/<tenant>/leads`, which 404s and renders the user-facing
+  // "Application error" overlay.
+  '/leads', '/documentos',
 ]
 
 function isDashboardRoute(pathname: string): boolean {

@@ -373,10 +373,16 @@ function SourceBadge({ source }: { source: LeadSource }) {
 }
 
 function StatusBadge({ status }: { status: LeadStatus }) {
-  const meta = STATUS_META[status]
+  // Defensive lookup — if the DB ever returns a status string outside
+  // LEAD_STATUSES (older row, manual SQL change, future enum addition not
+  // yet shipped to UI), fall back to the 'new' style instead of crashing
+  // with `Cannot read property 'tone' of undefined` (which manifests as
+  // "Application error: a client-side exception" — the page goes blank).
+  const meta = STATUS_META[status] ?? STATUS_META.new
+  const label = STATUS_META[status]?.label ?? String(status ?? '?')
   return (
     <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${meta.tone}`}>
-      {meta.label}
+      {label}
     </span>
   )
 }

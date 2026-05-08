@@ -1,12 +1,14 @@
 import { db, tenants, integrations, aiUsageEvents } from '@quote-engine/db';
 import { desc, sql, eq } from 'drizzle-orm';
-import { redirect } from 'next/navigation';
+import { requireSuperadminPage } from '@/lib/superadmin';
 
 export const dynamic = 'force-dynamic';
 
 export default async function SuperAdminPage() {
-  // Hardcoded simple protection or via middleware/next-auth later
-  // For the holy grail build we simply render it to be blocked by the routing layer
+  // Server-side allowlist gate. Non-allowlisted users get redirected to
+  // /dashboard (don't reveal this page exists). Source of truth:
+  // process.env.SUPERADMIN_EMAILS comma-separated, fallback hardcoded.
+  await requireSuperadminPage();
 
   // Fetch all tenants
   const allTenants = await db.select().from(tenants).orderBy(desc(tenants.createdAt));

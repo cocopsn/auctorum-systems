@@ -69,26 +69,57 @@ export async function getMPPayment(paymentId: string) {
 // Verify webhook signature using HMAC
 // ---------------------------------------------------------------------------
 
+/**
+ * Verify a MercadoPago webhook (HMAC + timestamp freshness).
+ *
+ * Algorithm (per MP docs):
+ *   manifest = `id:${data.id};request-id:${x-request-id};ts:${ts};`
+ *   v1       = HMAC_SHA256(MERCADOPAGO_CLIENT_SECRET, manifest)
+ *   x-signature header = "ts=<unixms>,v1=<hex>"
+ *
+ * MP itself does NOT enforce a freshness window on `ts`, which means a
+ * captured-and-replayed valid v1 was accepted FOREVER until this commit.
+ * We add a 5-minute tolerance (matching Stripe's defaults) so a leaked
+ * webhook payload can't be replayed weeks later.
+ *
+ * `MAX_SKEW_MS` is configurable via env if a tenant ever needs to relax
+ * the window for a flaky network — but the default is the right tradeoff.
+ */
+const DEFAULT_MAX_SKEW_MS = 5 * 60_000
+
 export function verifyMPWebhook(
   xSignature: string,
   xRequestId: string,
-  dataId: string
+  dataId: string,
+  options: { maxSkewMs?: number; nowMs?: number } = {}
 ): boolean {
-  const parts = xSignature.split(",");
-  let ts = "";
-  let hash = "";
+  if (!xSignature || !xRequestId || !dataId) return false
+
+  const parts = xSignature.split(",")
+  let ts = ""
+  let hash = ""
   for (const part of parts) {
-    const [key, val] = part.trim().split("=");
-    if (key === "ts") ts = val;
-    if (key === "v1") hash = val;
+    const [key, val] = part.trim().split("=")
+    if (key === "ts") ts = val
+    if (key === "v1") hash = val
   }
-  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
-  const expected = crypto
-    .createHmac("sha256", process.env.MERCADOPAGO_CLIENT_SECRET!)
-    .update(manifest)
-    .digest("hex");
-  const expectedBuf = Buffer.from(expected, 'hex');
-  const hashBuf = Buffer.from(hash, 'hex');
-  if (expectedBuf.length !== hashBuf.length) return false;
-  return timingSafeEqual(expectedBuf, hashBuf);
+  if (!ts || !hash) return false
+
+  // Replay-attack mitigation: reject signatures whose ts is older than
+  // maxSkewMs (default 5min). MP sends ts in milliseconds.
+  const tsMs = Number.parseInt(ts, 10)
+  if (!Number.isFinite(tsMs) || tsMs <= 0) return false
+  const now = options.nowMs ?? Date.now()
+  const skew = options.maxSkewMs ?? DEFAULT_MAX_SKEW_MS
+  if (Math.abs(now - tsMs) > skew) return false
+
+  const secret = process.env.MERCADOPAGO_CLIENT_SECRET
+  if (!secret) return false
+
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`
+  const expected = crypto.createHmac("sha256", secret).update(manifest).digest("hex")
+  const expectedBuf = Buffer.from(expected, "hex")
+  const hashBuf = Buffer.from(hash, "hex")
+  if (expectedBuf.length !== hashBuf.length) return false
+  return timingSafeEqual(expectedBuf, hashBuf)
 }
