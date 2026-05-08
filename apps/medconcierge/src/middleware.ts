@@ -153,10 +153,11 @@ async function handleRequest(request: NextRequest) {
     return response
   }
 
-  // 6. /dashboard redirect
-  if (pathname === '/dashboard' || pathname === '/dashboard/') {
-    return NextResponse.redirect(new URL("/", realOrigin))
-  }
+  // 6. /dashboard renders the (dashboard)/dashboard/page.tsx — no redirect.
+  // Pre-2026-05-07 this redirected to '/', the landing splash, so clicking
+  // the sidebar 'Dashboard' bounced users to the marketing page. The
+  // dashboard now lives at the explicit /dashboard URL so '/' can stay
+  // as the splash + tenant landing entry point.
 
   // 7. Dashboard routes - require auth
   const response = NextResponse.next()
