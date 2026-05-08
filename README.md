@@ -133,6 +133,7 @@ auctorum-systems/
 | `docs/TESTING.md`                      | Vitest layout, what's covered, how to add tests|
 | `docs/CLOUDFLARE-EMAIL-ROUTING.md`     | Rutas de email entrante                        |
 | `docs/SUPABASE-AUTH-TEMPLATES.md`      | Plantillas de magic link                       |
+| `docs/ONBOARDING.md`                   | Paso a paso para provisionar un tenant nuevo   |
 | `brand-identity.md`                    | Paleta, tipografía, copy                       |
 | `apps/mobile/README.md`                | Expo + EAS para la app nativa                  |
 | `docs/archive/`                        | Auditorías y QA reports históricos             |
@@ -163,6 +164,31 @@ auctorum-systems/
     `apps/web/lib/{tenant-cache,image-validation,pdf-signature,cn}.ts`)
   - Bot messages + FAQs cableados end-to-end al cron de recordatorios y al
     RAG `knowledge_base`
+- Mayo 8 fix pass (4 commits encadenados):
+  - `/api/dashboard/stats` queryeaba columnas inexistentes en `bot_instances`
+    (`last_seen_at`, `verify_token`) — el dashboard tronaba en cada carga.
+    `bot_instances` solo tiene `id, tenant_id, channel, provider,
+    external_*_id, status, config, created_at, updated_at`. Verify token
+    vive en `config` JSONB.
+  - Bot pill mostraba siempre `offline`: el código comparaba `status='live'`
+    pero los workers escriben `'active'`. Heartbeat ahora es real
+    (`MAX(messages.created_at)` con `sender_type='bot'`).
+  - WhatsApp dejó de responder por 403 invalid HMAC: la migración
+    `0040_ai_routing_seed.sql` deja `channel_mode='shared'` y delega los
+    secretos a env, pero el resolver del webhook sólo leía
+    `bot_instances.config.app_secret`. Fix: fallback a
+    `process.env.WHATSAPP_APP_SECRET` (mismo patrón para verify_token).
+  - Notificaciones: el bell renderizaba `n.body` pero la columna real es
+    `notifications.message`. Cuerpos de notificación ahora visibles.
+  - Conversaciones nameless: las 30 del seed no tenían `client_id`. Ahora
+    cada paciente del seed se espeja en `clients` y la conversación se
+    enlaza. 43/46 con nombre real (las 3 restantes son tests reales).
+  - Reportes: `/api/dashboard/reports/{revenue,appointments}` faltaba
+    `::uuid`/`::date` en los params raw — mismo bug class que stats.
+  - Seed completo de un mes para `dra-martinez`: 30 patients + 85
+    appointments + 51 payments + 30 conversations + 25 ad_leads + 18
+    documents + 105 patient_communications, idempotente vía marcadores
+    (`scripts/seed-dra-martinez-month.ts`).
 
 ## Licencia y autoría
 

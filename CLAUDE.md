@@ -30,6 +30,8 @@ scripts/
   cron-*.ts             → 5 crons (reminders, calendar-sync, calendar-pending,
                           campaigns, webhook-retries)
   generate-pwa-icons.mjs → Genera íconos PWA con sharp
+  seed-kb-dra-martinez.ts        → Embeddings KB para el bot RAG
+  seed-dra-martinez-month.ts     → Mes de actividad realista (idempotente)
 ```
 
 ## Comandos
@@ -106,6 +108,31 @@ Rutas estáticas que el middleware DEBE excluir del rewrite:
   que las fallas se cuelen en `pending_calendar_ops` y el cron las re-intente.
 - SIEMPRE pasar acciones rate-limit-sensibles por `checkAndTrackUsage` con
   el plan del tenant.
+- SIEMPRE castear params en `db.execute(sql\`...\`)` cuando comparas contra
+  columnas tipadas. `tenant_id = ${id}::uuid`, `date BETWEEN ${from}::date AND
+  ${to}::date`. `postgres-js` envía params como `text`; uuid/date = text falla
+  en algunas configs del pooler (rompió `/api/dashboard/stats` el 2026-05-07
+  y `/api/dashboard/reports/{revenue,appointments}` el 2026-05-08). Drizzle
+  `eq()` y `between()` ya tipan, sólo `sql\`...\`` raw requiere el cast.
+- SIEMPRE escribir SQL contra el schema EXACTO de Drizzle, no contra columnas
+  inventadas. `bot_instances` no tiene `last_seen_at` ni `verify_token` como
+  columnas — `verify_token` vive en `config` JSONB (`config ? 'verify_token'`).
+  Antes de escribir un SELECT contra una tabla nueva, lee
+  `packages/db/schema/<tabla>.ts`.
+- SIEMPRE comparar bot status con `'active'` (el único valor que escribe
+  `worker.ts` y `campaign-worker.ts`), NO con `'live'`. Heartbeat real para el
+  pill viene de `MAX(messages.created_at) WHERE direction='outbound' AND
+  sender_type='bot'`, no de `bot_instances.updated_at` (que sólo se mueve al
+  guardar config).
+- SIEMPRE proveer fallback a env vars cuando el código lee secretos de
+  `bot_instances.config`. Migración `0040_ai_routing_seed.sql` guarda
+  `channel_mode='shared'` y deja vacíos `app_secret`/`verify_token` esperando
+  que vengan de env. Sin el fallback, el webhook devuelve 403 invalid HMAC
+  para todos los mensajes de Meta. Patrón:
+  `cfg.app_secret ?? process.env.WHATSAPP_APP_SECRET`.
+- SIEMPRE conectar a la VPS por SSH **puerto 2222** (no 22 default), usuario
+  `root`. La app vive en `/opt/auctorum-systems/repo` (no `/var/www`). PM2
+  corre como usuario `auctorum` (`HOME=/home/auctorum`), no root.
 - PM2 script path: `node_modules/next/dist/bin/next` (NO `.bin/next`).
 - CERO `TODO/FIXME/XXX/HACK` markers en `apps/`, `packages/`, `scripts/`. Si
   algo no se puede completar, se elimina; no se deja como TODO.
@@ -202,6 +229,8 @@ Ver `docs/ADS-LEADS.md` para setup completo en Meta App + Google Ads.
   cómo agregar tests sin caer en placebos
 - `docs/CLOUDFLARE-EMAIL-ROUTING.md` — rutas de email entrante
 - `docs/SUPABASE-AUTH-TEMPLATES.md` — plantillas de magic link
+- `docs/ONBOARDING.md` — paso a paso para provisionar un cliente nuevo
+  (ruta corta vía script + ruta larga manual + variantes + troubleshooting)
 - `brand-identity.md` — identidad, paleta, tipografía, copy
 - `apps/mobile/README.md` — Expo + EAS para la app nativa
 - `docs/archive/` — auditorías y QA reports históricos (NO son fuente de verdad)

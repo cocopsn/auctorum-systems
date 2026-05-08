@@ -29,6 +29,11 @@ export async function GET(req: NextRequest) {
 
     // generate_series gives one row per day in the range; LEFT JOIN payments
     // so days with zero revenue still appear with amount=0.
+    //
+    // The ::uuid cast on the param is mandatory — postgres-js passes
+    // strings as text, and `tenant_id = $1` (uuid = text) fails coercion
+    // in some pooler configs. /api/dashboard/stats/route.ts hit the same
+    // class of bug, hence the explicit cast pattern.
     const rows = await db.execute(sql`
       SELECT
         d::date::text AS date,
@@ -36,7 +41,7 @@ export async function GET(req: NextRequest) {
         COALESCE(COUNT(p.id), 0)::int AS count
       FROM generate_series(${from}::date, ${to}::date, '1 day') AS d
       LEFT JOIN patient_payments p
-        ON p.tenant_id = ${tenantId}
+        ON p.tenant_id = ${tenantId}::uuid
        AND p.status = 'succeeded'
        AND p.created_at::date = d::date
       GROUP BY d

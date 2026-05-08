@@ -28,12 +28,16 @@ export async function GET(req: NextRequest) {
 
     const tenantId = auth.tenant.id
 
+    // Explicit ::uuid cast on tenant_id and ::date casts on date params
+    // — postgres-js sends params as text, and uuid = text / date = text
+    // coercion fails on some pooler configs (same issue that broke
+    // /api/dashboard/stats — see that route's bot_instances comment).
     const [statusQ, doctorQ, weekdayQ] = await Promise.all([
       db.execute(sql`
         SELECT status, COUNT(*)::int AS count
         FROM appointments
-        WHERE tenant_id = ${tenantId}
-          AND date BETWEEN ${from} AND ${to}
+        WHERE tenant_id = ${tenantId}::uuid
+          AND date BETWEEN ${from}::date AND ${to}::date
         GROUP BY status
         ORDER BY count DESC
       `),
@@ -41,16 +45,16 @@ export async function GET(req: NextRequest) {
         SELECT COALESCE(d.name, '(sin asignar)') AS doctor, COUNT(*)::int AS count
         FROM appointments a
         LEFT JOIN doctors d ON a.doctor_id = d.id
-        WHERE a.tenant_id = ${tenantId}
-          AND a.date BETWEEN ${from} AND ${to}
+        WHERE a.tenant_id = ${tenantId}::uuid
+          AND a.date BETWEEN ${from}::date AND ${to}::date
         GROUP BY d.name
         ORDER BY count DESC
       `),
       db.execute(sql`
         SELECT EXTRACT(DOW FROM date::date)::int AS weekday, COUNT(*)::int AS count
         FROM appointments
-        WHERE tenant_id = ${tenantId}
-          AND date BETWEEN ${from} AND ${to}
+        WHERE tenant_id = ${tenantId}::uuid
+          AND date BETWEEN ${from}::date AND ${to}::date
         GROUP BY weekday
         ORDER BY weekday
       `),
