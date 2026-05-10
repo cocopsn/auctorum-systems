@@ -49,84 +49,14 @@ interface FieldDefinition {
 // Channel definitions
 // ---------------------------------------------------------------------------
 
-const CHANNELS: ChannelDefinition[] = [
-  {
-    key: 'whatsapp',
-    name: 'WhatsApp Business',
-    description: 'Mensajeria directa con clientes',
-    icon: MessageCircle,
-    fields: [
-      { key: 'phone_number_id', label: 'Phone Number ID', type: 'text', placeholder: 'Ej: 123456789012345' },
-      { key: 'access_token', label: 'Access Token', type: 'password', placeholder: 'Tu token de acceso de WhatsApp Business API' },
-      {
-        key: 'webhook_url',
-        label: 'Webhook URL',
-        type: 'text',
-        readonly: true,
-        defaultValue: '/api/webhooks/whatsapp',
-      },
-    ],
-  },
-  {
-    key: 'telegram',
-    name: 'Telegram',
-    description: 'Bot de Telegram',
-    icon: Send,
-    fields: [
-      { key: 'bot_token', label: 'Bot Token', type: 'password', placeholder: 'Token de tu bot de BotFather' },
-    ],
-  },
-  {
-    key: 'messenger',
-    name: 'Facebook Messenger',
-    description: 'Mensajes de Facebook',
-    icon: MessageSquare,
-    fields: [
-      { key: 'page_access_token', label: 'Page Access Token', type: 'password', placeholder: 'Token de acceso de tu pagina de Facebook' },
-    ],
-  },
-  // Instagram DMs config lives at /settings/instagram (writes to the
-  // integrations table, consumed by /api/webhooks/instagram + the unified
-  // Conversaciones inbox). The channels JSONB had no consumer.
-  {
-    key: 'webchat',
-    name: 'Chat Web',
-    description: 'Widget para tu pagina web',
-    icon: Globe,
-    fields: [
-      { key: 'color', label: 'Color del Widget', type: 'color', defaultValue: '#4f46e5' },
-      {
-        key: 'embed_code',
-        label: 'Codigo de Integracion',
-        type: 'textarea',
-        readonly: true,
-        defaultValue: '<script src="https://app.auctorum.ai/widget.js" data-tenant="TU_TENANT_ID"></script>',
-      },
-    ],
-  },
-  {
-    key: 'calls',
-    name: 'Llamadas',
-    description: 'IA por telefono via Twilio',
-    icon: Phone,
-    fields: [
-      { key: 'account_sid', label: 'Account SID', type: 'text', placeholder: 'Twilio Account SID' },
-      { key: 'auth_token', label: 'Auth Token', type: 'password', placeholder: 'Twilio Auth Token' },
-      { key: 'phone_number', label: 'Phone Number', type: 'text', placeholder: '+52...' },
-    ],
-  },
-  {
-    key: 'sms',
-    name: 'SMS',
-    description: 'Chatbot por SMS via Twilio',
-    icon: MessageSquare,
-    fields: [
-      { key: 'account_sid', label: 'Account SID', type: 'text', placeholder: 'Twilio Account SID' },
-      { key: 'auth_token', label: 'Auth Token', type: 'password', placeholder: 'Twilio Auth Token' },
-      { key: 'phone_number', label: 'Phone Number', type: 'text', placeholder: '+52...' },
-    ],
-  },
-];
+// Pre-2026-05-10 this list had Telegram, Messenger, Web Chat, Twilio
+// Calls and Twilio SMS — none had webhook handlers, so saving any token
+// was decorative (the doctor would wait for messages that never came).
+// WhatsApp's canonical config also lives in `bot_instances` (worker
+// reads from there), so the form here was effectively a write-only
+// shadow. Removed all of them. The Instagram DM inbox lives at
+// /settings/instagram with its own webhook handler.
+const CHANNELS: ChannelDefinition[] = []
 
 // ---------------------------------------------------------------------------
 // Component
@@ -256,6 +186,55 @@ export default function ChannelsSettingsPage() {
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
+        </div>
+      )}
+
+      {/* Empty-state pointer to where each working channel actually lives. */}
+      {CHANNELS.length === 0 && (
+        <div className="rounded-xl border border-gray-100 bg-white shadow-sm p-6 space-y-4">
+          <p className="text-sm text-gray-700">
+            Los canales activos del concierge tienen su propia pantalla de
+            configuración:
+          </p>
+          <ul className="space-y-3 text-sm">
+            <li className="flex items-start gap-3">
+              <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-md bg-emerald-50 text-emerald-600">
+                <MessageCircle className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="font-medium text-gray-900">WhatsApp Business</p>
+                <p className="text-gray-500">
+                  Vive en{' '}
+                  <a href="/ai-settings" className="text-indigo-600 underline">
+                    /ai-settings
+                  </a>{' '}
+                  y en la fila correspondiente de{' '}
+                  <code className="rounded bg-gray-100 px-1">bot_instances</code>{' '}
+                  (gestionada por el equipo de Auctorum durante el alta del
+                  consultorio).
+                </p>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="mt-0.5 inline-flex h-7 w-7 items-center justify-center rounded-md bg-pink-50 text-pink-600">
+                <MessageSquare className="h-4 w-4" />
+              </span>
+              <div>
+                <p className="font-medium text-gray-900">Instagram DM</p>
+                <p className="text-gray-500">
+                  Configúralo en{' '}
+                  <a href="/settings/instagram" className="text-indigo-600 underline">
+                    /settings/instagram
+                  </a>
+                  . Los DMs llegan al inbox unificado en{' '}
+                  <a href="/conversaciones" className="text-indigo-600 underline">
+                    /conversaciones
+                  </a>
+                  .
+                </p>
+              </div>
+            </li>
+          </ul>
         </div>
       )}
 

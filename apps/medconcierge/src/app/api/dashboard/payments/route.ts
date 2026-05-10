@@ -6,6 +6,7 @@ import { db, payments, clients } from '@quote-engine/db';
 import { eq, and, desc, gte, lte, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { validateOrigin } from '@/lib/csrf'
+import { validateForeignIds, CrossTenantError } from '@/lib/tenant-validation'
 
 // ---------------------------------------------------------------------------
 // GET /api/dashboard/payments
@@ -118,6 +119,21 @@ export async function POST(request: NextRequest) {
   }
 
   const data = parsed.data;
+
+  // Verify every FK in the body belongs to this tenant before insert.
+  // The schema constraint already prevents bad UUIDs but doesn't catch
+  // valid UUIDs that point at another tenant's records.
+  try {
+    await validateForeignIds(auth.tenant.id, [
+      { kind: 'client', id: data.clientId },
+      { kind: 'patient', id: data.patientId },
+      { kind: 'budget', id: data.budgetId },
+      { kind: 'quote', id: data.linkedQuoteId },
+    ])
+  } catch (err) {
+    if (err instanceof CrossTenantError) return NextResponse.json({ error: `${err.entity} no encontrado` }, { status: 404 })
+    throw err
+  }
 
   const [payment] = await db
     .insert(payments)

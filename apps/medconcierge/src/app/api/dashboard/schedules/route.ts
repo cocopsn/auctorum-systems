@@ -46,16 +46,26 @@ export async function PUT(request: NextRequest) {
     }
     const { schedules: newSchedules } = parsed.data;
 
-    if (false) {
-      return NextResponse.json({ error: 'Invalid data' }, { status: 400 })
-    }
+    // Soft-replace instead of hard delete + reinsert. Pre-2026-05-10 this
+    // route ran `db.delete()` against tenant business data on every save,
+    // breaking CLAUDE.md's "no DELETE on business data" rule and wiping
+    // schedule history that other features (eg. schedule_blocks audit,
+    // analytics on shift changes) might want to inspect later.
+    //
+    // New approach: deactivate every existing row, then upsert each
+    // requested row to (tenant_id, day_of_week, start_time) which is
+    // already a unique index. Old rows for days that aren't in the new
+    // payload simply stay deactivated; rows that ARE in the payload come
+    // back active with their fresh end_time / slot_duration / location.
+    await db
+      .update(schedules)
+      .set({ isActive: false })
+      .where(eq(schedules.tenantId, tenantId))
 
-    // Delete existing and reinsert
-    await db.delete(schedules).where(eq(schedules.tenantId, tenantId))
-
-    if (newSchedules.length > 0) {
-      await db.insert(schedules).values(
-        newSchedules.map((s) => ({
+    for (const s of newSchedules) {
+      await db
+        .insert(schedules)
+        .values({
           tenantId,
           dayOfWeek: s.dayOfWeek,
           startTime: s.startTime,
@@ -63,8 +73,16 @@ export async function PUT(request: NextRequest) {
           slotDurationMin: s.slotDurationMin ?? 30,
           isActive: s.isActive ?? true,
           location: s.location ?? null,
-        }))
-      )
+        })
+        .onConflictDoUpdate({
+          target: [schedules.tenantId, schedules.dayOfWeek, schedules.startTime],
+          set: {
+            endTime: s.endTime,
+            slotDurationMin: s.slotDurationMin ?? 30,
+            isActive: s.isActive ?? true,
+            location: s.location ?? null,
+          },
+        })
     }
 
     const result = await db

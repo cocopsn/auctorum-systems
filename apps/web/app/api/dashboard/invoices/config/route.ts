@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthTenant } from '@/lib/auth';
 import { db, tenants } from '@quote-engine/db';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 // ---------------------------------------------------------------------------
@@ -13,9 +13,15 @@ export async function GET() {
   const auth = await getAuthTenant();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const [row] = await db.execute(
-    sql`SELECT invoiceConfig FROM tenants WHERE id = ${auth.tenant.id}`,
-  );
+  // Typed Drizzle select — DB column is `invoice_config` (snake_case);
+  // the camelCase `invoiceConfig` schema field maps to it. Raw SQL with
+  // the camelCase identifier 500s with "column 'invoiceconfig' does not
+  // exist". Same fix applied in the medconcierge twin route.
+  const [row] = await db
+    .select({ invoiceConfig: tenants.invoiceConfig })
+    .from(tenants)
+    .where(eq(tenants.id, auth.tenant.id))
+    .limit(1);
 
   return NextResponse.json({
     invoiceConfig: row?.invoiceConfig ?? null,

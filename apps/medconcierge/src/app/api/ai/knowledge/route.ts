@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { deleteKnowledgeFile, listKnowledgeFiles, uploadKnowledgeFile } from '@quote-engine/ai';
 import { getAuthTenant } from '@/lib/auth';
+import { validateOrigin } from '@/lib/csrf';
 
 export async function GET() {
   const auth = await getAuthTenant();
@@ -11,6 +12,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
   const auth = await getAuthTenant();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const form = await request.formData();
@@ -25,6 +27,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  if (!validateOrigin(request)) return NextResponse.json({ error: 'CSRF validation failed' }, { status: 403 });
   const auth = await getAuthTenant();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const id = new URL(request.url).searchParams.get('id');

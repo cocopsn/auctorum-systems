@@ -11,7 +11,6 @@ import { eq, and, sql } from 'drizzle-orm'
 import { sendWhatsAppMessage } from '@quote-engine/notifications/whatsapp'
 import { formatBotMessage } from '../apps/medconcierge/src/lib/bot-messages'
 
-const MAX_REMINDER_RETRIES = 3  // L-5: Max retries before giving up
 const DEFAULT_TIMEZONE = 'America/Monterrey'
 
 /**
@@ -21,6 +20,11 @@ const DEFAULT_TIMEZONE = 'America/Monterrey'
  * must use the same local time, NOT UTC.
  */
 function formatLocalTimestamp(date: Date, tz: string = DEFAULT_TIMEZONE): string {
+  // hourCycle: 'h23' forces midnight to render as 00:xx (NOT 24:xx).
+  // Without this, en-CA + hour12:false produces "24:45:00" near midnight,
+  // which Postgres rejects as "date/time field value out of range" and the
+  // cron crashes silently on every run for ~30 minutes around midnight.
+  // Regression bug since at least 2026-05-06; fixed 2026-05-10.
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: tz,
     year: 'numeric',
@@ -29,7 +33,7 @@ function formatLocalTimestamp(date: Date, tz: string = DEFAULT_TIMEZONE): string
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-    hour12: false,
+    hourCycle: 'h23',
   }).formatToParts(date)
 
   const get = (type: string) => parts.find(p => p.type === type)?.value || ''

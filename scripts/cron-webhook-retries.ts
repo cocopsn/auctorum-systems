@@ -4,26 +4,37 @@
  * Picks up rows from `webhook_failures` whose `next_retry_at` is due and
  * re-runs the corresponding handler. Intended cadence: every minute.
  *
- * The processors here intentionally *re-post* to our own webhook routes
- * over the loopback. That keeps the logic in a single place (the route
- * handler) and avoids drifting two implementations.
+ * Pre-2026-05-10 this re-POSTed to the live webhook routes with only an
+ * `X-Auctorum-Retry: 1` header that nothing actually checked — every retry
+ * landed on a route that demanded a `stripe-signature` / `x-signature`
+ * header (which a stored payload doesn't carry) and 400'd. The Meta path
+ * also pointed at `/api/wa/webhook` which doesn't exist (real path is per
+ * tenant `/api/wa/[slug]/webhook`).
+ *
+ * Now: the cron sends a shared secret (`WEBHOOK_RETRY_SECRET`) that the
+ * routes accept as a bypass for the upstream signature, then process the
+ * payload through the same code path. Meta (WhatsApp inbound message)
+ * retries are dropped — those go through the BullMQ queue with its own
+ * exponential backoff, NOT through this table.
  */
 
 import { processPendingWebhooks } from '@quote-engine/queue'
 
 const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN || 'auctorum.com.mx'
-const SELF_BASE = process.env.SELF_BASE_URL || `https://portal.${APP_DOMAIN}`
+const SELF_BASE = process.env.SELF_BASE_URL || `https://med.${APP_DOMAIN}`
+const RETRY_SECRET = process.env.WEBHOOK_RETRY_SECRET ?? ''
 
 async function repost(path: string, payload: unknown): Promise<void> {
-  // We send the payload as if Stripe/MP just delivered it. The retry path
-  // is meant for transient failures *after* signature verification, so
-  // re-posting without the original headers is acceptable: the route's
-  // own retry guard (idempotency keys, dedup on payment id) handles the
-  // case where the original delivery actually succeeded but the response
-  // never made it back to the upstream.
+  if (!RETRY_SECRET) {
+    throw new Error('WEBHOOK_RETRY_SECRET not set — cannot retry webhooks safely')
+  }
   const res = await fetch(`${SELF_BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Auctorum-Retry': '1' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Auctorum-Retry': '1',
+      'X-Auctorum-Retry-Secret': RETRY_SECRET,
+    },
     body: JSON.stringify(payload),
   })
   if (!res.ok) {
@@ -34,11 +45,15 @@ async function repost(path: string, payload: unknown): Promise<void> {
 
 async function main() {
   const start = Date.now()
+  // Only Stripe + MercadoPago go through this retry table. WhatsApp message
+  // delivery uses BullMQ's `whatsapp_messages` queue with its own retry
+  // and DLQ; meta-leads webhook failures DO use this table but go via
+  // /api/webhooks/meta-leads (handler not yet wired here — leave for the
+  // day that ad-leads ingestion has transient errors worth replaying).
   const result = await processPendingWebhooks(
     {
       stripe:      (payload) => repost('/api/webhooks/stripe', payload),
       mercadopago: (payload) => repost('/api/webhooks/mercadopago', payload),
-      meta:        (payload) => repost('/api/wa/webhook', payload),
     },
     25,
   )

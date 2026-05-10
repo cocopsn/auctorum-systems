@@ -15,7 +15,6 @@ import { eq } from 'drizzle-orm'
 import { db, tenants } from '../packages/db'
 import { processPendingCalendarOps } from '../packages/ai/calendar-fallback'
 import {
-  getCalendarConfig,
   createCalendarEvent,
   updateCalendarEvent,
   cancelCalendarEvent,
@@ -28,18 +27,23 @@ async function main() {
   const result = await processPendingCalendarOps(async (op) => {
     const [tenant] = await db.select().from(tenants).where(eq(tenants.id, op.tenantId)).limit(1)
     if (!tenant) throw new Error(`tenant ${op.tenantId} not found`)
-    const cfg = getCalendarConfig(tenant.config as Record<string, unknown> | undefined, tenant.id)
-    if (!cfg) throw new Error(`no calendar config for tenant ${op.tenantId}`)
-
+    // Pre-2026-05-10 the call order was inverted (cfg first, then data),
+    // matching an older `getCalendarConfig`-returning shape that no longer
+    // exists. The real signatures take (params, tenantConfig?, tenantId?)
+    // — passing cfg as the first arg made every retry throw or silently
+    // noop, so pending_calendar_ops never drained. Now we hand the tenant
+    // config + id directly to the calendar helpers and let them resolve
+    // their own client.
+    const tenantConfig = tenant.config as Record<string, unknown> | undefined
     const data = op.data as Record<string, unknown>
     const externalId = (data.googleEventId as string | undefined) ?? null
 
     if (op.operation === 'create') {
-      await createCalendarEvent(cfg, data as unknown as CreateEventParams)
+      await createCalendarEvent(data as unknown as CreateEventParams, tenantConfig, op.tenantId)
     } else if (op.operation === 'update' && externalId) {
-      await updateCalendarEvent(cfg, externalId, data as unknown as UpdateEventParams)
+      await updateCalendarEvent(externalId, data as unknown as UpdateEventParams, tenantConfig, op.tenantId)
     } else if (op.operation === 'delete' && externalId) {
-      await cancelCalendarEvent(cfg, externalId)
+      await cancelCalendarEvent(externalId, tenantConfig, op.tenantId)
     } else {
       throw new Error(`unsupported operation ${op.operation} (no externalId for update/delete)`)
     }

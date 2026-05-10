@@ -10,7 +10,6 @@ import { Settings, CreditCard, Banknote, CheckCircle2, Loader2 } from 'lucide-re
 interface PaymentConfig {
   activeProcessor?: string;
   mercadopago?: { accessToken?: string; enabled?: boolean };
-  stripe?: { secretKey?: string; enabled?: boolean };
   manual?: { enabled?: boolean };
 }
 
@@ -21,7 +20,6 @@ export default function PaymentsSettingsPage() {
   const [config, setConfig] = useState<PaymentConfig>({
     activeProcessor: 'manual',
     mercadopago: { accessToken: '', enabled: false },
-    stripe: { secretKey: '', enabled: false },
     manual: { enabled: true },
   });
   const [loading, setLoading] = useState(true);
@@ -42,10 +40,6 @@ export default function PaymentsSettingsPage() {
             mercadopago: {
               accessToken: data.paymentConfig.mercadopago?.accessToken ?? '',
               enabled: data.paymentConfig.mercadopago?.enabled ?? false,
-            },
-            stripe: {
-              secretKey: data.paymentConfig.stripe?.secretKey ?? '',
-              enabled: data.paymentConfig.stripe?.enabled ?? false,
             },
             manual: {
               enabled: data.paymentConfig.manual?.enabled ?? true,
@@ -100,7 +94,10 @@ export default function PaymentsSettingsPage() {
           {[
             { value: 'manual', label: 'Manual' },
             { value: 'mercadopago', label: 'MercadoPago' },
-            { value: 'stripe', label: 'Stripe' },
+            // Stripe option removed — Stripe Connect onboarding lives in
+            // /settings/subscription (OAuth flow into tenants.stripe_connect_*).
+            // Storing a raw `sk_live_...` here was a security/compliance
+            // liability and the form effectively duplicated Connect config.
           ].map((opt) => (
             <label key={opt.value} className="flex items-center gap-3 cursor-pointer">
               <input
@@ -148,42 +145,6 @@ export default function PaymentsSettingsPage() {
               })
             }
             placeholder="APP_USR-..."
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500"
-          />
-        </div>
-      </div>
-
-      {/* Stripe card */}
-      <div className="rounded-xl border border-gray-100 bg-white p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-purple-50 p-2">
-              <CreditCard className="h-5 w-5 text-purple-600" />
-            </div>
-            <h2 className="text-lg font-semibold text-gray-900">Stripe</h2>
-          </div>
-          {config.stripe?.secretKey ? (
-            <span className="inline-flex items-center gap-1 rounded-full bg-green-50 border border-green-200 px-2.5 py-0.5 text-xs font-medium text-green-700">
-              <CheckCircle2 className="h-3 w-3" /> Configurado
-            </span>
-          ) : (
-            <span className="inline-flex items-center rounded-full bg-gray-50 border border-gray-200 px-2.5 py-0.5 text-xs font-medium text-gray-500">
-              No configurado
-            </span>
-          )}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
-          <input
-            type="password"
-            value={config.stripe?.secretKey ?? ''}
-            onChange={(e) =>
-              setConfig({
-                ...config,
-                stripe: { ...config.stripe, secretKey: e.target.value },
-              })
-            }
-            placeholder="sk_live_..."
             className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-indigo-500"
           />
         </div>

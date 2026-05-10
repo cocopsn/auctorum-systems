@@ -4,6 +4,7 @@ import { eq, and, desc } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { z } from 'zod'
 import { validateOrigin } from '@/lib/csrf'
+import { validateClientBelongsToTenant, CrossTenantError } from '@/lib/tenant-validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,6 +63,14 @@ export async function POST(request: NextRequest) {
     const parsed = createSchema.safeParse(body)
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.errors[0].message }, { status: 400 })
+    }
+
+    // Cross-tenant FK guard — see lib/tenant-validation.ts.
+    try {
+      await validateClientBelongsToTenant(parsed.data.clientId, auth.tenant.id)
+    } catch (err) {
+      if (err instanceof CrossTenantError) return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
+      throw err
     }
 
     const [created] = await db.insert(followUps).values({

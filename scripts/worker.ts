@@ -28,7 +28,7 @@ import {
   searchKnowledgeBase,
   buildTenantSystemPrompt,
   checkTenantBudget,
-  setDoctorContext,
+  runWithDoctorContext,
   // Resilience + metering
   isCircuitOpen,
   recordSuccess,
@@ -357,18 +357,25 @@ tool execution exitosa.
   // ============ MULTI-DOCTOR CONTEXT ============
   const tenantDoctors = await db.select().from(doctors).where(and(eq(doctors.tenantId, tenantId), eq(doctors.isActive, true)));
 
-  // Detect previously selected doctor from conversation
+  // Detect previously selected doctor from conversation; auto-select for single-doctor tenants.
   let selectedDoctor = null;
-  if (tenantDoctors.length > 1 && (conversation as any).doctorId) {
+  if (tenantDoctors.length === 1) {
+    selectedDoctor = tenantDoctors[0];
+  } else if (tenantDoctors.length > 1 && (conversation as any).doctorId) {
     selectedDoctor = tenantDoctors.find(d => d.id === (conversation as any).doctorId) || null;
   }
 
-  // Set context for tool executors
-  setDoctorContext({
+  // The doctor context lives in AsyncLocalStorage, NOT module state.
+  // Pre-2026-05-10 we called setDoctorContext on a singleton — under
+  // worker concurrency=N, the last write won for ALL parallel jobs and
+  // patients ended up assigned other tenants' doctors. We wrap the AI
+  // call in runWithDoctorContext so each parallel message has its own
+  // isolated frame.
+  const doctorCtx = {
     doctors: tenantDoctors,
     selectedDoctor,
     conversationId: conversation.id,
-  });
+  };
 
   // Multi-doctor prompt injection
   let multiDoctorPrompt = '';
@@ -392,9 +399,6 @@ FLUJO MULTI-DOCTOR OBLIGATORIO:
 
 ${selectedInfo}
 `;
-  } else if (tenantDoctors.length === 1) {
-    // Single doctor - auto-select silently
-    setDoctorContext({ doctors: tenantDoctors, selectedDoctor: tenantDoctors[0], conversationId: conversation.id });
   }
 
   const systemPromptOverride = buildTenantSystemPrompt({
@@ -443,15 +447,19 @@ ${selectedInfo}
   } else {
     console.log(`[worker] calling OpenAI (tools) for tenant=${tenant.slug} phone=${normalized}`)
     try {
-      const toolResult = await runWhatsAppReplyWithTools({
-        tenant,
-        systemPrompt: systemPromptOverride,
-        messageHistory: history.map((m) => ({
-          role: m.direction === 'inbound' ? ('user' as const) : ('assistant' as const),
-          content: m.content,
-        })),
-        incomingMessage: text,
-      })
+      // Per-job ALS frame — guarantees this tenant's doctor context can't
+      // leak into a sibling worker job processing a different tenant.
+      const toolResult = await runWithDoctorContext(doctorCtx, () =>
+        runWhatsAppReplyWithTools({
+          tenant,
+          systemPrompt: systemPromptOverride,
+          messageHistory: history.map((m) => ({
+            role: m.direction === 'inbound' ? ('user' as const) : ('assistant' as const),
+            content: m.content,
+          })),
+          incomingMessage: text,
+        }),
+      )
       answer = toolResult.answer
       model = toolResult.model
       latencyMs = toolResult.latencyMs

@@ -39,10 +39,16 @@ export const ALL_SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'documentos', label: 'Documentos', href: '/documentos', icon: FolderOpen, required: false, group: 'PRINCIPAL' },
   // GESTIÓN
   { id: 'agenda', label: 'Agenda', href: '/agenda', icon: CalendarDays, required: true, group: 'GESTIÓN' },
-  { id: 'reports', label: 'Reportes', href: '/reports', icon: BarChart3, required: false, group: 'GESTIÓN' },
+  // /reports was the legacy B2B clone that returned undefined / $NaN. The
+  // canonical page is /reportes (medical KPIs + revenue chart + status
+  // bars + weekday heatmap + CSV/PDF exports). Sidebar now points there.
+  { id: 'reportes', label: 'Reportes', href: '/reportes', icon: BarChart3, required: false, group: 'GESTIÓN' },
   { id: 'budgets', label: 'Presupuestos', href: '/budgets', icon: Receipt, required: false, group: 'GESTIÓN' },
-  { id: 'payments', label: 'Pagos', href: '/payments', icon: CreditCard, required: false, group: 'GESTIÓN' },
-  { id: 'pagos', label: 'Pagos en línea', href: '/pagos', icon: CreditCard, required: false, group: 'GESTIÓN' },
+  // Two payments pages used to coexist: /payments (legacy with broken
+  // refund button + Stripe-secret form) and /pagos (Stripe Connect). We
+  // keep the canonical /pagos in the sidebar; /payments still resolves
+  // for users with bookmarks but its sidebar entry is gone.
+  { id: 'pagos', label: 'Pagos', href: '/pagos', icon: CreditCard, required: false, group: 'GESTIÓN' },
   { id: 'invoices', label: 'Facturas', href: '/invoices', icon: FileText, required: false, group: 'GESTIÓN' },
   // MARKETING
   { id: 'leads', label: 'Leads', href: '/leads', icon: Sparkles, required: false, group: 'MARKETING' },

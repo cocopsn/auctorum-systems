@@ -84,24 +84,24 @@ export async function POST(
     }
 
     if (action === 'sync') {
-      const result = await db.execute(
-        sql`UPDATE integrations
-            SET last_sync_at = NOW(), updated_at = NOW()
-            WHERE tenant_id = ${auth.tenant.id} AND type = ${type}
-            RETURNING *`
-      );
-
-      if (!result.length) {
+      // Pre-2026-05-10 this just bumped last_sync_at without invoking
+      // any actual sync job — the user clicked "Sincronizar ahora" and
+      // it lit up green without doing anything. Now we 410 Gone for
+      // generic types and route Google Calendar manual sync to the
+      // dedicated endpoint which actually pulls events.
+      if (type === 'google_calendar') {
         return NextResponse.json(
-          { error: 'Integracion no encontrada' },
-          { status: 404 }
+          {
+            error: 'Sync manual de Google Calendar movido',
+            redirect: '/api/dashboard/google/sync',
+          },
+          { status: 308 },
         );
       }
-
-      return NextResponse.json({
-        integration: (result as any[])[0],
-        message: 'Sincronizacion iniciada',
-      });
+      return NextResponse.json(
+        { error: 'Sync action not implemented for this integration type' },
+        { status: 410 },
+      );
     }
 
     return NextResponse.json({ error: 'Accion no valida' }, { status: 400 });

@@ -2,6 +2,7 @@
  * Tool executors — implementan la logica de cada tool del function calling.
  * Cada executor wrapea con withTenant() para que RLS permita operaciones.
  */
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { db, withTenant, conversations, type Tenant, type Doctor } from '@quote-engine/db';
 import { sql, eq } from 'drizzle-orm';
 import type { ToolCallResult } from './tools';
@@ -9,24 +10,62 @@ import type { ToolCallResult } from './tools';
 const TZ = process.env.DEFAULT_TIMEZONE || 'America/Monterrey';
 
 // ============================================================
-// Multi-doctor context (set by worker before tool execution)
+// Multi-doctor context (per-execution, NOT module-level)
+//
+// Pre-2026-05-10 this was a module-level mutable variable. The worker
+// runs with concurrency=3 — three tenants' messages were processed in
+// parallel and the last `setDoctorContext` call won for ALL three. That
+// meant tenant A's patient could end up assigned tenant B's doctor on
+// brand-new appointment rows. Cross-tenant data corruption.
+//
+// AsyncLocalStorage gives us request-scoped context: each `runWithDoctorContext`
+// pushes a frame on the async stack, and any `await` inside that frame
+// reads back the same frame regardless of how many other tenants are
+// concurrently mutating their own contexts on different stacks.
 // ============================================================
-let _currentDoctorContext: {
+type DoctorContext = {
   doctors: Doctor[];
   selectedDoctor: Doctor | null;
   conversationId: string | null;
-} = { doctors: [], selectedDoctor: null, conversationId: null };
+};
 
-export function setDoctorContext(ctx: {
-  doctors: Doctor[];
-  selectedDoctor: Doctor | null;
-  conversationId: string | null;
-}) {
-  _currentDoctorContext = ctx;
+const EMPTY_CTX: DoctorContext = { doctors: [], selectedDoctor: null, conversationId: null };
+const ctxStore = new AsyncLocalStorage<DoctorContext>();
+
+/**
+ * Read the current doctor context. Returns an empty context (no doctors,
+ * no selection) when called outside a `runWithDoctorContext` frame —
+ * tools that depend on a doctor will short-circuit with their normal
+ * "no doctor configured" path.
+ */
+function currentCtx(): DoctorContext {
+  return ctxStore.getStore() ?? EMPTY_CTX;
 }
 
-export function getDoctorContext() {
-  return _currentDoctorContext;
+/**
+ * Run `fn` with `value` as the active doctor context. Use this in the
+ * worker (or any caller about to invoke tools) instead of the deprecated
+ * `setDoctorContext` setter.
+ */
+export function runWithDoctorContext<T>(value: DoctorContext, fn: () => Promise<T>): Promise<T> {
+  return ctxStore.run(value, fn);
+}
+
+/**
+ * @deprecated Use `runWithDoctorContext(ctx, fn)` to get per-request
+ * scoping. The setter survives so existing call sites keep compiling
+ * during migration; under concurrency it loses correctness vs. ALS.
+ */
+export function setDoctorContext(value: DoctorContext) {
+  // Best-effort: if we're inside an ALS frame, mutate it (so
+  // select_doctor's persistent change works). Otherwise this is a no-op
+  // — callers should migrate to runWithDoctorContext.
+  const current = ctxStore.getStore();
+  if (current) {
+    current.doctors = value.doctors;
+    current.selectedDoctor = value.selectedDoctor;
+    current.conversationId = value.conversationId;
+  }
 }
 
 // ============================================================
@@ -115,7 +154,7 @@ function formatBusinessHoursForDay(tenant: Tenant, date: string, doctor?: Doctor
 }
 
 async function getAvailableSlotsForDay(tenant: Tenant, date: string, duration_min: number, doctorId?: string | null): Promise<string[]> {
-  const doctor = doctorId ? _currentDoctorContext.doctors.find(d => d.id === doctorId) : null;
+  const doctor = doctorId ? currentCtx().doctors.find(d => d.id === doctorId) : null;
   const dayConfig = getScheduleForDate(tenant, date, doctor);
   if (!dayConfig?.enabled || !dayConfig.start || !dayConfig.end) return [];
 
@@ -145,7 +184,7 @@ async function getAvailableSlotsForDay(tenant: Tenant, date: string, duration_mi
 }
 
 function resolveDoctor(args: { doctor_id?: string }): { doctorId: string | null; error?: string } {
-  const ctx = _currentDoctorContext;
+  const ctx = currentCtx();
   if (args.doctor_id && isValidUUID(args.doctor_id)) return { doctorId: args.doctor_id };
   if (ctx.selectedDoctor) return { doctorId: ctx.selectedDoctor.id };
   if (ctx.doctors.length === 1) return { doctorId: ctx.doctors[0].id };
@@ -160,7 +199,7 @@ function resolveDoctor(args: { doctor_id?: string }): { doctorId: string | null;
 // Tool: select_doctor
 // ============================================================
 export async function executeSelectDoctor(tenant: Tenant, args: { doctor_name: string }): Promise<ToolCallResult> {
-  const ctx = _currentDoctorContext;
+  const ctx = currentCtx();
   const searchName = sanitizeString(args.doctor_name, 200).toLowerCase();
   if (!searchName) return { tool: 'select_doctor', success: false, result: {}, error: 'Nombre del doctor no proporcionado.' };
   if (ctx.doctors.length === 0) return { tool: 'select_doctor', success: false, result: {}, error: 'No hay doctores configurados para este consultorio.' };
@@ -184,7 +223,10 @@ export async function executeSelectDoctor(tenant: Tenant, args: { doctor_name: s
       await db.update(conversations).set({ doctorId: matched.id, updatedAt: new Date() }).where(eq(conversations.id, ctx.conversationId));
     } catch (e) { console.error('[select_doctor] failed to persist:', e); }
   }
-  _currentDoctorContext.selectedDoctor = matched;
+  // Mutating the active ALS frame so subsequent tool calls in the SAME
+  // execution see this selection. Cross-tenant isolation is preserved
+  // because every parallel worker job runs in its own ALS frame.
+  currentCtx().selectedDoctor = matched;
 
   const schedSummary = matched.schedule
     ? Object.entries(matched.schedule as Record<string, any>).filter(([, v]) => v?.enabled).map(([day, v]: [string, any]) => `${day}: ${v.start}-${v.end}`).join(', ')
@@ -208,7 +250,7 @@ export async function executeCheckAvailability(tenant: Tenant, args: { date: str
 
     const { doctorId, error: doctorError } = resolveDoctor(args);
     if (doctorError) return { tool: 'check_availability', success: false, result: {}, error: doctorError };
-    const doctor = doctorId ? _currentDoctorContext.doctors.find(d => d.id === doctorId) : null;
+    const doctor = doctorId ? currentCtx().doctors.find(d => d.id === doctorId) : null;
 
     if (time) {
       const scheduleCheck = isWithinSchedule(tenant, date, time, doctor);
@@ -256,7 +298,7 @@ export async function executeCreateAppointment(tenant: Tenant, args: { patient_n
 
     const { doctorId, error: doctorError } = resolveDoctor(args);
     if (doctorError) return { tool: 'create_appointment', success: false, result: {}, error: doctorError };
-    const doctor = doctorId ? _currentDoctorContext.doctors.find(d => d.id === doctorId) : null;
+    const doctor = doctorId ? currentCtx().doctors.find(d => d.id === doctorId) : null;
 
     const timeNormalized = time.length === 5 ? `${time}:00` : time;
     const endTime = addMinutes(timeNormalized, duration_min);
@@ -340,7 +382,7 @@ export async function executeGetConsultationInfo(tenant: Tenant, args: { topic?:
   const medical = config.medical ?? {};
   const schedule = config.schedule ?? {};
   const { topic = 'all' } = args;
-  const ctx = _currentDoctorContext;
+  const ctx = currentCtx();
 
   const allInfo: Record<string, any> = {
     name: tenant.name, specialty: medical.specialty, doctor: medical.doctor ?? tenant.name,
@@ -356,7 +398,21 @@ export async function executeGetConsultationInfo(tenant: Tenant, args: { topic?:
     case 'location': result = { address: allInfo.address }; break;
     case 'hours': result = { schedule: allInfo.schedule }; break;
     case 'fees': result = { consultation_fee: allInfo.consultation_fee, duration_min: allInfo.consultation_duration_min }; break;
-    case 'payment_methods': result = { note: 'Revisar chunks RAG sobre formas de pago' }; break;
+    case 'payment_methods': {
+      // Real config from tenant.config.payment_methods (or .business / .features).
+      // Falls back to a neutral list of common methods if the tenant hasn't
+      // declared anything yet — never a meta-instruction string that could
+      // leak into the bot reply.
+      const declared = config.payment_methods ?? config.medical?.payment_methods ?? null;
+      const fallback = ['Efectivo', 'Tarjeta de débito/crédito', 'Transferencia SPEI'];
+      result = {
+        accepted: Array.isArray(declared) && declared.length > 0 ? declared : fallback,
+        accepts_insurance: Boolean(medical.accepts_insurance),
+        insurance_providers: Array.isArray(medical.insurance_providers) ? medical.insurance_providers : [],
+        online_payment_enabled: Boolean(config.features?.online_payment),
+      };
+      break;
+    }
     case 'contact': result = { phone: allInfo.phone, email: allInfo.email, address: allInfo.address }; break;
   }
   return { tool: 'get_consultation_info', success: true, result };

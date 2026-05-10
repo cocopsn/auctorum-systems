@@ -9,16 +9,34 @@ export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
 
-  if (!sig) {
-    return NextResponse.json({ error: "Missing signature" }, { status: 400 });
-  }
+  // Internal retry path: cron-webhook-retries replays a stored payload via
+  // a shared secret because the original Stripe signature is no longer
+  // valid (timestamp would be stale). The handler does the same work it
+  // would on a fresh delivery; idempotency keys (subscription id, payment
+  // intent id) make duplicates safe.
+  const retrySecret = req.headers.get('x-auctorum-retry-secret')
+  const isInternalRetry =
+    !!process.env.WEBHOOK_RETRY_SECRET &&
+    retrySecret === process.env.WEBHOOK_RETRY_SECRET &&
+    req.headers.get('x-auctorum-retry') === '1'
 
   let event;
-  try {
-    event = constructWebhookEvent(body, sig);
-  } catch (err) {
-    console.error("[Stripe Webhook] Signature verification failed:", err);
-    return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
+  if (isInternalRetry) {
+    try {
+      event = JSON.parse(body)
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON on retry' }, { status: 400 });
+    }
+  } else {
+    if (!sig) {
+      return NextResponse.json({ error: "Missing signature" }, { status: 400 });
+    }
+    try {
+      event = constructWebhookEvent(body, sig);
+    } catch (err) {
+      console.error("[Stripe Webhook] Signature verification failed:", err);
+      return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
+    }
   }
 
   console.log(`[Stripe Webhook] Event: ${event.type}`);
@@ -81,23 +99,29 @@ export async function POST(req: NextRequest) {
           const plan = STRIPE_PLANS[planId];
           const amount = plan?.amount ?? 0;
 
-          // Update or insert subscription
+          // Update or insert subscription. All string literals MUST be
+          // quoted ('active', 'MXN', 'monthly', 'stripe') and intervals
+          // need their unit quoted (INTERVAL '1 month'). Pre-2026-05-10 the
+          // SQL had bare words and Postgres rejected the whole INSERT —
+          // every paid Stripe checkout silently 500'd and no tenant got
+          // marked active. The MercadoPago webhook had the same shape
+          // quoted correctly; this matches that style now.
           await db.execute(sql`
             INSERT INTO subscriptions (tenant_id, plan, status, amount, currency, billing_cycle,
               payment_method, processor_subscription_id, stripe_customer_id,
               current_period_start, current_period_end, created_at, updated_at)
-            VALUES (${tenantId}, ${planId}, active, ${amount}, MXN, monthly,
-              stripe, ${subscriptionId}, ${customerId},
-              NOW(), NOW() + INTERVAL 1 month, NOW(), NOW())
+            VALUES (${tenantId}::uuid, ${planId}, 'active', ${amount}, 'MXN', 'monthly',
+              'stripe', ${subscriptionId}, ${customerId},
+              NOW(), NOW() + INTERVAL '1 month', NOW(), NOW())
             ON CONFLICT (tenant_id) DO UPDATE SET
               plan = ${planId},
-              status = active,
+              status = 'active',
               amount = ${amount},
-              payment_method = stripe,
+              payment_method = 'stripe',
               processor_subscription_id = ${subscriptionId},
               stripe_customer_id = ${customerId},
               current_period_start = NOW(),
-              current_period_end = NOW() + INTERVAL 1 month,
+              current_period_end = NOW() + INTERVAL '1 month',
               cancelled_at = NULL,
               updated_at = NOW()
           `);
@@ -106,7 +130,7 @@ export async function POST(req: NextRequest) {
           await db.execute(sql`
             UPDATE tenants SET
               plan = ${planId},
-              provisioning_status = active,
+              provisioning_status = 'active',
               provisioned_at = NOW(),
               updated_at = NOW()
             WHERE id = ${tenantId}::uuid
@@ -116,8 +140,8 @@ export async function POST(req: NextRequest) {
           await db.execute(sql`
             INSERT INTO payments (tenant_id, amount, currency, method, processor,
               processor_payment_id, status, reference, created_at)
-            VALUES (${tenantId}::uuid, ${amount}, MXN, card, stripe,
-              ${session.payment_intent || session.id}, completed,
+            VALUES (${tenantId}::uuid, ${amount}, 'MXN', 'card', 'stripe',
+              ${session.payment_intent || session.id}, 'completed',
               ${"Suscripción " + (plan?.name || planId)}, NOW())
           `);
 
@@ -139,9 +163,9 @@ export async function POST(req: NextRequest) {
           // Find tenant by processor_subscription_id and renew period
           await db.execute(sql`
             UPDATE subscriptions SET
-              status = active,
+              status = 'active',
               current_period_start = NOW(),
-              current_period_end = NOW() + INTERVAL 1 month,
+              current_period_end = NOW() + INTERVAL '1 month',
               updated_at = NOW()
             WHERE processor_subscription_id = ${subscriptionId}
           `);
@@ -156,9 +180,9 @@ export async function POST(req: NextRequest) {
             await db.execute(sql`
               INSERT INTO payments (tenant_id, amount, currency, method, processor,
                 processor_payment_id, status, reference, created_at)
-              VALUES (${rows[0].tenant_id}::uuid, ${rows[0].amount}, MXN, card, stripe,
-                ${invoice.payment_intent || invoice.id}, completed,
-                Renovación mensual, NOW())
+              VALUES (${rows[0].tenant_id}::uuid, ${rows[0].amount}, 'MXN', 'card', 'stripe',
+                ${invoice.payment_intent || invoice.id}, 'completed',
+                'Renovación mensual', NOW())
             `);
           }
 
@@ -175,7 +199,7 @@ export async function POST(req: NextRequest) {
         if (subscriptionId) {
           await db.execute(sql`
             UPDATE subscriptions SET
-              status = past_due,
+              status = 'past_due',
               updated_at = NOW()
             WHERE processor_subscription_id = ${subscriptionId}
           `);
@@ -184,7 +208,7 @@ export async function POST(req: NextRequest) {
           if (attemptCount >= 3) {
             await db.execute(sql`
               UPDATE tenants SET
-                provisioning_status = suspended,
+                provisioning_status = 'suspended',
                 updated_at = NOW()
               WHERE id = (
                 SELECT tenant_id FROM subscriptions
@@ -218,7 +242,7 @@ export async function POST(req: NextRequest) {
         if (tenantId) {
           await db.execute(sql`
             UPDATE subscriptions SET
-              status = cancelled,
+              status = 'cancelled',
               cancelled_at = NOW(),
               updated_at = NOW()
             WHERE tenant_id = ${tenantId}::uuid
@@ -226,7 +250,7 @@ export async function POST(req: NextRequest) {
 
           await db.execute(sql`
             UPDATE tenants SET
-              provisioning_status = suspended,
+              provisioning_status = 'suspended',
               updated_at = NOW()
             WHERE id = ${tenantId}::uuid
           `);

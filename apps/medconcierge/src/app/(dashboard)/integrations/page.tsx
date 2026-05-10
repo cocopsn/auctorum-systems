@@ -65,23 +65,14 @@ const INTEGRATION_CARDS: IntegrationCardDef[] = [
     icon: <Calendar className="h-6 w-6 text-indigo-600" />,
     hasCustomConfig: true,
   },
-  {
-    type: 'external_db',
-    label: 'Base de Datos Externa',
-    description: 'Conecta SQL Server, MySQL o PostgreSQL',
-    icon: <Database className="h-6 w-6 text-indigo-600" />,
-    hasConfig: true,
-  },
-  // MercadoPago config lives at /settings/payments (canonical — writes to
-  // tenants.paymentConfig, consumed by the checkout flow + webhooks).
-  // WhatsApp Business credentials live at /settings/channels and the
-  // bot-instances table. Both were duplicated here as decorative tiles.
-  {
-    type: 'facturapi',
-    label: 'Facturapi',
-    description: 'Facturacion electronica CFDI',
-    icon: <FileText className="h-6 w-6 text-indigo-600" />,
-  },
+  // Removed 2026-05-10:
+  //   - external_db (no consumer in code, the "Probar conexión" button
+  //     was setTimeout theatre, the saved credentials never got read).
+  //   - facturapi (canonical CFDI config lives at /settings/billing →
+  //     tenants.invoice_config, consumed by invoice routes; the tile here
+  //     wrote to a separate `integrations` row that nothing read).
+  //   - mercadopago + whatsapp tiles (already removed earlier — see
+  //     /settings/payments and /settings/channels respectively).
 ];
 
 // ---------------------------------------------------------------------------

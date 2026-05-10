@@ -8,7 +8,6 @@ import {
   ChevronDown,
   ChevronUp,
   CheckCircle,
-  RotateCcw,
   DollarSign,
   Hash,
   Clock,
@@ -433,15 +432,15 @@ export default function PaymentsPage() {
                             <CheckCircle className="h-4 w-4" />
                           </button>
                         )}
-                        {p.status === 'completed' && (
-                          <button
-                            onClick={() => updateStatus(p.id, 'refunded')}
-                            title="Reembolsar"
-                            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 transition-colors"
-                          >
-                            <RotateCcw className="h-4 w-4" />
-                          </button>
-                        )}
+                        {/*
+                          Refund button removed 2026-05-10. Pre-fix it called
+                          updateStatus(id, 'refunded') which only flipped the
+                          local row's status — Stripe/MercadoPago kept the
+                          money, creating financial inconsistency. The real
+                          refund flow lives at /pagos (handleRefund) which
+                          calls /api/dashboard/patient-payments/{id}/refund
+                          and triggers a Stripe Refund.
+                        */}
                       </div>
                     </td>
                   </tr>

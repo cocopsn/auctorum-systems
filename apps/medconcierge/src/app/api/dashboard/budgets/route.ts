@@ -4,6 +4,7 @@ import { eq, and, desc, sql } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { z } from 'zod'
 import { validateOrigin } from '@/lib/csrf'
+import { validateForeignIds, CrossTenantError } from '@/lib/tenant-validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -56,6 +57,20 @@ export async function POST(request: NextRequest) {
     }
 
     const { items, notes, validUntil, clientId, patientId } = parsed.data
+
+    // Validate FK ownership before insert. Pre-2026-05-10 we trusted the
+    // body and inserted whatever clientId/patientId UUID came in,
+    // allowing cross-tenant FK injection (analytics breakage, audit
+    // trail confusion, eventual data quality issues).
+    try {
+      await validateForeignIds(auth.tenant.id, [
+        { kind: 'client', id: clientId },
+        { kind: 'patient', id: patientId },
+      ])
+    } catch (err) {
+      if (err instanceof CrossTenantError) return NextResponse.json({ error: `${err.entity} no encontrado` }, { status: 404 })
+      throw err
+    }
 
     // Auto-generate folio
     const [seqResult] = await db.execute(

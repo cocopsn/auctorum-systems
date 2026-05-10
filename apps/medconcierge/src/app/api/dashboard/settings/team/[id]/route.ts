@@ -90,7 +90,15 @@ export async function DELETE(
       return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 })
     }
 
-    await db.delete(users).where(eq(users.id, memberId))
+    // Soft-delete instead of hard DELETE. Pre-2026-05-10 the row was
+    // dropped, breaking FKs in audit_logs.user_id and
+    // appointment_events.created_by — the action history of that user
+    // disappeared. Now we deactivate so the audit trail stays intact and
+    // /dashboard/settings/team filters by isActive=true.
+    await db
+      .update(users)
+      .set({ isActive: false })
+      .where(eq(users.id, memberId))
 
     return NextResponse.json({ success: true })
   } catch (err: any) {

@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthTenant } from '@/lib/auth';
 import { db, tenants } from '@quote-engine/db';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { validateOrigin } from '@/lib/csrf'
 
@@ -14,9 +14,13 @@ export async function GET() {
   const auth = await getAuthTenant();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const [row] = await db.execute(
-    sql`SELECT paymentConfig FROM tenants WHERE id = ${auth.tenant.id}`,
-  );
+  // Same fix as invoices/config — typed Drizzle select instead of raw
+  // SQL with the camelCase field name. DB column is `payment_config`.
+  const [row] = await db
+    .select({ paymentConfig: tenants.paymentConfig })
+    .from(tenants)
+    .where(eq(tenants.id, auth.tenant.id))
+    .limit(1);
 
   return NextResponse.json({
     paymentConfig: row?.paymentConfig ?? null,
@@ -26,17 +30,16 @@ export async function GET() {
 // ---------------------------------------------------------------------------
 // PATCH /api/dashboard/payments/config
 // ---------------------------------------------------------------------------
+//
+// `stripe.secretKey` removed from the schema — the legitimate way to
+// connect Stripe is OAuth via /settings/subscription (Connect Express),
+// stored on tenants.stripe_connect_account_id. Storing a raw secret key
+// here was a security/compliance liability. Manual + MercadoPago remain.
 const paymentConfigSchema = z.object({
-  activeProcessor: z.enum(['manual', 'mercadopago', 'stripe']).optional(),
+  activeProcessor: z.enum(['manual', 'mercadopago']).optional(),
   mercadopago: z
     .object({
       accessToken: z.string().optional(),
-      enabled: z.boolean().optional(),
-    })
-    .optional(),
-  stripe: z
-    .object({
-      secretKey: z.string().optional(),
       enabled: z.boolean().optional(),
     })
     .optional(),

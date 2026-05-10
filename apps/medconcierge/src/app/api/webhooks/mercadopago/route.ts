@@ -11,23 +11,37 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
+  // Internal retry bypass — same shape as Stripe webhook. The cron replays
+  // payloads stored in `webhook_failures` and the original MP signature is
+  // no longer valid, so we authenticate the cron with WEBHOOK_RETRY_SECRET
+  // instead. Idempotency on payment id makes duplicates safe.
+  const retrySecret = req.headers.get('x-auctorum-retry-secret')
+  const isInternalRetry =
+    !!process.env.WEBHOOK_RETRY_SECRET &&
+    retrySecret === process.env.WEBHOOK_RETRY_SECRET &&
+    req.headers.get('x-auctorum-retry') === '1'
+
   // CRIT-01 FIX: Signature verification is now MANDATORY
   const xSignature = req.headers.get("x-signature");
   const xRequestId = req.headers.get("x-request-id");
 
-  if (!xSignature || !xRequestId) {
-    console.error("[MP Webhook] Missing x-signature or x-request-id header");
-    return NextResponse.json(
-      { error: "Missing required signature headers" },
-      { status: 400 }
-    );
+  if (!isInternalRetry) {
+    if (!xSignature || !xRequestId) {
+      console.error("[MP Webhook] Missing x-signature or x-request-id header");
+      return NextResponse.json(
+        { error: "Missing required signature headers" },
+        { status: 400 }
+      );
+    }
   }
 
   if (body.type === "payment" && body.data?.id) {
-    const valid = verifyMPWebhook(xSignature, xRequestId, String(body.data.id));
-    if (!valid) {
-      console.error("[MP Webhook] Invalid signature");
-      return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
+    if (!isInternalRetry) {
+      const valid = verifyMPWebhook(xSignature!, xRequestId!, String(body.data.id));
+      if (!valid) {
+        console.error("[MP Webhook] Invalid signature");
+        return NextResponse.json({ error: "Invalid signature" }, { status: 403 });
+      }
     }
 
     try {

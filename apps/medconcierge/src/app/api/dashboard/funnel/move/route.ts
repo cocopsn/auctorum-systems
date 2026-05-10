@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { z } from 'zod';
 import { validateOrigin } from '@/lib/csrf'
+import { validateClientBelongsToTenant, CrossTenantError } from '@/lib/tenant-validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,8 +25,15 @@ export async function PATCH(request: NextRequest) {
     }
     const { clientId, stageId } = parsed.data;
 
-    if (false) {
-      return NextResponse.json({ error: 'clientId y stageId son requeridos' }, { status: 400 })
+    // Verify both FKs belong to this tenant. Pre-2026-05-10 only the
+    // stage was checked — the clientId was inserted directly, so a
+    // tenant could pollute their own funnel with another tenant's
+    // client UUIDs.
+    try {
+      await validateClientBelongsToTenant(clientId, auth.tenant.id)
+    } catch (err) {
+      if (err instanceof CrossTenantError) return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
+      throw err
     }
 
     // Verify stage belongs to tenant

@@ -402,7 +402,7 @@ export {
 export { runWhatsAppReplyWithTools } from './run-with-tools';
 export type { RunWithToolsParams, RunWithToolsResult } from './run-with-tools';
 export { WHATSAPP_TOOLS } from './tools';
-export { setDoctorContext } from './tool-executors';
+export { runWithDoctorContext, setDoctorContext } from './tool-executors';
 export type { ToolCallResult, ToolName } from './tools';
 
 // --------------------------------------------------------------------------

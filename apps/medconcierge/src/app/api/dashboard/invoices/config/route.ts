@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthTenant } from '@/lib/auth';
 import { db, tenants } from '@quote-engine/db';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { validateOrigin } from '@/lib/csrf'
 
@@ -14,9 +14,16 @@ export async function GET() {
   const auth = await getAuthTenant();
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const [row] = await db.execute(
-    sql`SELECT invoiceConfig FROM tenants WHERE id = ${auth.tenant.id}`,
-  );
+  // Typed Drizzle select instead of raw SQL — `invoiceConfig` is the
+  // schema field name; the DB column is snake_case `invoice_config`.
+  // Raw `SELECT invoiceConfig FROM tenants` failed in production with
+  // "column 'invoiceconfig' does not exist" because Postgres lowercases
+  // unquoted identifiers.
+  const [row] = await db
+    .select({ invoiceConfig: tenants.invoiceConfig })
+    .from(tenants)
+    .where(eq(tenants.id, auth.tenant.id))
+    .limit(1);
 
   return NextResponse.json({
     invoiceConfig: row?.invoiceConfig ?? null,
