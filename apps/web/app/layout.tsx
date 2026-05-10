@@ -1,5 +1,15 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
+
+// Next 14 moved themeColor + viewport out of `metadata` and into a
+// dedicated `viewport` export. Pre-2026-05-10 the legacy placement
+// produced a deprecation warning on every page render — log noise that
+// drowned out real errors in quote-engine-error.log.
+export const viewport: Viewport = {
+  themeColor: "#020617",
+  width: "device-width",
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://auctorum.com.mx"),
@@ -23,7 +33,6 @@ export const metadata: Metadata = {
     ],
     apple: "/apple-touch-icon.png",
   },
-  themeColor: "#020617",
   openGraph: {
     title: "Auctorum — Software de Gestión Inteligente",
     description:

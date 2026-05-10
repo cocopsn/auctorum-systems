@@ -466,6 +466,30 @@ ${selectedInfo}
       toolCalls = toolResult.toolCalls
       rounds = toolResult.rounds
       recordSuccess()
+
+      // Meter AI tokens against the tenant plan. Pre-2026-05-10 nothing
+      // ever incremented `tenant_usage.ai_tokens` so OpenAI cost was
+      // unbounded per-tenant. This call is non-blocking (we don't gate
+      // the reply on quota) — the worker still answers, but quota
+      // exceeded gets logged and surfaced in the dashboard so the
+      // operator can act before the next billing window.
+      if (toolResult.totalTokens > 0) {
+        try {
+          const tokenCheck = await checkAndTrackUsage(
+            tenantId,
+            tenant.plan,
+            'ai_tokens',
+            toolResult.totalTokens,
+          )
+          if (!tokenCheck.allowed) {
+            console.warn(
+              `[worker] tenant ${tenant.slug} over ai_tokens cap ${tokenCheck.current}/${tokenCheck.totalLimit} (this turn: ${toolResult.totalTokens})`,
+            )
+          }
+        } catch (err) {
+          console.warn('[worker] ai_tokens metering failed (non-fatal):', err instanceof Error ? err.message : err)
+        }
+      }
     } catch (err) {
       recordFailure(err)
       console.error(`[worker] OpenAI failed for tenant=${tenant.slug}, using fallback:`, err instanceof Error ? err.message : err)

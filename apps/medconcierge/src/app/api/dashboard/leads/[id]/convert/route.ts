@@ -110,7 +110,11 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
           date: data.date,
           startTime: data.startTime,
           endTime: data.endTime,
-          status: 'pending',
+          // Pre-2026-05-10 this used 'pending' which is NOT a valid
+          // appointment status (worker filters IN ('scheduled','confirmed')
+          // and the agenda + reports filter the same way). Lead-converted
+          // appointments were invisible to every downstream consumer.
+          status: 'scheduled',
           reason: data.reason || lead.message || null,
           // Source/atribución viven en appointmentEvents.metadata (insert abajo)
           // y en ad_leads.appointmentId — no hace falta una columna dedicada.

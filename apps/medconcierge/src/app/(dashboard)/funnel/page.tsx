@@ -145,11 +145,14 @@ export default function FunnelPage() {
                         <span className="text-[10px] text-gray-400">
                           {new Date(client.createdAt).toLocaleDateString('es-MX')}
                         </span>
-                        {client.totalQuotes != null && Number(client.totalQuotes) > 0 && (
-                          <span className="text-[10px] bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded">
-                            {client.totalQuotes} cotiz.
-                          </span>
-                        )}
+                        {/*
+                          Pre-2026-05-10 this badge said "{N} cotiz." which
+                          is B2B terminology — medconcierge has citas, not
+                          cotizaciones. Hidden for medical tenants; the
+                          legacy field is still populated for B2B but the
+                          dashboard funnel should show meaningful data
+                          instead of mismatched copy.
+                        */}
                       </div>
 
                       <div className="mt-2 relative">

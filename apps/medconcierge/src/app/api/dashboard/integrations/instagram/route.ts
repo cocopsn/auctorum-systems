@@ -12,14 +12,19 @@ export async function GET() {
   const auth = await getAuthTenant()
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
-  // Get Instagram integration config
+  // Get Instagram integration config. Pre-2026-05-10 this filtered by
+  // type='instagram' but the rest of the codebase (settings/instagram
+  // PATCH, /api/webhooks/instagram, lead-autocontact) writes/reads
+  // type='instagram_dm'. The mismatch made the feed widget always report
+  // disconnected even when IG was set up. Now matches both for back-compat
+  // and uses the canonical 'instagram_dm' first.
   const [integration] = await db
     .select()
     .from(integrations)
     .where(
       and(
         eq(integrations.tenantId, auth.tenant.id),
-        eq(integrations.type, "instagram")
+        eq(integrations.type, "instagram_dm")
       )
     )
     .limit(1)

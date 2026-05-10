@@ -1,5 +1,15 @@
 export const dynamic = 'force-dynamic'
 
+/**
+ * LEGACY WhatsApp webhook — preserved for tenants whose Meta App is
+ * still configured against this URL. The canonical entry point is
+ * /api/wa/[slug]/webhook (per-tenant, supports shared-mode env fallback
+ * for HMAC + verify_token, see commit 2bb446e May 8 2026). Operationally
+ * we keep both alive while we verify nothing is left pointing here;
+ * planned deletion when log traffic on this path drops to zero for 7+
+ * days.
+ */
+
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, and, gte, asc, desc, sql, isNull } from 'drizzle-orm'
 import {
@@ -235,13 +245,19 @@ async function syncAppointmentToCalendar(
     const startDateTime = `${appt.date}T${appt.startTime}`
     const endDateTime = `${appt.date}T${appt.endTime}`
 
+    // Pre-2026-05-10 the summary hardcoded "Cita Dermatologia" — every
+    // tenant's GCal got polluted with that title regardless of specialty.
+    // Now we read tenant.config.medical.specialty (with a generic "Cita"
+    // fallback) and the address comes from tenant.config.contact.
+    const specialty = (tenantConfig?.medical as Record<string, unknown> | undefined)?.specialty as string | undefined
+    const address = (tenantConfig?.contact as Record<string, unknown> | undefined)?.address as string | undefined
     const eventId = await createCalendarEvent(
       {
-        summary: `Cita Dermatologia - ${patientName}`,
+        summary: specialty ? `Cita ${specialty} - ${patientName}` : `Cita - ${patientName}`,
         description: appt.reason || 'Consulta general',
         startDateTime,
         endDateTime,
-        location: 'Saltillo, Coahuila',
+        location: address || 'Consultorio',
         reminderMinutes: 60,
       },
       tenantConfig,

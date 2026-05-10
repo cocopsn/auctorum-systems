@@ -13,6 +13,29 @@ type Notification = {
   type: string | null
   read: boolean
   createdAt: string
+  /**
+   * Optional metadata object — when present, the renderer pulls a deep
+   * link out of it (`metadata.url` / `metadata.conversationId` /
+   * `metadata.appointmentId`) so clicking the row navigates to the
+   * resource instead of leaving the user to find it by hand.
+   */
+  metadata?: Record<string, unknown> | null
+}
+
+/**
+ * Best-effort URL inference from notification fields. Keeps known types
+ * stable and falls back to `null` so the renderer doesn't render a link
+ * when there's nothing to navigate to.
+ */
+function urlForNotification(n: Notification): string | null {
+  const meta = (n.metadata ?? {}) as Record<string, unknown>
+  if (typeof meta.url === 'string' && meta.url.length > 0) return meta.url
+  if (typeof meta.conversationId === 'string') return `/conversaciones?cid=${meta.conversationId}`
+  if (typeof meta.appointmentId === 'string') return `/citas?focus=${meta.appointmentId}`
+  if (n.type === 'new_message') return '/conversaciones'
+  if (n.type === 'new_appointment' || n.type === 'appointment_cancelled') return '/citas'
+  if (n.type === 'human_escalation' || n.type === 'urgent_escalation') return '/conversaciones'
+  return null
 }
 
 /**
@@ -84,13 +107,31 @@ export function NotificationBell() {
             <p className="notif-bell__empty">No tienes notificaciones recientes.</p>
           ) : (
             <ul className="notif-bell__list">
-              {items.slice(0, 10).map((n) => (
-                <li key={n.id} className={`notif-bell__item ${n.read ? 'is-read' : ''}`}>
-                  <p className="notif-bell__title">{n.title}</p>
-                  {n.message ? <p className="notif-bell__body">{n.message}</p> : null}
-                  <p className="notif-bell__time">{relativeTime(n.createdAt)}</p>
-                </li>
-              ))}
+              {items.slice(0, 10).map((n) => {
+                const href = urlForNotification(n)
+                const inner = (
+                  <>
+                    <p className="notif-bell__title">{n.title}</p>
+                    {n.message ? <p className="notif-bell__body">{n.message}</p> : null}
+                    <p className="notif-bell__time">{relativeTime(n.createdAt)}</p>
+                  </>
+                )
+                return (
+                  <li key={n.id} className={`notif-bell__item ${n.read ? 'is-read' : ''}`}>
+                    {href ? (
+                      <a
+                        href={href}
+                        className="notif-bell__link"
+                        onClick={() => setOpen(false)}
+                      >
+                        {inner}
+                      </a>
+                    ) : (
+                      inner
+                    )}
+                  </li>
+                )
+              })}
             </ul>
           )}
         </div>
@@ -174,6 +215,15 @@ export function NotificationBell() {
         }
         .notif-bell__item:last-child { border-bottom: none; }
         .notif-bell__item.is-read .notif-bell__title { color: rgba(15, 23, 42, 0.6); font-weight: 400; }
+        .notif-bell__link {
+          display: block;
+          color: inherit;
+          text-decoration: none;
+          margin: -10px -16px;
+          padding: 10px 16px;
+          border-radius: 6px;
+        }
+        .notif-bell__link:hover { background: rgba(14, 116, 144, 0.04); }
         .notif-bell__title {
           font-family: 'Fraunces', serif;
           font-size: 14px;

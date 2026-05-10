@@ -6,9 +6,12 @@ import type { TenantConfig } from '@quote-engine/db';
 // Uses Meta's official API — no third-party wrappers
 // ============================================================
 
-const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN!;
-const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID!;
-const API_URL = `https://graph.facebook.com/v19.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
+// Phone number id is resolved at call-time, NOT at module-load time.
+// Pre-2026-05-10 the URL was computed once with the global env var, so a
+// tenant with its own dedicated WABA still got messages sent FROM the
+// shared Auctorum number — patient saw an unfamiliar sender. Now we
+// rebuild the URL per call from the param-or-env phone number id.
+const GRAPH_BASE = 'https://graph.facebook.com/v19.0';
 
 interface SendWhatsAppParams {
   to: string;
@@ -23,15 +26,20 @@ interface SendWhatsAppParams {
 }
 
 function cleanPhoneNumber(phone: string): string {
-  // Remove all non-digits, ensure country code
-  let cleaned = phone.replace(/\D/g, '');
-  if (cleaned.startsWith('844') || cleaned.startsWith('81')) {
-    cleaned = '52' + cleaned; // Mexico country code
-  }
-  if (!cleaned.startsWith('52')) {
-    cleaned = '52' + cleaned;
-  }
-  return cleaned;
+  // Pre-2026-05-10 this was Saltillo-anchored: only 844 and 81 area
+  // codes got prefixed with 52, then a generic catch-all also added 52.
+  // Numbers from CDMX (55), GDL (33), Cancún (998) etc. were either
+  // missed or accidentally double-prefixed.
+  //
+  // New rule: strip non-digits; if it starts with 521/52, normalize to
+  // 52 + 10 digits; if it's 10 digits (canonical mobile), prepend 52;
+  // otherwise return as-is and let the API reject if invalid.
+  const digits = phone.replace(/\D/g, '')
+  if (!digits) return ''
+  if (digits.startsWith('521') && digits.length >= 13) return '52' + digits.slice(3, 13)
+  if (digits.startsWith('52') && digits.length >= 12) return digits.slice(0, 12)
+  if (digits.length === 10) return '52' + digits
+  return digits
 }
 
 function formatMXN(amount: number): string {
@@ -40,6 +48,13 @@ function formatMXN(amount: number): string {
 
 export async function sendWhatsAppQuote(params: SendWhatsAppParams): Promise<boolean> {
   const phone = cleanPhoneNumber(params.to);
+  const token = process.env.WHATSAPP_TOKEN;
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+  if (!token || !phoneNumberId) {
+    console.warn('[whatsapp] credentials missing — skipping quote send');
+    return false;
+  }
+  const apiUrl = `${GRAPH_BASE}/${phoneNumberId}/messages`;
 
   // Build message text based on recipient type
   let messageText: string;
@@ -75,10 +90,10 @@ export async function sendWhatsAppQuote(params: SendWhatsAppParams): Promise<boo
   }
 
   try {
-    const response = await fetch(API_URL, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+        'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -102,20 +117,32 @@ export async function sendWhatsAppQuote(params: SendWhatsAppParams): Promise<boo
   }
 }
 
-// Send a free-form WhatsApp text message (used by cron reminders, etc.)
-export async function sendWhatsAppMessage(params: { to: string; message: string }): Promise<boolean> {
+/**
+ * Send a free-form WhatsApp text message. Used by cron reminders,
+ * follow-ups, lead-autocontact, etc.
+ *
+ * Optional `phoneNumberId` — when omitted falls back to the global
+ * `WHATSAPP_PHONE_NUMBER_ID` env. Pass the per-tenant phone id (resolved
+ * from `bot_instances.config.phone_number_id`) when the tenant runs on
+ * its own Meta WABA so the patient sees the right sender.
+ */
+export async function sendWhatsAppMessage(params: {
+  to: string;
+  message: string;
+  phoneNumberId?: string;
+}): Promise<boolean> {
   const phone = cleanPhoneNumber(params.to);
 
   try {
     const token = process.env.WHATSAPP_TOKEN;
-    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const phoneNumberId = params.phoneNumberId ?? process.env.WHATSAPP_PHONE_NUMBER_ID;
 
     if (!token || !phoneNumberId) {
       console.warn('WhatsApp credentials not configured, skipping message send');
       return false;
     }
 
-    const apiUrl = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
+    const apiUrl = `${GRAPH_BASE}/${phoneNumberId}/messages`;
 
     const response = await fetch(apiUrl, {
       method: 'POST',

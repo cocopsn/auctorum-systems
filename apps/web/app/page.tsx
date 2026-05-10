@@ -142,7 +142,7 @@ export default function HomePage() {
               <h4 className="text-sm font-semibold text-white mb-4">Empresa</h4>
               <div className="space-y-3">
                 <Link href="/about" className="block text-sm text-slate-300 hover:text-white transition-colors">Sobre Nosotros</Link>
-                <a href="mailto:contacto@auctorum.mx" className="block text-sm text-slate-300 hover:text-white transition-colors">Contacto</a>
+                <a href="mailto:contacto@auctorum.com.mx" className="block text-sm text-slate-300 hover:text-white transition-colors">Contacto</a>
               </div>
             </div>
             <div>
@@ -157,7 +157,7 @@ export default function HomePage() {
             <div>
               <h4 className="text-sm font-semibold text-white mb-4">Contacto</h4>
               <div className="space-y-3">
-                <a href="mailto:contacto@auctorum.mx" className="block text-sm text-slate-300 hover:text-white transition-colors">contacto@auctorum.mx</a>
+                <a href="mailto:contacto@auctorum.com.mx" className="block text-sm text-slate-300 hover:text-white transition-colors">contacto@auctorum.com.mx</a>
                 <span className="block text-sm text-slate-400">Saltillo, Coahuila, México</span>
               </div>
             </div>

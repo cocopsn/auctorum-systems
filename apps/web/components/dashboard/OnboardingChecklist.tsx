@@ -26,7 +26,11 @@ const STEPS: StepDef[] = [
     key: 'whatsapp_connected',
     title: 'Conecta WhatsApp',
     description: 'Vincula tu número para recibir y responder cotizaciones.',
-    href: '/dashboard/settings#integrations',
+    // Pre-2026-05-10 the anchor pointed to /dashboard/settings#integrations
+    // but that ID didn't exist anywhere in SettingsClient — the link
+    // dropped users at /settings without scrolling to anything. The
+    // canonical channels config lives at /dashboard/settings/channels.
+    href: '/dashboard/settings/channels',
     cta: 'Conectar',
   },
   {
@@ -40,7 +44,9 @@ const STEPS: StepDef[] = [
     key: 'schedule_configured',
     title: 'Configura disponibilidad',
     description: 'Horarios de atención y reglas para el bot.',
-    href: '/dashboard/settings#schedule',
+    // Anchor #schedule didn't exist; horarios live at /dashboard/horarios
+    // (or /dashboard/settings if the tenant only uses tenants.config.schedule).
+    href: '/dashboard/horarios',
     cta: 'Configurar horario',
   },
   {

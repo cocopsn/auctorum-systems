@@ -1314,7 +1314,7 @@ function motifBuildTree(cx, cy, zoom) {
 
         {/* HUD overlays */}
         <div className="auc-hud auc-hud-bl"><div>SALTILLO · MX</div></div>
-        <div className="auc-hud auc-hud-br"><div>contacto@auctorum.mx</div></div>
+        <div className="auc-hud auc-hud-br"><div>contacto@auctorum.com.mx</div></div>
         <div className="auc-scroll-hint" aria-hidden="true">
           <span>SCROLL</span>
           <span className="auc-scroll-hint-line"></span>
@@ -1366,13 +1366,13 @@ function motifBuildTree(cx, cy, zoom) {
           meta="§ 05 · MANIFIESTO"
           title={<React.Fragment>Construimos<br/>con <em>permanencia</em>.</React.Fragment>}
           body="Cinco décadas, no cinco años. Las empresas que construimos deben sobrevivir a sus fundadores. Esta es la postura desde la que operamos."
-          status="contacto@auctorum.mx"
+          status="contacto@auctorum.com.mx"
         />
         <Floater node={6} active={activeHub === 6 && bangComplete}
           meta="AUCTORUM SYSTEMS · SALTILLO, MX"
           title={<React.Fragment>El contrato es promesa.<br/>El código abierto<br/>es <em>prueba</em>.</React.Fragment>}
           body="Cinco sistemas. Una arquitectura. Permanencia por diseño."
-          status={<React.Fragment><span className="dot" />contacto@auctorum.mx</React.Fragment>}
+          status={<React.Fragment><span className="dot" />contacto@auctorum.com.mx</React.Fragment>}
         />
         </div>
       </div>

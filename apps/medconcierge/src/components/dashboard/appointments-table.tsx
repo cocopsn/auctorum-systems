@@ -247,12 +247,45 @@ export function AppointmentsTable({ tenantId }: { tenantId: string }) {
 
 // ─── Charge button (Stripe Connect) ───
 // Generates a Checkout link for the appointment + sends it via WhatsApp.
-// Hidden when the tenant has no active Connect account or no fee configured.
+// Hidden when the tenant has no active Connect account or no fee
+// configured. Pre-2026-05-10 the button rendered unconditionally and
+// clicking on a no-Connect tenant produced a scary error after the
+// confirm() dialog. Now we lazy-check Connect status once per page
+// view (cached in module scope), and skip rendering when:
+//   - row.consultationFee is missing/zero, OR
+//   - the tenant's Stripe Connect status is anything other than 'active'.
+let _connectStatusCache: { active: boolean; fetchedAt: number } | null = null
+const CONNECT_CACHE_MS = 5 * 60 * 1000
+
 function ChargeButton({ row }: { row: AppointmentRow }) {
   const [busy, setBusy] = useState(false)
+  const [connectActive, setConnectActive] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const cached = _connectStatusCache
+    if (cached && Date.now() - cached.fetchedAt < CONNECT_CACHE_MS) {
+      setConnectActive(cached.active)
+      return
+    }
+    fetch('/api/dashboard/billing/connect/status')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled) return
+        const active = d?.status === 'active' || d?.charges_enabled === true
+        _connectStatusCache = { active, fetchedAt: Date.now() }
+        setConnectActive(active)
+      })
+      .catch(() => !cancelled && setConnectActive(false))
+    return () => { cancelled = true }
+  }, [])
+
+  // Hide entirely when fee is missing or Connect isn't onboarded.
+  const fee = parseFloat(row.consultationFee ?? '0')
+  if (!fee || fee < 10) return null
+  if (connectActive === false) return null
 
   async function handleCharge() {
-    const fee = parseFloat(row.consultationFee ?? '0')
     if (!fee || fee < 10) {
       alert('Configura el costo de consulta primero (mínimo $10 MXN).')
       return

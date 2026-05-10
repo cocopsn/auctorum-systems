@@ -259,6 +259,25 @@ module.exports = {
       error_file: '/var/log/auctorum/cron-data-integrity-error.log',
       out_file: '/var/log/auctorum/cron-data-integrity-out.log',
       merge_logs: true
+    },
+    {
+      // Drains follow_ups whose `scheduled_at` has passed — sends the
+      // doctor's customizable WhatsApp template (or a sensible default
+      // per type) and flips the row to status='sent'. Pre-2026-05-10
+      // the schema + UI for follow-ups existed but no consumer ever
+      // dispatched them — pure UI placebo. Runs every 15 minutes.
+      name: 'cron-follow-ups',
+      cwd: '/opt/auctorum-systems/repo',
+      script: 'npx',
+      args: 'tsx scripts/cron-follow-ups.ts',
+      cron_restart: '*/15 * * * *',
+      autorestart: false,
+      watch: false,
+      env: { ...cronEnv, TZ: 'America/Monterrey' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/cron-follow-ups-error.log',
+      out_file: '/var/log/auctorum/cron-follow-ups-out.log',
+      merge_logs: true
     }
   ]
 };

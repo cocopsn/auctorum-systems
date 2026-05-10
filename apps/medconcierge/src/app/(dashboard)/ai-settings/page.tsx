@@ -302,10 +302,27 @@ function PromptTab({
 }
 
 function ModelTab({ config, saving, onSave }: { config: any; saving: boolean; onSave: (u: any) => void }) {
-  const [model, setModel] = useState(config?.model || "gpt-4o-mini")
-  const [temperature, setTemperature] = useState(0.7)
-  const [maxTokens, setMaxTokens] = useState(300)
+  // Hidrate from `config` so saved values stick after a reload.
+  // Pre-2026-05-10 these were `useState(0.7)` / `useState(300)` regardless
+  // of the persisted value, so the doctor's saved slider position was
+  // wiped on every page navigation.
+  const [model, setModel] = useState(config?.model ?? 'gpt-4o-mini')
+  const [temperature, setTemperature] = useState<number>(
+    typeof config?.temperature === 'number' ? config.temperature : 0.7,
+  )
+  const [maxTokens, setMaxTokens] = useState<number>(
+    typeof config?.maxTokens === 'number' ? config.maxTokens : 300,
+  )
   const [enabled, setEnabled] = useState(config?.enabled !== false)
+
+  // Re-sync if the parent re-fetches config (eg. after another tab saves).
+  useEffect(() => {
+    if (config?.model !== undefined) setModel(config.model ?? 'gpt-4o-mini')
+    if (typeof config?.temperature === 'number') setTemperature(config.temperature)
+    if (typeof config?.maxTokens === 'number') setMaxTokens(config.maxTokens)
+    if (config?.enabled !== undefined) setEnabled(config.enabled !== false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config?.model, config?.temperature, config?.maxTokens, config?.enabled])
 
   const models = [
     { value: "gpt-4o-mini", label: "GPT-4o Mini", desc: "Rapido y economico (Recomendado)" },

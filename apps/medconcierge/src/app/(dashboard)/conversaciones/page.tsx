@@ -285,8 +285,20 @@ export default function ConversationsPage() {
         </div>
       </div>
 
-      {/* Right panel - Chat */}
-      <div className="hidden md:flex flex-1 flex-col bg-white">
+      {/*
+        Right panel — chat. On screens >= md it's the static right column;
+        on mobile it slides over the conversation list as an overlay so
+        the doctor can actually read/reply from their phone PWA. Pre-
+        2026-05-10 the chat panel was `hidden md:flex`, so tapping a
+        conversation on mobile did nothing visible.
+      */}
+      <div
+        className={`md:flex md:flex-1 flex-col bg-white ${
+          selectedId
+            ? 'fixed inset-0 z-30 flex md:static md:z-auto md:inset-auto'
+            : 'hidden md:flex'
+        }`}
+      >
         {!selectedConvo ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center px-6">
             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
@@ -299,6 +311,15 @@ export default function ConversationsPage() {
           <>
             {/* Chat header */}
             <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100">
+              {/* Back-to-list button visible only on mobile (chat is overlaid). */}
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                aria-label="Volver al listado"
+                className="md:hidden p-1 -ml-1 rounded-md text-gray-500 hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
               <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-semibold text-indigo-700">
                 {(selectedConvo.clientName || '?')[0].toUpperCase()}
               </div>

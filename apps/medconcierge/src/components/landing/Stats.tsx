@@ -57,12 +57,19 @@ export default function Stats({ yearsExperience, rating, patientCount, schedule 
   const patientNum = parseInt(patientCount.replace(/[^0-9]/g, '')) || 0
   const patientSuffix = patientCount.includes('+') ? '+' : ''
 
+  // Hide stats whose underlying value is missing \u2014 pre-2026-05-10 this
+  // would render "\u2605" alone or "0+" alone, looking like a half-finished
+  // landing. The Schedule slot is special-cased: it has no numeric
+  // value, the suffix carries the text, so we keep it whenever the
+  // tenant defined a schedule.
   const stats = [
-    { label: 'A\u00f1os de experiencia', value: yearsExperience, suffix: '', icon: Calendar },
-    { label: 'Google Maps', value: rating, suffix: '\u2605', icon: Star, isDecimal: true },
-    { label: 'Pacientes atendidos', value: patientNum, suffix: patientSuffix, icon: Users },
-    { label: 'Horario', value: 0, suffix: scheduleLabel || 'Consultar', icon: Clock },
-  ]
+    yearsExperience > 0 && { label: 'A\u00f1os de experiencia', value: yearsExperience, suffix: '', icon: Calendar },
+    rating > 0 && { label: 'Google Maps', value: rating, suffix: '\u2605', icon: Star, isDecimal: true },
+    patientNum > 0 && { label: 'Pacientes atendidos', value: patientNum, suffix: patientSuffix, icon: Users },
+    scheduleLabel && { label: 'Horario', value: 0, suffix: scheduleLabel, icon: Clock },
+  ].filter((s): s is { label: string; value: number; suffix: string; icon: typeof Calendar; isDecimal?: boolean } => Boolean(s))
+
+  if (stats.length === 0) return null
 
   return (
     <section className="relative -mt-12 z-30 px-4 sm:px-6 lg:px-8">

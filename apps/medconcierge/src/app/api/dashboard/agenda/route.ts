@@ -54,9 +54,13 @@ export async function GET() {
       )
 
     const completed = todayAppointments.filter((a) => a.status === 'completed').length
+    // Pre-2026-05-10 the empty-day fallback was a hardcoded 96% — a vanity
+    // number shown on quiet days that didn't reflect reality. Returning
+    // null lets the UI render "—" or hide the pill entirely on no-data
+    // days instead of lying.
     const attendanceRate = todayAppointments.length
       ? Math.round((completed / todayAppointments.length) * 100)
-      : 96
+      : null
 
     // Merge Google Calendar events if configured
     let calendarEvents: any[] = []

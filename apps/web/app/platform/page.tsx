@@ -32,8 +32,13 @@ export default function PlatformPage() {
           <Link href="/signup" className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
             Crear cuenta
           </Link>
-          <a href="https://demo.auctorum.com.mx" target="_blank" rel="noopener noreferrer" className="border border-slate-300 text-slate-700 px-6 py-3 rounded-lg font-medium hover:bg-slate-50 transition-colors">
-            Ver demo
+          {/*
+            "Ver demo" used to link to https://demo.auctorum.com.mx which
+            never existed in nginx — clicked = 404. The closest live demo
+            is the seed tenant landing.
+          */}
+          <a href="https://dra-martinez.auctorum.com.mx" target="_blank" rel="noopener noreferrer" className="border border-slate-300 text-slate-700 px-6 py-3 rounded-lg font-medium hover:bg-slate-50 transition-colors">
+            Ver portal de ejemplo
           </a>
         </div>
       </section>

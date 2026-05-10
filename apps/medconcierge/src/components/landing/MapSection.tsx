@@ -63,7 +63,27 @@ export default function MapSection({ address, phone, schedule, consultationFee, 
         </motion.div>
         <div className="grid lg:grid-cols-2 gap-8">
           <motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="rounded-2xl overflow-hidden shadow-lg border border-gray-100 h-80 lg:h-full min-h-[320px]">
-            <iframe src={`https://www.google.com/maps/embed/v1/place?key=AIzaSyBFw0Qbyq9zTFTd-tUY6dZWTgaQzuU17R8&q=${mapQuery}`} width="100%" height="100%" style={{ border: 0 }} allowFullScreen loading="lazy" referrerPolicy="no-referrer-when-downgrade" title="Ubicaci\u00f3n del consultorio" />
+            {/*
+              Maps API key now read from public env (NEXT_PUBLIC_GOOGLE_MAPS_KEY).
+              Pre-2026-05-10 the key was hardcoded in this JSX, shipped in
+              every visitor's bundle, and could be scraped to abuse the
+              quota. The new key is restricted by HTTP referrer in GCP
+              (*.auctorum.com.mx) so even if extracted it can't be
+              abused from another origin.
+              When the env is missing we render the embed without a key \u2014
+              Maps falls back to a "for development purposes only" tile,
+              which is honest and uglier than a fake.
+            */}
+            <iframe
+              src={`https://www.google.com/maps/embed/v1/place?${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ? `key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY}&` : ''}q=${mapQuery}`}
+              width="100%"
+              height="100%"
+              style={{ border: 0 }}
+              allowFullScreen
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              title="Ubicaci\u00f3n del consultorio"
+            />
           </motion.div>
           <motion.div initial={{ opacity: 0, x: 20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ duration: 0.6 }} className="space-y-6">
             <div className="flex gap-4">

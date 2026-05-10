@@ -569,17 +569,30 @@ export default function SignupPage() {
           )}
 
           {/* Slug preview */}
+          {/*
+            Pre-2026-05-10 the prefix said "portal.auctorum.com.mx/" for
+            both tenant types. Medical tenants live at
+            <slug>.auctorum.com.mx (subdomain), B2B at portal.auctorum.com.mx/<slug>.
+            The mismatch made doctors expect a path URL and confuse them
+            after signup. Now we render the right prefix per type.
+          */}
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1.5">
               URL de tu portal
             </label>
             <div className="flex items-center gap-0">
               <span className="px-3 py-2.5 bg-bg-tertiary border border-r-0 border-border rounded-l-lg text-sm text-text-tertiary whitespace-nowrap">
-                portal.auctorum.com.mx/
+                {formData.tenantType === 'medical'
+                  ? 'https://'
+                  : 'portal.auctorum.com.mx/'}
               </span>
               <input
                 type="text"
-                value={fullSlug}
+                value={
+                  formData.tenantType === 'medical'
+                    ? `${fullSlug}.auctorum.com.mx`
+                    : fullSlug
+                }
                 readOnly
                 className="flex-1 px-3 py-2.5 border border-border rounded-r-lg bg-bg-secondary text-text-primary text-sm
                   focus:outline-none"

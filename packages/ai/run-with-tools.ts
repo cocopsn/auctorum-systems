@@ -36,6 +36,10 @@ export type RunWithToolsResult = {
   latencyMs: number;
   toolCalls: ToolCallResult[];
   rounds: number;
+  /** Tokens used across all OpenAI calls in this conversation turn. */
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
 };
 
 export async function runWhatsAppReplyWithTools(
@@ -55,6 +59,15 @@ export async function runWhatsAppReplyWithTools(
   const allToolCalls: ToolCallResult[] = [];
   let rounds = 0;
   let totalOpenAICalls = 0;
+
+  // Pre-2026-05-10 the runner discarded `data.usage` from each OpenAI
+  // response, so the per-tenant `ai_tokens` plan limit had nothing to
+  // count and never enforced — every tenant got unlimited LLM spend.
+  // We now sum tokens across every call in this conversation turn and
+  // expose them in RunWithToolsResult; the worker meters them via
+  // checkAndTrackUsage(tenantId, plan, 'ai_tokens', total).
+  let promptTokens = 0;
+  let completionTokens = 0;
 
   while (rounds < MAX_TOOL_ROUNDS) {
     rounds++;
@@ -81,6 +94,10 @@ export async function runWhatsAppReplyWithTools(
       throw new Error(`OpenAI error ${res.status}: ${await res.text()}`);
     }
     const data: any = await res.json();
+    if (data.usage) {
+      promptTokens += Number(data.usage.prompt_tokens ?? 0);
+      completionTokens += Number(data.usage.completion_tokens ?? 0);
+    }
     const choice = data.choices?.[0];
     const message = choice?.message;
 
@@ -323,12 +340,19 @@ Responde correctamente llamando check_availability.`;
             }),
           });
           const lastData: any = await lastRes.json();
+          if (lastData.usage) {
+            promptTokens += Number(lastData.usage.prompt_tokens ?? 0);
+            completionTokens += Number(lastData.usage.completion_tokens ?? 0);
+          }
           return {
             answer: lastData.choices?.[0]?.message?.content ?? answer,
             model: data.model ?? model,
             latencyMs: Date.now() - startTime,
             toolCalls: allToolCalls,
             rounds: rounds + 2,
+            promptTokens,
+            completionTokens,
+            totalTokens: promptTokens + completionTokens,
           };
         }
 
@@ -338,6 +362,9 @@ Responde correctamente llamando check_availability.`;
           latencyMs: Date.now() - startTime,
           toolCalls: allToolCalls,
           rounds: rounds + 1,
+          promptTokens,
+          completionTokens,
+          totalTokens: promptTokens + completionTokens,
         };
       } else {
         // Bot regenerated text-only — use corrective response
@@ -348,6 +375,9 @@ Responde correctamente llamando check_availability.`;
           latencyMs: Date.now() - startTime,
           toolCalls: allToolCalls,
           rounds: rounds + 1,
+          promptTokens,
+          completionTokens,
+          totalTokens: promptTokens + completionTokens,
         };
       }
     }
@@ -358,6 +388,9 @@ Responde correctamente llamando check_availability.`;
       latencyMs: Date.now() - startTime,
       toolCalls: allToolCalls,
       rounds,
+      promptTokens,
+      completionTokens,
+      totalTokens: promptTokens + completionTokens,
     };
   }
 
@@ -385,6 +418,10 @@ Responde correctamente llamando check_availability.`;
     }),
   });
   const data: any = await res.json();
+  if (data.usage) {
+    promptTokens += Number(data.usage.prompt_tokens ?? 0);
+    completionTokens += Number(data.usage.completion_tokens ?? 0);
+  }
   const answer =
     data.choices?.[0]?.message?.content ??
     'Lo siento, no pude procesar tu solicitud. Intenta de nuevo.';
@@ -395,5 +432,8 @@ Responde correctamente llamando check_availability.`;
     latencyMs: Date.now() - startTime,
     toolCalls: allToolCalls,
     rounds,
+    promptTokens,
+    completionTokens,
+    totalTokens: promptTokens + completionTokens,
   };
 }
