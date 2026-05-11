@@ -71,11 +71,29 @@ export function getCalendarConfig(tenantConfig?: Record<string, any>, tenantId?:
 
   // OAuth mode (preferred)
   if (gc.mode === 'oauth' && gc.oauth?.refreshToken) {
+    // Decrypt at-rest tokens. Rows written after 2026-05-12 have
+    // `encrypted: true`. Pre-existing rows have plaintext tokens until
+    // the backfill script runs — detect via the ciphertext shape
+    // (`iv:tag:cipher` = 3 hex segments separated by ':').
+    const maybeDecrypt = (val: string | undefined | null): string | undefined => {
+      if (!val) return undefined
+      if (!gc.oauth?.encrypted) return val
+      try {
+        // Lazy import to keep packages/db edge-bundle small.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { decrypt } = require('@quote-engine/db') as { decrypt: (s: string) => string }
+        return decrypt(val)
+      } catch (err) {
+        console.error('[google-calendar] decrypt failed:', err instanceof Error ? err.message : err)
+        return undefined
+      }
+    }
+
     return {
       calendarId: gc.oauth.calendarId || gc.calendarId || 'primary',
       mode: 'oauth',
-      accessToken: gc.oauth.accessToken,
-      refreshToken: gc.oauth.refreshToken,
+      accessToken: maybeDecrypt(gc.oauth.accessToken),
+      refreshToken: maybeDecrypt(gc.oauth.refreshToken),
       tokenExpiry: gc.oauth.tokenExpiry,
       tenantId,
     };

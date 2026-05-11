@@ -13,6 +13,9 @@ export const clients = pgTable('clients', {
   totalAccepted: integer('total_accepted').default(0),
   totalAcceptedAmount: decimal('total_accepted_amount', { precision: 14, scale: 2 }).default('0'),
   lastQuoteAt: timestamp('last_quote_at', { withTimezone: true }),
+  // WhatsApp opt-in tracking — see packages/db/migrations/0057.
+  whatsappOptedInAt: timestamp('whatsapp_opted_in_at', { withTimezone: true }),
+  whatsappOptedOutAt: timestamp('whatsapp_opted_out_at', { withTimezone: true }),
   // Mini-CRM (CP11)
   notes: text('notes'),
   status: varchar('status', { length: 20 }).notNull().default('lead'),

@@ -114,17 +114,18 @@ export default function ConversationsPage() {
     return () => window.removeEventListener('realtime:message', handler)
   }, [fetchConvos, fetchMessages, selectedId])
 
+  // Initial load only. Realtime updates come through the
+  // `realtime:message` window event handler above (dispatched by
+  // Supabase Realtime subscriber in <RealtimeProvider/>). Pre-2026-05-12
+  // we ALSO polled every 10s — duplicated work, ~600 wasted req/min at
+  // 100 tenants, and Realtime already covered the use case.
   useEffect(() => {
     fetchConvos()
-    const interval = setInterval(fetchConvos, 10000)
-    return () => clearInterval(interval)
   }, [fetchConvos])
 
   useEffect(() => {
     if (selectedId) {
       fetchMessages(selectedId)
-      const interval = setInterval(() => fetchMessages(selectedId), 10000)
-      return () => clearInterval(interval)
     }
   }, [selectedId, fetchMessages])
 

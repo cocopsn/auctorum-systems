@@ -8,6 +8,7 @@
 // Use relative imports since scripts/ is at repo root and pnpm strict mode
 // does not hoist workspace packages to root node_modules.
 import { createWorker, createQueue, closeAll, getConnection, type Job, type AuctorumJobPayload } from '../packages/queue/src/index';
+import { redactPhone, redactName } from '../packages/notifications/redact';
 import {
   db,
   conversations,
@@ -253,6 +254,42 @@ async function processWhatsAppMessage(job: Job<AuctorumJobPayload>) {
     externalId: external_id,
   });
 
+  // WhatsApp opt-out detection — required by WhatsApp Business Policy.
+  // If the inbound message is an opt-out keyword we flip the patient's
+  // whatsapp_opted_out_at, ack with a confirmation, and skip the AI
+  // round. Re-opt-in via the keyword "ALTA" or "SUBSCRIBE".
+  const OPT_OUT_KEYWORDS = ['baja', 'stop', 'cancelar mensajes', 'no más', 'no mas', 'dejar de recibir', 'unsubscribe']
+  const OPT_IN_KEYWORDS = ['alta', 'subscribe', 'reactivar']
+  const textLc = text.trim().toLowerCase()
+  const isOptOut = OPT_OUT_KEYWORDS.some((k) => textLc === k || textLc.startsWith(k + ' ') || textLc.endsWith(' ' + k))
+  const isOptIn = OPT_IN_KEYWORDS.some((k) => textLc === k)
+  if (isOptOut || isOptIn) {
+    try {
+      await db.execute(sql`
+        UPDATE patients
+        SET ${isOptOut
+          ? sql`whatsapp_opted_out_at = NOW(), whatsapp_opted_in_at = NULL`
+          : sql`whatsapp_opted_in_at = NOW(),  whatsapp_opted_out_at = NULL`},
+            updated_at = NOW()
+        WHERE tenant_id = ${tenantId}::uuid
+          AND REGEXP_REPLACE(phone, '[^0-9]', '', 'g') = ${normalized}
+      `)
+    } catch (err) {
+      console.warn('[worker] opt-in/out update failed:', err instanceof Error ? err.message : err)
+    }
+    const reply = isOptOut
+      ? 'Listo, lo dimos de baja de mensajes promocionales. Seguirá recibiendo confirmaciones y recordatorios de citas. Para volver a suscribirse escriba ALTA.'
+      : 'Bienvenido de vuelta. Volvió a la lista de mensajes promocionales.'
+    await sendWhatsAppMessage(from, reply)
+    await db.insert(messages).values({
+      conversationId: conversation.id,
+      direction: 'outbound',
+      senderType: 'system',
+      content: reply,
+    })
+    return
+  }
+
   // Load history
   const history = await loadHistory(conversation.id, 20);
 
@@ -445,7 +482,7 @@ ${selectedInfo}
     latencyMs = 0
     usedFallback = true
   } else {
-    console.log(`[worker] calling OpenAI (tools) for tenant=${tenant.slug} phone=${normalized}`)
+    console.log(`[worker] calling OpenAI (tools) for tenant=${tenant.slug} phone=${redactPhone(normalized)}`)
     try {
       // Per-job ALS frame — guarantees this tenant's doctor context can't
       // leak into a sibling worker job processing a different tenant.

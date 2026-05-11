@@ -9,7 +9,9 @@ import { db, appointments, patients, tenants } from '@quote-engine/db'
 import type { TenantConfig } from '@quote-engine/db'
 import { eq, and, sql } from 'drizzle-orm'
 import { sendWhatsAppMessage } from '@quote-engine/notifications/whatsapp'
+import { redactPhone, redactName } from '@quote-engine/notifications/redact'
 import { formatBotMessage } from '../apps/medconcierge/src/lib/bot-messages'
+import { withHealthcheck } from './lib/healthcheck'
 
 const DEFAULT_TIMEZONE = 'America/Monterrey'
 
@@ -110,9 +112,9 @@ async function sendReminders() {
 
         if (sent) {
           reminders24hSent++
-          console.log(`[appointment-reminders] 24h reminder sent to ${patient.name} (${patient.phone})`)
+          console.log(`[appointment-reminders] 24h reminder sent to ${redactName(patient.name)} (${redactPhone(patient.phone)})`)
         } else {
-          console.error(`[appointment-reminders] 24h reminder FAILED for ${patient.name} (${patient.phone})`)
+          console.error(`[appointment-reminders] 24h reminder FAILED for ${redactName(patient.name)} (${redactPhone(patient.phone)})`)
         }
       }
 
@@ -191,9 +193,9 @@ async function sendReminders() {
 
         if (sent) {
           reminders1hSent++
-          console.log(`[appointment-reminders] 1h reminder sent to ${patient.name} (${patient.phone})`)
+          console.log(`[appointment-reminders] 1h reminder sent to ${redactName(patient.name)} (${redactPhone(patient.phone)})`)
         } else {
-          console.error(`[appointment-reminders] 1h reminder FAILED for ${patient.name} (${patient.phone})`)
+          console.error(`[appointment-reminders] 1h reminder FAILED for ${redactName(patient.name)} (${redactPhone(patient.phone)})`)
         }
       }
 
@@ -220,7 +222,7 @@ async function sendReminders() {
   console.log(`[appointment-reminders] Done at ${new Date().toISOString()} (local: ${formatLocalTimestamp(new Date())})`)
 }
 
-sendReminders()
+withHealthcheck('APPOINTMENT_REMINDERS', sendReminders)
   .then(() => process.exit(0))
   .catch((err) => {
     console.error('[appointment-reminders] Fatal:', err)

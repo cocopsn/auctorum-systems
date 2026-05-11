@@ -274,6 +274,23 @@ module.exports = {
       merge_logs: true
     },
     {
+      // P1-29: surfaces dead-letter signals from webhook_failures +
+      // BullMQ failed sets + stuck data_deletion_requests. Emits one
+      // JSON line per cycle. Pre-2026-05-12 these silently rotted.
+      name: 'cron-dlq-monitor',
+      cwd: '/opt/auctorum-systems/repo',
+      script: 'npx',
+      args: 'tsx scripts/cron-dlq-monitor.ts',
+      cron_restart: '*/15 * * * *',
+      autorestart: false,
+      watch: false,
+      env: { ...cronEnv, TZ: 'America/Monterrey' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/cron-dlq-monitor-error.log',
+      out_file: '/var/log/auctorum/cron-dlq-monitor-out.log',
+      merge_logs: true
+    },
+    {
       // Drains data_deletion_requests scheduled <= now(). Runs daily at
       // 4am local. Pre-2026-05-11 the Meta Data Deletion webhook
       // returned a confirmation code that resolved to nothing — Meta

@@ -121,10 +121,15 @@ export async function PATCH(request: NextRequest, { params }: RouteCtx) {
       if (value !== undefined) updateData[key] = value;
     }
 
+    // TOCTOU hardening — include tenant_id in the UPDATE WHERE clause,
+    // not just the SELECT pre-check. Without this, the SELECT and UPDATE
+    // share a microsecond window where, under heavy refactoring or a
+    // future change that drops the pre-check, a cross-tenant write
+    // would slip through. Belt + suspenders.
     const [updated] = await db
       .update(patients)
       .set(updateData)
-      .where(eq(patients.id, id))
+      .where(and(eq(patients.id, id), eq(patients.tenantId, auth.tenant.id)))
       .returning();
 
     return NextResponse.json({ success: true, data: updated });

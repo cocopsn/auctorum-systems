@@ -32,10 +32,20 @@ export const patients = pgTable('patients', {
   notes: text('notes'),
   avatarUrl: text('avatar_url'),
   portalToken: varchar('portal_token', { length: 36 }).notNull().$defaultFn(() => crypto.randomUUID()),
+  // Server-side hash of `portalToken` for lookup. The plaintext is only
+  // ever in the URL we email/WhatsApp to the patient; a DB read alone
+  // cannot impersonate. Set by migration 0058 + the patient insert hook.
+  portalTokenHash: varchar('portal_token_hash', { length: 64 }),
+  portalTokenExpiresAt: timestamp('portal_token_expires_at', { withTimezone: true }),
   totalAppointments: integer('total_appointments').default(0),
   totalNoShows: integer('total_no_shows').default(0),
   totalSpent: decimal('total_spent', { precision: 12, scale: 2 }).default('0'),
   lastAppointmentAt: timestamp('last_appointment_at', { withTimezone: true }),
+  // WhatsApp Business Policy compliance (migration 0057). Backfilled
+  // from created_at for existing rows; new patients must opt-in
+  // explicitly via the agendar flow.
+  whatsappOptedInAt: timestamp('whatsapp_opted_in_at', { withTimezone: true }),
+  whatsappOptedOutAt: timestamp('whatsapp_opted_out_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (table) => ({

@@ -1,8 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { withAuthCookieDomain } from '@/lib/auth-cookie'
-import { db, tenants, users } from '@quote-engine/db'
+import { db, tenants, users, auditLog } from '@quote-engine/db'
 import { and, eq, sql } from 'drizzle-orm'
+
+/**
+ * Log a successful login. Best-effort — failures are swallowed so a
+ * broken audit pipeline doesn't break the user's login.
+ */
+async function logLoginSuccess(userId: string, ip: string | null) {
+  try {
+    const [u] = await db
+      .select({ id: users.id, tenantId: users.tenantId })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+    if (!u) return
+    await auditLog({
+      tenantId: u.tenantId,
+      userId: u.id,
+      action: 'auth.login_success',
+      entity: `user:${u.id}`,
+      ip,
+    })
+  } catch (err) {
+    console.warn('[auth/callback] login audit log failed:', err instanceof Error ? err.message : err)
+  }
+}
 
 /**
  * Promote a freshly-verified tenant from 'unverified' to 'pending_plan'.
@@ -73,6 +97,10 @@ export async function GET(request: NextRequest) {
     // Promote any 'unverified' tenant owned by this user (signup path).
     if (exchangeData.user?.id) {
       await markTenantVerified(exchangeData.user.id)
+      await logLoginSuccess(
+        exchangeData.user.id,
+        request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip'),
+      )
     }
 
     return response
@@ -166,6 +194,10 @@ export async function POST(request: NextRequest) {
     // verification flips 'unverified' → 'pending_plan'.
     if (sessionData.user?.id) {
       await markTenantVerified(sessionData.user.id)
+      await logLoginSuccess(
+        sessionData.user.id,
+        request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip'),
+      )
     }
 
     return response

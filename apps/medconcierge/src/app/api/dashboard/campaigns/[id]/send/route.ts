@@ -40,6 +40,9 @@ async function resolveAudience(
     const days = Number(filter.recentDays)
     const cutoff = new Date()
     cutoff.setDate(cutoff.getDate() - days)
+    // Opt-out filter — WhatsApp Business Policy requires us to skip
+    // anyone who replied with BAJA/STOP. The worker writes to
+    // whatsapp_opted_out_at; here we just exclude those rows.
     const rows = await db
       .select({ id: clients.id, name: clients.name, phone: clients.phone })
       .from(clients)
@@ -48,6 +51,7 @@ async function resolveAudience(
           eq(clients.tenantId, tenantId),
           isNotNull(clients.phone),
           gte(clients.createdAt, cutoff),
+          sql`${clients.whatsappOptedOutAt} IS NULL`,
         ),
       )
     return rows.filter((r) => r.phone && r.phone.replace(/\D/g, '').length >= 10)
@@ -62,9 +66,10 @@ async function resolveAudience(
           FROM clients c
           LEFT JOIN client_funnel cf ON cf.client_id = c.id
           LEFT JOIN funnel_stages fs ON fs.id = cf.stage_id
-          WHERE c.tenant_id = ${tenantId}
+          WHERE c.tenant_id = ${tenantId}::uuid
             AND c.phone IS NOT NULL
             AND c.phone <> ''
+            AND c.whatsapp_opted_out_at IS NULL
             AND (fs.name = ${stage} OR c.status = ${stage})`,
     )
     return (rows as unknown as AudienceClient[]).filter(
@@ -72,11 +77,15 @@ async function resolveAudience(
     )
   }
 
-  // 3) Default — everyone in this tenant with a phone
+  // 3) Default — everyone in this tenant with a phone AND not opted out.
   const rows = await db
     .select({ id: clients.id, name: clients.name, phone: clients.phone })
     .from(clients)
-    .where(and(eq(clients.tenantId, tenantId), isNotNull(clients.phone)))
+    .where(and(
+      eq(clients.tenantId, tenantId),
+      isNotNull(clients.phone),
+      sql`${clients.whatsappOptedOutAt} IS NULL`,
+    ))
   return rows.filter((r) => r.phone && r.phone.replace(/\D/g, '').length >= 10)
 }
 

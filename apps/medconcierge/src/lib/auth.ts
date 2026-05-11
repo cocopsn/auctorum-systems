@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
 import { redirect } from 'next/navigation'
 import { eq } from 'drizzle-orm'
-import { db, users, tenants } from '@quote-engine/db'
+import { db, users, tenants, withTenant } from '@quote-engine/db'
 import type { Tenant, User } from '@quote-engine/db'
 
 function createSupabaseServerClient() {
@@ -130,4 +130,63 @@ export async function requireRole(allowedRoles: string[]): Promise<{ user: User;
  */
 export async function requireSuperadmin(): Promise<{ user: User; tenant: Tenant } | null> {
   return requireRole(['super_admin'])
+}
+
+export class UnauthorizedError extends Error {
+  constructor() {
+    super('Unauthorized')
+    this.name = 'UnauthorizedError'
+  }
+}
+
+type AuthAndTenantCtx = {
+  user: User
+  tenant: Tenant
+  tenantId: string
+  /** Drizzle transaction with `app.tenant_id` set — pass this to queries. */
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0]
+}
+
+/**
+ * Helper for dashboard API routes — combines authentication and
+ * `withTenant` scope in one wrapper. The callback receives `tx` (a
+ * Drizzle transaction with `set_config('app.tenant_id', auth.tenant.id)`
+ * already applied) so any query inside it is automatically scoped by the
+ * RLS policies that reference `current_setting('app.tenant_id')`.
+ *
+ * Usage:
+ *
+ *   export async function GET(req: NextRequest) {
+ *     try {
+ *       const result = await withAuthAndTenant(async ({ tx, tenantId }) => {
+ *         // RLS filters by tenant automatically AND we keep eq() as
+ *         // defense-in-depth (the RLS bypass case from rolbypassrls).
+ *         return tx.select().from(patients).where(eq(patients.tenantId, tenantId))
+ *       })
+ *       return NextResponse.json({ data: result })
+ *     } catch (err) {
+ *       if (err instanceof UnauthorizedError) {
+ *         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+ *       }
+ *       throw err
+ *     }
+ *   }
+ *
+ * Throws UnauthorizedError when there's no session, so the caller does
+ * one try/catch and gets clean error mapping.
+ */
+export async function withAuthAndTenant<T>(
+  fn: (ctx: AuthAndTenantCtx) => Promise<T>,
+): Promise<T> {
+  const auth = await getAuthTenant()
+  if (!auth) throw new UnauthorizedError()
+
+  return withTenant(auth.tenant.id, async (tx) => {
+    return fn({
+      user: auth.user,
+      tenant: auth.tenant,
+      tenantId: auth.tenant.id,
+      tx,
+    })
+  })
 }

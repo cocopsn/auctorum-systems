@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { and, asc, between, desc, eq } from 'drizzle-orm'
-import { db, appointments, patients, patientPayments } from '@quote-engine/db'
+import { db, appointments, patients, patientPayments, auditLog } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
 
 /**
@@ -106,6 +106,18 @@ export async function GET(req: NextRequest) {
 
     // BOM (UTF-8) helps Excel auto-detect encoding
     const csv = '﻿' + csvBody
+
+    // Audit data exports — required for LFPDPPP / NOM-004 compliance
+    // (the doctor must be able to prove who exported which patient list
+    // and when). Pre-2026-05-12 CSV exports left no trace.
+    await auditLog({
+      tenantId: auth.tenant.id,
+      userId: auth.user.id,
+      action: 'report.export',
+      entity: `report:${type}`,
+      after: { from, to, type, rowCount: rows.length },
+      ip: req.headers.get('x-forwarded-for') ?? null,
+    })
 
     return new NextResponse(csv, {
       status: 200,

@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { getAuthTenant } from '@/lib/auth'
-import { db, tenants } from '@quote-engine/db'
+import { db, tenants, encrypt } from '@quote-engine/db'
 import { eq } from 'drizzle-orm'
 
 // GET /api/auth/google/callback — Handle Google OAuth callback
@@ -95,18 +95,27 @@ export async function GET(request: NextRequest) {
     // Calculate token expiry
     const tokenExpiry = new Date(Date.now() + (expires_in || 3600) * 1000).toISOString()
 
-    // Save to tenant config
+    // Save to tenant config. Tokens are encrypted at rest with
+    // AES-256-GCM (ENCRYPTION_KEY env). Pre-2026-05-12 they were
+    // stored plaintext in JSONB — any DB read leak (anon-key abuse,
+    // backup theft, etc.) handed an attacker permanent Google
+    // impersonation. See packages/db/src/encryption.ts for the
+    // ciphertext shape ('iv:tag:cipher'). The google-calendar
+    // helper decrypts before use.
     const config = (auth.tenant.config as Record<string, any>) || {}
     config.googleCalendar = {
       ...config.googleCalendar,
       mode: 'oauth',
       oauth: {
-        accessToken: access_token,
-        refreshToken: refresh_token,
+        accessToken: encrypt(access_token),
+        refreshToken: refresh_token ? encrypt(refresh_token) : null,
         tokenExpiry,
         email,
         calendarId,
         connectedAt: new Date().toISOString(),
+        // Marker for the migration script — pre-existing rows have no
+        // `encrypted` flag and need backfill via scripts/encrypt-existing-tokens.ts
+        encrypted: true,
       },
       calendarId,
       autoSync: true,

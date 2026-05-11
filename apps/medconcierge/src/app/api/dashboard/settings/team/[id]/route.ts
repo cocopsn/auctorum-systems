@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, users } from '@quote-engine/db'
+import { db, users, auditLog } from '@quote-engine/db'
 import { eq, and } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { z } from 'zod'
@@ -52,6 +52,20 @@ export async function PATCH(
 
     if (Object.keys(updates).length > 0) {
       await db.update(users).set(updates).where(eq(users.id, memberId))
+
+      // Audit role changes specifically. Pre-2026-05-12 these were
+      // unaudited so a malicious admin could promote/demote silently.
+      if (parsed.data.role && parsed.data.role !== member.role) {
+        await auditLog({
+          tenantId: auth.tenant.id,
+          userId: auth.user.id,
+          action: 'team.role_change',
+          entity: `user:${memberId}`,
+          before: { role: member.role },
+          after: { role: parsed.data.role },
+          ip: request.headers.get('x-forwarded-for') ?? null,
+        })
+      }
     }
 
     return NextResponse.json({ success: true })

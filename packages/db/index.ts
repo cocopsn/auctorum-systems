@@ -1,5 +1,9 @@
 export { auditLog } from './audit';
 export * from './schema';
+// AES-256-GCM helpers — encrypt OAuth tokens / Stripe keys / etc.
+// before persisting to JSONB. Pre-2026-05-12 these were plaintext;
+// any DB-read access leaked permanent credentials.
+export { encrypt, decrypt } from './src/encryption';
 
 // Drizzle client setup — lazy initialization
 // The connection is only established on first query, not at import time.
@@ -52,14 +56,33 @@ export const db = new Proxy({} as PostgresJsDatabase<typeof schema>, {
 
 import { sql } from 'drizzle-orm';
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /**
  * Enforce Tenant Isolation Wrapper (RLS / Application Level Middleware)
  * Wrap all tenant-specific database interactions here to prevent data leakage.
  * Sets app.tenant_id via set_config so Postgres RLS policies can enforce isolation.
+ *
+ * SECURITY: Throws if tenantId is missing or malformed — failing closed.
+ * Pre-2026-05-11 this silently accepted any string, including '' (the
+ * empty-string case lets RLS policies that compare against an empty UUID
+ * return zero rows, masking the bug under "no data" UX instead of erroring).
  */
 export async function withTenant<T>(tenantId: string, callback: (tx: any) => Promise<T>): Promise<T> {
+  if (!tenantId) {
+    throw new Error('[DB] withTenant called without tenantId — refusing to execute (potential cross-tenant leak)')
+  }
+  if (!UUID_RE.test(tenantId)) {
+    throw new Error(`[DB] withTenant called with non-UUID tenantId: ${String(tenantId).slice(0, 64)}`)
+  }
   return await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT set_config('app.tenant_id', ${tenantId}, true)`);
     return await callback(tx);
   });
 }
+
+/**
+ * Alias for withTenant — matches the naming used in the 2026-05-11 P1
+ * audit and the prompts referencing it. Same shape, same guarantees.
+ */
+export const withTenantScope = withTenant

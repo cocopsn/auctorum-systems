@@ -17,6 +17,9 @@
  * - FALLBACK_ERROR_MESSAGE (src/types.ts)
  */
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+// Imported for internal use in uploadKnowledgeFile (storage quota gate).
+// Re-exported below at the public API surface.
+import { checkAndTrackUsage } from './usage-tracker';
 import {
   aiKnowledgeFiles,
   aiUsageEvents,
@@ -140,6 +143,23 @@ export function validateKnowledgeFile(file: File) {
 export async function uploadKnowledgeFile({ tenant, userId, file }: { tenant: Tenant; userId: string; file: File }) {
   const validationError = validateKnowledgeFile(file);
   if (validationError) throw new Error(validationError);
+
+  // Quota gate — counts toward the tenant's storage_bytes allowance.
+  // Pre-2026-05-12 there was no enforcement at upload time; tenants
+  // could exceed their plan limit without any signal.
+  const quota = await checkAndTrackUsage(
+    tenant.id,
+    (tenant as any).plan ?? 'basico',
+    'storage_bytes',
+    file.size,
+  );
+  if (!quota.allowed) {
+    throw new Error(
+      `Espacio insuficiente: ${Math.round(quota.current / 1024 / 1024)}MB usados de ${Math.round(
+        (quota.totalLimit ?? 0) / 1024 / 1024,
+      )}MB. Borre archivos antiguos o suba de plan.`,
+    );
+  }
 
   const vectorStoreId = await ensureVectorStore(tenant);
   const form = new FormData();
@@ -444,8 +464,8 @@ export {
   type UsageMetric,
 } from './plan-limits';
 
+export { checkAndTrackUsage };
 export {
-  checkAndTrackUsage,
   getUsageSnapshot,
   creditAddon,
   type GatedMetric,
