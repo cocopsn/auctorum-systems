@@ -20,6 +20,7 @@ import {
   botInstances,
 } from '../packages/db/index'
 import { and, eq, sql } from 'drizzle-orm'
+import { checkAndTrackUsage } from '../packages/ai/index'
 
 const WHATSAPP_API_URL = 'https://graph.facebook.com/v19.0'
 const SEND_INTERVAL_MS = 45_000 // 45s between sends → ~80 / hour (safely under Meta's 80/h marketing limit)
@@ -193,6 +194,34 @@ async function processCampaign(job: Job): Promise<void> {
       failedCount++
       processed++
       continue
+    }
+
+    // Per-tenant WhatsApp quota gate. Pre-2026-05-11 campaigns ignored
+    // the plan cap — a rogue or buggy tenant could blast through tens of
+    // thousands of marketing conversations and our Meta bill would tell
+    // us about it next month. Now: before each send we increment 1 against
+    // the tenant's `whatsapp_messages` allowance; if denied, the campaign
+    // is paused (`paused_limit`) so the operator can decide whether to
+    // upgrade the plan or wait for the period to reset.
+    try {
+      const usage = await checkAndTrackUsage(
+        tenantId,
+        (tenant?.plan ?? 'basico') as string,
+        'whatsapp_messages',
+        1,
+      )
+      if (!usage.allowed) {
+        console.warn(
+          `[campaign-worker] tenant=${tenantId} over WhatsApp cap (${usage.current}/${usage.totalLimit}), pausing campaign=${campaignId}`,
+        )
+        await db
+          .update(campaigns)
+          .set({ status: 'paused_limit', updatedAt: new Date() })
+          .where(eq(campaigns.id, campaignId))
+        break
+      }
+    } catch (err) {
+      console.warn('[campaign-worker] usage gate threw (continuing best-effort):', err instanceof Error ? err.message : err)
     }
 
     const result = await sendOne(phoneNumberId, token, phone, body)

@@ -20,13 +20,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', realOrigin))
   }
 
-  // Protect dashboard routes — require valid Supabase session
+  // Protect dashboard routes — require valid Supabase session.
+  //
+  // Uses getUser() (server-validated against Supabase Auth) not
+  // getSession() (cookie-trusted) per CLAUDE.md rule. Pre-2026-05-11
+  // this used getSession which accepted forged/replayed access tokens
+  // until they expired (Supabase default 1h, refresh 60d).
   if (pathname.startsWith('/dashboard')) {
     const response = NextResponse.next()
     const supabase = createSupabaseMiddleware(request, response)
-    const { data: { session } } = await supabase.auth.getSession()
+    const { data: { user } } = await supabase.auth.getUser()
 
-    if (!session) {
+    if (!user) {
       return NextResponse.redirect(new URL('/login', realOrigin))
     }
 

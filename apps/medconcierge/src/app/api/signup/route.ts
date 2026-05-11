@@ -244,11 +244,18 @@ export async function POST(request: NextRequest) {
     const tempPassword =
       'Tmp!' + crypto.randomUUID().replace(/-/g, '').slice(0, 16)
 
+    // email_confirm: true requires the user to click the verification
+    // email Supabase sends before login is allowed. Pre-2026-05-11 this
+    // was false → anyone could squat a slug against someone else's email
+    // (tenant takeover). The tenant row is still created below (we need
+    // the slug reserved + Stripe Checkout to flow) but its
+    // provisioningStatus stays 'unverified' until the auth callback
+    // confirms ownership of the email.
     const { data: authData, error: authError } =
       await supabaseAdmin.auth.admin.createUser({
         email: data.email,
         password: tempPassword,
-        email_confirm: false,
+        email_confirm: true,
         user_metadata: {
           full_name: data.fullName,
           tenant_type: data.tenantType,
@@ -310,7 +317,10 @@ export async function POST(request: NextRequest) {
               data.tenantType === 'medical'
                 ? data.doctorTitlePrefix ?? 'dr'
                 : undefined,
-            provisioningStatus: 'pending_plan',
+            // 'unverified' until the user clicks the magic-link / email
+            // confirmation. The auth callback (POST /api/auth/callback)
+            // promotes to 'pending_plan' on first successful login.
+            provisioningStatus: 'unverified',
             plan: data.plan === 'enterprise' ? 'enterprise' : data.plan,
             config: tenantConfig,
           })

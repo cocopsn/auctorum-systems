@@ -72,12 +72,18 @@ export async function runWhatsAppReplyWithTools(
   while (rounds < MAX_TOOL_ROUNDS) {
     rounds++;
 
+    // `store: false` opts out of OpenAI's 30-day abuse-monitoring
+    // retention. CRITICAL for healthcare PII: prompts contain patient
+    // names, phones, and free-form clinical questions. LFPDPPP Art. 36
+    // requires cross-border transfers to have contractual safeguards.
+    // Without store:false the data is held by OpenAI staff for 30d.
     const body: any = {
       model,
       messages,
       tools: WHATSAPP_TOOLS,
       tool_choice: 'auto',
       temperature: 0.7,
+      store: false,
     };
 
     totalOpenAICalls++;
@@ -249,6 +255,7 @@ Responde correctamente llamando check_availability.`;
           tools: WHATSAPP_TOOLS,
           tool_choice: 'required',
           temperature: 0.3,
+          store: false,
         }),
       });
       const correctiveData: any = await correctiveRes.json();
@@ -296,6 +303,7 @@ Responde correctamente llamando check_availability.`;
             tools: WHATSAPP_TOOLS,
             tool_choice: 'auto',
             temperature: 0.7,
+            store: false,
           }),
         });
         const finalData: any = await finalRes.json();
@@ -337,6 +345,7 @@ Responde correctamente llamando check_availability.`;
               messages,
               tool_choice: 'none',
               temperature: 0.7,
+              store: false,
             }),
           });
           const lastData: any = await lastRes.json();
@@ -415,6 +424,7 @@ Responde correctamente llamando check_availability.`;
       messages,
       tool_choice: 'none',
       temperature: 0.7,
+      store: false,
     }),
   });
   const data: any = await res.json();

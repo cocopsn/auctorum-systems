@@ -99,5 +99,35 @@ export async function requireRole(allowedRoles: string[]): Promise<{ user: User;
   if (!auth) return null;
   const userRole = (auth.user as any).role || 'viewer';
   if (!allowedRoles.includes(userRole)) return null;
+
+  // Hardening 2026-05-11: `super_admin` privileges require BOTH a DB
+  // `users.role='super_admin'` AND the user's email being in the
+  // SUPERADMIN_EMAILS env allowlist. Without this, anyone with DB write
+  // access (or a SQL injection past prior P0s) could flip their role and
+  // gain cross-tenant god mode. Matches the apps/web/lib/superadmin.ts
+  // pattern that already had this defense.
+  if (allowedRoles.includes('super_admin') && userRole === 'super_admin') {
+    const allowlist = (process.env.SUPERADMIN_EMAILS ?? '')
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+    const email = (auth.user.email ?? '').toLowerCase()
+    // If no allowlist configured we treat the env as "deny all super_admin"
+    // — fail closed to avoid the 2024-style "deploy with empty env =
+    // silently public" footgun.
+    if (allowlist.length === 0 || !allowlist.includes(email)) {
+      console.warn(`[auth] super_admin attempt by ${email} blocked (not in SUPERADMIN_EMAILS allowlist)`)
+      return null
+    }
+  }
   return auth;
+}
+
+/**
+ * Stricter super_admin gate that does NOT fall back to role-only. Use
+ * this in /api/admin/* endpoints when you want to be explicit that the
+ * email allowlist is required, regardless of what's in users.role.
+ */
+export async function requireSuperadmin(): Promise<{ user: User; tenant: Tenant } | null> {
+  return requireRole(['super_admin'])
 }

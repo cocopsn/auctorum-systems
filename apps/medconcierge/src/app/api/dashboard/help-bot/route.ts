@@ -85,6 +85,7 @@ export async function POST(req: NextRequest) {
         messages,
         max_tokens: 350,
         temperature: 0.3,
+        store: false,
       }),
     })
 

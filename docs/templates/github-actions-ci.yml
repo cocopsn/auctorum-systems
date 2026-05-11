@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel in-progress runs on the same branch when a new commit lands.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Enable corepack + pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@10.0.0 --activate
+
+      - name: Get pnpm store
+        id: pnpm-store
+        run: echo "path=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Run unit + integration tests. The vitest suite expects a few
+      # env vars but defaults to mocked clients when none are set —
+      # safe to run on a CI runner without secrets.
+      - name: Run tests
+        run: pnpm test:run
+        env:
+          NODE_ENV: test
+          # Synthetic DB URL — drizzle smoke tests use mocked clients.
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+          NEXT_PUBLIC_SUPABASE_URL: https://ci.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: anon-ci
+          SUPABASE_SERVICE_ROLE_KEY: service-ci
+          OPENAI_API_KEY: sk-ci
+          WHATSAPP_TOKEN: ci
+          WHATSAPP_PHONE_NUMBER_ID: ci
+          WHATSAPP_VERIFY_TOKEN: ci
+          WHATSAPP_APP_SECRET: ci
+          STRIPE_SECRET_KEY: sk_test_ci
+          STRIPE_WEBHOOK_SECRET: whsec_ci
+          MERCADOPAGO_ACCESS_TOKEN: ci
+          MERCADOPAGO_WEBHOOK_SECRET: ci
+          REDIS_URL: redis://localhost:6379
+          NEXT_PUBLIC_APP_DOMAIN: auctorum.com.mx
+          SUPERADMIN_EMAILS: ci@auctorum.com.mx
+
+      - name: Build medconcierge
+        run: pnpm build:med
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: https://ci.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: anon-ci
+          NEXT_PUBLIC_APP_DOMAIN: auctorum.com.mx
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci
+
+      - name: Build web
+        run: pnpm build:web
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
+          NODE_ENV: production
+          NEXT_PUBLIC_SUPABASE_URL: https://ci.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: anon-ci
+          NEXT_PUBLIC_APP_DOMAIN: auctorum.com.mx
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/ci

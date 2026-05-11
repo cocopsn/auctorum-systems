@@ -133,18 +133,31 @@ module.exports = {
       merge_logs: true
     },
     {
+      // WhatsApp queue worker — 2 PM2 instances × 4 jobs concurrency each
+      // = 8 lanes ≈ 120 msg/min ceiling (vs the 30 msg/min single-instance
+      // ceiling pre-2026-05-11). BullMQ distributes jobs across both
+      // instances via the shared Redis stream so duplicate processing is
+      // impossible. ALS scoping (runWithDoctorContext) makes the per-job
+      // doctor context isolated across all lanes.
+      //
+      // exec_mode: 'fork' (NOT cluster) because we want independent BullMQ
+      // workers each calling createWorker() with its own connection —
+      // cluster mode shares the listening socket but this isn't an HTTP
+      // server.
       name: 'auctorum-worker',
       cwd: '/opt/auctorum-systems/repo',
       script: 'npx',
       args: '-y tsx scripts/worker.ts',
       interpreter: 'none',
-      instances: 1,
+      instances: 2,
       exec_mode: 'fork',
       max_memory_restart: '450M',
       env: {
         ...medEnv,
         NODE_ENV: 'production',
-        NODE_OPTIONS: '--max-old-space-size=384'
+        NODE_OPTIONS: '--max-old-space-size=384',
+        WORKER_CONCURRENCY: '4',
+        DB_POOL_MAX: '3',
       },
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: '/var/log/auctorum/worker-error.log',
@@ -258,6 +271,25 @@ module.exports = {
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: '/var/log/auctorum/cron-data-integrity-error.log',
       out_file: '/var/log/auctorum/cron-data-integrity-out.log',
+      merge_logs: true
+    },
+    {
+      // Drains data_deletion_requests scheduled <= now(). Runs daily at
+      // 4am local. Pre-2026-05-11 the Meta Data Deletion webhook
+      // returned a confirmation code that resolved to nothing — Meta
+      // Platform Policy + LFPDPPP violation. This cron is the actual
+      // purge engine.
+      name: 'cron-data-deletion',
+      cwd: '/opt/auctorum-systems/repo',
+      script: 'npx',
+      args: 'tsx scripts/cron-data-deletion.ts',
+      cron_restart: '0 4 * * *',
+      autorestart: false,
+      watch: false,
+      env: { ...cronEnv, TZ: 'America/Monterrey' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/cron-data-deletion-error.log',
+      out_file: '/var/log/auctorum/cron-data-deletion-out.log',
       merge_logs: true
     },
     {

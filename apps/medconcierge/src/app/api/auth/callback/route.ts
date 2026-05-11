@@ -1,6 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { withAuthCookieDomain } from '@/lib/auth-cookie'
+import { db, tenants, users } from '@quote-engine/db'
+import { and, eq, sql } from 'drizzle-orm'
+
+/**
+ * Promote a freshly-verified tenant from 'unverified' to 'pending_plan'.
+ *
+ * Pre-2026-05-11 the signup route created tenants in 'pending_plan'
+ * regardless of email confirmation, so anyone could squat a slug
+ * against someone else's email. We now park new tenants in 'unverified'
+ * and bump to 'pending_plan' on the FIRST successful auth-callback for
+ * the owning user. Idempotent — running multiple times is a no-op.
+ */
+async function markTenantVerified(userId: string): Promise<void> {
+  try {
+    await db.execute(sql`
+      UPDATE tenants t
+      SET provisioning_status = 'pending_plan', updated_at = now()
+      FROM users u
+      WHERE u.id = ${userId}::uuid
+        AND u.tenant_id = t.id
+        AND t.provisioning_status = 'unverified'
+    `)
+  } catch (err) {
+    // Don't block the user's login on this — just log.
+    console.warn('[auth/callback] markTenantVerified failed:', err instanceof Error ? err.message : err)
+  }
+}
 
 function makeSupabaseClient(request: NextRequest, response: NextResponse, host: string) {
   return createServerClient(
@@ -37,10 +64,15 @@ export async function GET(request: NextRequest) {
     const response = NextResponse.redirect(realOrigin + '/citas')
     const supabase = makeSupabaseClient(request, response, host)
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data: exchangeData, error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
       console.error('Auth callback error (PKCE):', error.message)
       return NextResponse.redirect(realOrigin + '/login?error=invalid_code')
+    }
+
+    // Promote any 'unverified' tenant owned by this user (signup path).
+    if (exchangeData.user?.id) {
+      await markTenantVerified(exchangeData.user.id)
     }
 
     return response
@@ -120,7 +152,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({ ok: true })
     const supabase = makeSupabaseClient(request, response, host)
 
-    const { error } = await supabase.auth.setSession({
+    const { data: sessionData, error } = await supabase.auth.setSession({
       access_token,
       refresh_token,
     })
@@ -128,6 +160,12 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Auth callback POST error:', error.message)
       return NextResponse.json({ error: error.message }, { status: 400 })
+    }
+
+    // Same promotion path as the PKCE flow above — first successful
+    // verification flips 'unverified' → 'pending_plan'.
+    if (sessionData.user?.id) {
+      await markTenantVerified(sessionData.user.id)
     }
 
     return response

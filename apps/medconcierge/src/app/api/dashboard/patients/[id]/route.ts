@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db, patients, patientFiles, appointments, clinicalRecords, auditLog } from '@quote-engine/db';
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { getAuthTenant } from '@/lib/auth';
+import { getAuthTenant, requireRole } from '@/lib/auth';
 import { validateOrigin } from '@/lib/csrf';
 
 // ============================================================
@@ -148,6 +148,16 @@ export async function DELETE(request: NextRequest, { params }: RouteCtx) {
     }
     const auth = await getAuthTenant();
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+    // Role gate: deleting a patient = soft-delete that hides clinical
+    // history. Admin-only — viewer/operator must request via admin.
+    const adminAuth = await requireRole(['admin']);
+    if (!adminAuth) {
+      return NextResponse.json(
+        { error: 'Solo administradores pueden eliminar pacientes' },
+        { status: 403 },
+      );
+    }
 
     const { id } = params;
     const [existing] = await db

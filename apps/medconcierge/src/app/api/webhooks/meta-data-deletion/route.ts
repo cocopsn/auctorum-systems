@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import crypto, { createHmac } from 'crypto';
+import { createHmac } from 'crypto';
+import { db, dataDeletionRequests } from '@quote-engine/db';
 
+/**
+ * Meta Data Deletion Callback — receives a signed deletion request from
+ * Meta, verifies the HMAC, persists a `data_deletion_requests` row
+ * scheduled 20 calendar days out (LFPDPPP Art. 32 + Meta Platform Policy
+ * spec window), and returns Meta the URL+confirmation_code Meta requires.
+ *
+ * The actual purge is done by scripts/cron-data-deletion.ts on the
+ * scheduled date — it deletes:
+ *   - messages whose conversation's externalId matches the meta user_id
+ *   - the conversations themselves
+ *   - patient files / attachments associated with those conversations
+ *   - patient row IF orphaned after the above
+ *
+ * Pre-2026-05-11 this endpoint returned a UUID confirmation_code that
+ * resolved to nothing — Meta got a 200 but no purge happened. Violated
+ * Meta Platform Policy + LFPDPPP both. Fixed by inserting the row that
+ * the cron drains.
+ */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -33,22 +52,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
     }
 
-    const confirmationCode = crypto.randomUUID();
-    const userId = data.user_id ?? 'unknown';
+    const userId = data.user_id;
+    if (!userId) {
+      return NextResponse.json({ error: 'Missing user_id in payload' }, { status: 400 });
+    }
 
-    console.log(`[Meta Data Deletion] User ${userId}, confirmation: ${confirmationCode}`);
+    // Schedule the actual purge 20 days out — that's the LFPDPPP Art. 32
+    // window for ARCO requests; Meta accepts anything < 90 days. Using
+    // a fixed offset means the cron picks it up on the appropriate day.
+    const scheduledFor = new Date(Date.now() + 20 * 24 * 60 * 60 * 1000);
 
-    // Per Meta's data-deletion policy we acknowledge the request synchronously
-    // here and surface the confirmation code to the user. Actual purge of
-    // conversations linked to this Meta user ID is handled out-of-band by
-    // the operations team via the /data-deletion request portal — Meta is
-    // satisfied with the URL + code in the response below.
+    const [row] = await db
+      .insert(dataDeletionRequests)
+      .values({
+        source: 'meta',
+        externalUserId: userId,
+        status: 'pending',
+        scheduledFor,
+        metadata: { received_at: new Date().toISOString() },
+      })
+      .returning({ id: dataDeletionRequests.id });
 
-    // Meta expects this exact response format:
+    console.log(
+      `[Meta Data Deletion] queued user=${userId} request_id=${row.id} scheduled_for=${scheduledFor.toISOString()}`,
+    );
+
+    // Meta expects this exact response shape — `url` should lead the user
+    // to a status page they can poll, `confirmation_code` is the human-
+    // readable handle they can quote when contacting support.
     const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'auctorum.com.mx';
     return NextResponse.json({
-      url: `https://${appDomain}/data-deletion?code=${confirmationCode}`,
-      confirmation_code: confirmationCode,
+      url: `https://${appDomain}/data-deletion?code=${row.id}`,
+      confirmation_code: row.id,
     });
   } catch (err) {
     console.error('[Meta Data Deletion] Error:', err instanceof Error ? err.message : err);

@@ -574,7 +574,13 @@ console.log('[worker] Starting WhatsApp message worker...');
 
 // IMPORTANT: queue name must match the one used by the webhook (packages/events/index.ts).
 // Using MESSAGE_QUEUE_NAME from @quote-engine/events (underscore convention).
-const worker = createWorker('whatsapp_messages', processWhatsAppMessage, 2);
+// Concurrency comes from env so PM2 can tune it per environment without a
+// code change. Default 2 matches the pre-2026-05-11 behaviour for local
+// dev; production sets 4 via ecosystem.config.js + 2 PM2 instances = 8
+// total lanes.
+const WORKER_CONCURRENCY = Math.max(1, Number(process.env.WORKER_CONCURRENCY ?? 2))
+const worker = createWorker('whatsapp_messages', processWhatsAppMessage, WORKER_CONCURRENCY);
+console.log(`[worker] starting with concurrency=${WORKER_CONCURRENCY}`);
 
 worker.on('completed', (job) => {
   processedJobCount++;

@@ -324,6 +324,9 @@ export async function runWhatsAppReply({
         messages: chatMessages,
         max_tokens: settings.maxTokens || 300,
         temperature: settings.temperature ?? 0.7,
+        // PII safety — opt out of 30-day OpenAI retention. See
+        // run-with-tools.ts for the rationale.
+        store: false,
       }),
     }, WHATSAPP_TIMEOUT_MS);
 

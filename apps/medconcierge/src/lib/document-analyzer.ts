@@ -98,6 +98,8 @@ export async function analyzeDocument(text: string): Promise<AnalyzedDocument> {
         max_tokens: 250,
         temperature: 0,
         response_format: { type: 'json_object' },
+        // PHI from PDF text — never persisted in OpenAI 30d retention.
+        store: false,
       }),
     })
     if (!res.ok) {

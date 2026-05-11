@@ -125,3 +125,10 @@ export {
   type NewPatientCommunication,
   type CommType,
 } from './patient-communications';
+
+// Data deletion requests — Meta Data Deletion Callback + LFPDPPP ARCO.
+export {
+  dataDeletionRequests,
+  type DataDeletionRequest,
+  type NewDataDeletionRequest,
+} from './data-deletion-requests';
