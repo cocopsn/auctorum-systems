@@ -2,20 +2,21 @@
 
 ## 0. Activate the CI workflow (this token can't push it)
 
-The current GitHub OAuth token lacks `workflow` scope, so the CI file
-sits at `.github/workflows/ci.yml.template`. To activate:
+The GitHub OAuth token used during the audit lacks `workflow` scope, so
+the CI file sits at `docs/templates/github-actions-ci.yml`. Activate by
+copying it into `.github/workflows/` from a local clone with a PAT that
+has `workflow` scope:
 
 ```bash
-# From a local clone where your PAT has `workflow` scope:
-git mv .github/workflows/ci.yml.template .github/workflows/ci.yml
+mkdir -p .github/workflows
+cp docs/templates/github-actions-ci.yml .github/workflows/ci.yml
+git add .github/workflows/ci.yml
 git commit -m "ci: activate GitHub Actions"
 git push origin main
 ```
 
-Or, if you'd rather: <https://github.com/cocopsn/auctorum-systems/settings/actions>
-→ "Permissions" → Read+Write. Then rename the file via GitHub web UI
-(Add file → Create new file → paste the template content). Either way,
-the build/test job will fire on the next push.
+Or paste the file via the GitHub web UI: Add file → Create new file →
+path `.github/workflows/ci.yml`. Either way, build+test runs on next push.
 
 ---
 
