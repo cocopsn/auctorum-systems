@@ -16,7 +16,13 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { eq, and } from 'drizzle-orm'
-import { clinicalRecords, patients, doctors, auditLog } from '@quote-engine/db'
+import {
+  clinicalRecords,
+  patients,
+  doctors,
+  auditLog,
+  generateClinicalSignatureHash,
+} from '@quote-engine/db'
 import { withAuthAndTenant, UnauthorizedError } from '@/lib/auth'
 import { validateOrigin } from '@/lib/csrf'
 
@@ -122,6 +128,27 @@ export async function POST(request: NextRequest, { params }: RouteCtx) {
       }
 
       const now = new Date()
+      // Compute the cryptographic signature hash over the canonical
+      // payload at lock time. NOM-004 §4.4 — gives anyone with the
+      // hash a public way to verify (via /api/verify?hash=…) that the
+      // record was signed by this doctor, by this cédula, at this
+      // timestamp, without exposing PHI.
+      const signatureHash = generateClinicalSignatureHash({
+        recordId: record.id,
+        tenantId,
+        patientId: record.patientId,
+        content: record.content,
+        doctorId: doctor.id,
+        doctorCedula: doctor.cedulaProfesional,
+        doctorName: doctor.name,
+        vitalSigns: record.vitalSigns,
+        diagnosisIcd10: record.diagnosisIcd10,
+        diagnosisText: record.diagnosisText,
+        treatmentPlan: record.treatmentPlan,
+        prognosis: record.prognosis,
+        signedAt: now.toISOString(),
+      })
+
       const [updated] = await tx
         .update(clinicalRecords)
         .set({
@@ -132,6 +159,7 @@ export async function POST(request: NextRequest, { params }: RouteCtx) {
           doctorId: doctor.id,
           doctorCedula: doctor.cedulaProfesional,
           doctorName: doctor.name,
+          signatureHash,
           updatedAt: now,
         })
         .where(eq(clinicalRecords.id, params.recordId))

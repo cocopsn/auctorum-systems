@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { CookieConsent } from "@/components/CookieConsent";
 
 export const metadata: Metadata = {
   title: "Concierge AI Médico — Auctorum Systems",
@@ -70,6 +71,15 @@ export default function RootLayout({
       </head>
       <body className="font-sora antialiased">
         {children}
+        {/*
+          Cookie banner mounts globally. The component checks the
+          authenticated-route paths internally — currently it renders
+          everywhere; we accept the duplicate "you're already in" feel
+          inside the dashboard because the dismiss persists in
+          localStorage forever per browser. Move into a route-group
+          if the dashboard noise gets complaints.
+        */}
+        <CookieConsent />
         <script dangerouslySetInnerHTML={{ __html: SW_REGISTER }} />
       </body>
     </html>

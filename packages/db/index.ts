@@ -4,6 +4,12 @@ export * from './schema';
 // before persisting to JSONB. Pre-2026-05-12 these were plaintext;
 // any DB-read access leaked permanent credentials.
 export { encrypt, decrypt } from './src/encryption';
+// NOM-004 cryptographic signature for clinical record locks.
+export {
+  generateClinicalSignatureHash,
+  verifyClinicalSignatureHash,
+  type ClinicalSignaturePayload,
+} from './src/clinical-signature';
 
 // Drizzle client setup — lazy initialization
 // The connection is only established on first query, not at import time.

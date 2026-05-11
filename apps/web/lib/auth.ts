@@ -38,21 +38,30 @@ export async function requireAuth(): Promise<{ user: User; tenant: Tenant }> {
     .where(eq(users.id, session.user.id))
     .limit(1)
 
-  // Auto-sync: if auth ID changed (e.g. re-registration), match by email and update
+  // Removed 2026-05-12 (P2-7 hardening): the legacy auto-sync below
+  // silently rewrote `users.id` to the current Supabase auth.uid when
+  // there was a row matching the email but not the id.
+  //
+  // Threat: if a Supabase auth user is deleted (by ops, by user
+  // self-delete, by error) and another human later signs up with the
+  // same email, Supabase issues a fresh auth.uid. The old auto-sync
+  // would then attach the new attacker's id to the prior tenant —
+  // silent account takeover via email reuse. The legitimate
+  // re-link case is rare enough that an out-of-band manual
+  // `UPDATE users SET id=$new WHERE email=$x AND tenant_id=$y` is
+  // the right resolution.
+  //
+  // We DO log the mismatch so ops sees it.
   if (!user && session.user.email) {
-    const [byEmail] = await db
-      .select()
+    const [conflict] = await db
+      .select({ id: users.id })
       .from(users)
       .where(eq(users.email, session.user.email))
       .limit(1)
-
-    if (byEmail) {
-      await db
-        .update(users)
-        .set({ id: session.user.id })
-        .where(eq(users.id, byEmail.id))
-      user = { ...byEmail, id: session.user.id }
-      console.log(`[auth] Auto-synced user ID for ${session.user.email}: ${byEmail.id} -> ${session.user.id}`)
+    if (conflict) {
+      console.warn(
+        `[auth] email-id mismatch for ${session.user.email}: db.id=${conflict.id} session.id=${session.user.id} — refusing auto-sync, redirecting to /login`,
+      )
     }
   }
 

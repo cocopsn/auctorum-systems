@@ -38,6 +38,10 @@ export const clinicalRecords = pgTable("clinical_records", {
   diagnosisText: text("diagnosis_text"),
   treatmentPlan: text("treatment_plan"),
   prognosis: text("prognosis"),
+  // NOM-004 cryptographic signature — SHA-256 hex over the canonical
+  // payload at lock time. See packages/db/src/clinical-signature.ts.
+  // Verifiable publicly via /api/verify?hash=... without exposing PHI.
+  signatureHash: varchar("signature_hash", { length: 64 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   lastSavedAt: timestamp("last_saved_at", { withTimezone: true }).notNull().defaultNow(),

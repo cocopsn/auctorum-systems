@@ -41,4 +41,26 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+// Bundle analyzer — activates when `ANALYZE=true pnpm build:med`. The
+// require is wrapped in try/catch so the package being absent (in
+// production deploys where we don't need the dev tool) doesn't break
+// the build. Install only when you actually want to use it:
+//   corepack pnpm add -D @next/bundle-analyzer --filter medconcierge
+//
+// P2-5 of the 2026-05-12 audit. Run periodically to catch heavy
+// regressions (moment, lodash-full, etc.) before they ship.
+if (process.env.ANALYZE === 'true') {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const withBundleAnalyzer = require('@next/bundle-analyzer')({ enabled: true });
+    module.exports = withBundleAnalyzer(nextConfig);
+  } catch {
+    console.warn(
+      "[next.config] ANALYZE=true but @next/bundle-analyzer isn't installed. Skipping. Run:\n" +
+        '  corepack pnpm add -D @next/bundle-analyzer --filter medconcierge'
+    );
+    module.exports = nextConfig;
+  }
+} else {
+  module.exports = nextConfig;
+}

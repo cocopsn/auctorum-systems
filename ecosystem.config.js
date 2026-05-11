@@ -41,12 +41,16 @@ const cronEnv = {
 module.exports = {
   apps: [
     {
+      // 2 instances in cluster mode = 2× capacity behind the same
+      // 127.0.0.1:3000 socket (PM2 uses Node cluster.fork so the OS
+      // round-robins). Sessions are stateless (Supabase Auth cookies)
+      // so no sticky routing required.
       name: 'auctorum-quote-engine',
       cwd: '/opt/auctorum-systems/repo/apps/web',
       script: 'node_modules/next/dist/bin/next',
       args: 'start -H 127.0.0.1 -p 3000',
-      instances: 1,
-      exec_mode: 'fork',
+      instances: 2,
+      exec_mode: 'cluster',
       max_memory_restart: '512M',
       node_args: '--max-old-space-size=600',
       env: {
@@ -66,12 +70,16 @@ module.exports = {
       listen_timeout: 10000
     },
     {
+      // Same cluster setup as quote-engine — 2 instances behind a
+      // shared 127.0.0.1:3001 socket. Cookie-only auth means we don't
+      // need sticky sessions. Database pool is per-process (max=4), so
+      // total open sockets remain bounded.
       name: 'auctorum-medconcierge',
       cwd: '/opt/auctorum-systems/repo/apps/medconcierge',
       script: 'node_modules/next/dist/bin/next',
       args: 'start -H 127.0.0.1 -p 3001',
-      instances: 1,
-      exec_mode: 'fork',
+      instances: 2,
+      exec_mode: 'cluster',
       max_memory_restart: '512M',
       node_args: '--max-old-space-size=600',
       env: {
