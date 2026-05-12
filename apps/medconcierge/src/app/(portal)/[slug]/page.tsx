@@ -1,3 +1,11 @@
+// `force-dynamic` + `revalidate=0` — sin esto Next 14 puede cachear la
+// página pública del portal y los cambios del editor del dashboard no
+// se ven hasta que expire el cache (o nunca, si la build se renderizó
+// estática). 2026-05-11: confirmado que sin esto las ediciones del
+// dashboard tardaban hasta varios minutos en reflejarse.
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import { notFound } from 'next/navigation'
 import { eq, and } from 'drizzle-orm'
 import { getTenant, getTenantConfig, getDoctor } from '@/lib/tenant'

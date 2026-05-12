@@ -1,8 +1,59 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, onboardingProgress } from '@quote-engine/db'
-import { eq } from 'drizzle-orm'
+import { db, onboardingProgress, tenants, integrations } from '@quote-engine/db'
+import { and, eq, sql } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { z } from 'zod'
+
+// Server-side validators per step. Same idea as medconcierge — pre-2026-05-11
+// the client could mark any step done without doing the work.
+const STEP_VALIDATORS: Record<string, (tenantId: string) => Promise<boolean>> = {
+  plan_confirmed: async (tenantId) => {
+    const [t] = await db
+      .select({ status: tenants.provisioningStatus })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId))
+      .limit(1)
+    if (!t) return false
+    return t.status === 'active' || t.status === 'pending_plan'
+  },
+  business_configured: async (tenantId) => {
+    const [t] = await db
+      .select({ name: tenants.name, config: tenants.config })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId))
+      .limit(1)
+    if (!t) return false
+    const cfg = (t.config as Record<string, unknown> | null) ?? {}
+    const business = cfg.business as Record<string, string> | undefined
+    return !!t.name && (!!business?.rfc || !!business?.razon_social)
+  },
+  whatsapp_connected: async (tenantId) => {
+    const [row] = await db
+      .select({ id: integrations.id })
+      .from(integrations)
+      .where(
+        and(
+          eq(integrations.tenantId, tenantId),
+          eq(integrations.type, 'meta_business'),
+          eq(integrations.status, 'connected'),
+        ),
+      )
+      .limit(1)
+    return !!row
+  },
+  first_product_or_service: async (tenantId) => {
+    const [{ count }] = (await db.execute(
+      sql`SELECT COUNT(*)::int AS count FROM products WHERE tenant_id = ${tenantId}::uuid`,
+    )) as unknown as Array<{ count: number }>
+    return count > 0
+  },
+  test_quote_or_appointment: async (tenantId) => {
+    const [{ count }] = (await db.execute(
+      sql`SELECT COUNT(*)::int AS count FROM quotes WHERE tenant_id = ${tenantId}::uuid`,
+    )) as unknown as Array<{ count: number }>
+    return count > 0
+  },
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -130,7 +181,26 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (stepKey && validStepKeys.includes(stepKey)) {
-      const updatedSteps = { ...currentSteps, [stepKey]: completed !== false }
+      // Server-side validation — mirror of medconcierge onboarding.
+      let resolvedCompleted = completed !== false
+      if (resolvedCompleted) {
+        const validator = STEP_VALIDATORS[stepKey]
+        if (validator) {
+          const ok = await validator(auth.tenant.id).catch(() => false)
+          if (!ok) {
+            return NextResponse.json(
+              {
+                error:
+                  'Este paso aún no está realmente completo. Termina la configuración correspondiente antes de marcarlo.',
+                code: 'STEP_NOT_DONE',
+                stepKey,
+              },
+              { status: 400 },
+            )
+          }
+        }
+      }
+      const updatedSteps = { ...currentSteps, [stepKey]: resolvedCompleted }
       const allComplete = validStepKeys.every((key) => (updatedSteps as Record<string, boolean | undefined>)[key] === true)
 
       if (existing) {

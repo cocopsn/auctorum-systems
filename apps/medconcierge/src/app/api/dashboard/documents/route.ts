@@ -25,6 +25,7 @@ import { getAuthTenant } from '@/lib/auth'
 import { validateOrigin } from '@/lib/csrf'
 import { uploadDocument, ensureDocumentsBucket } from '@/lib/document-storage'
 import { analyzeDocument, extractPdfText } from '@/lib/document-analyzer'
+import { hasFeature } from '@/lib/plan-gating'
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024 // 25 MB
 const ACCEPTED_MIMES = new Set([
@@ -108,6 +109,19 @@ export async function POST(req: NextRequest) {
 
   const auth = await getAuthTenant()
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Plan gate — Smart Documents uses OpenAI per upload; basico tenants
+  // can read existing rows (GET) but not upload new ones.
+  if (!hasFeature(auth.tenant.plan, 'smart_documents')) {
+    return NextResponse.json(
+      {
+        error: 'Documentos Inteligentes requieren el Plan Auctorum.',
+        code: 'PLAN_LIMIT',
+        feature: 'smart_documents',
+      },
+      { status: 402 },
+    )
+  }
 
   let formData: FormData
   try {

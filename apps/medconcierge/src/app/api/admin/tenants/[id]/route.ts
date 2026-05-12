@@ -129,9 +129,8 @@ const patchTenantSchema = z.object({
     ai: z.object({
       enabled: z.boolean(),
       systemPrompt: z.string(),
-      autoSchedule: z.boolean(),
-      answerFaq: z.boolean(),
-      humanHandoff: z.boolean(),
+      // autoSchedule / answerFaq / humanHandoff dropped 2026-05-11 —
+      // never consumed by packages/ai/ or scripts/worker.ts.
       model: z.string(),
       vectorStoreId: z.string().nullable().optional(),
       temperature: z.number().optional(),

@@ -19,15 +19,16 @@ export async function GET() {
   }
 }
 
+// Pre-2026-05-11 this schema also accepted `autoSchedule`, `answerFaq`
+// and `humanHandoff` booleans. None had a consumer — `packages/ai/`
+// and `scripts/worker.ts` never branched on them, so saving them did
+// nothing. Removed.
 const updateSchema = z.object({
   systemPrompt: z.string().max(5000).optional(),
   model: z.enum(["gpt-4o-mini", "gpt-4o", "gpt-4-turbo"]).optional(),
   temperature: z.number().min(0).max(1).optional(),
   maxTokens: z.number().min(100).max(1000).optional(),
   enabled: z.boolean().optional(),
-  autoSchedule: z.boolean().optional(),
-  answerFaq: z.boolean().optional(),
-  humanHandoff: z.boolean().optional(),
 })
 
 export async function PUT(req: NextRequest) {

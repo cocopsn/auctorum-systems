@@ -5,11 +5,6 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Radio,
   MessageCircle,
-  Send,
-  MessageSquare,
-  Camera,
-  Globe,
-  Phone,
   Loader2,
   Save,
   CheckCircle2,
@@ -49,6 +44,16 @@ interface FieldDefinition {
 // Channel definitions
 // ---------------------------------------------------------------------------
 
+// Pre-2026-05-11 this list shipped 7 channels: WhatsApp, Telegram,
+// Facebook Messenger, Instagram, Web Chat, Twilio Calls, Twilio SMS.
+// Only WhatsApp has a real webhook + worker in this codebase
+// (apps/web/app/api/webhooks/whatsapp). For Telegram, Messenger, web
+// chat, calls and SMS there is no webhook route and no consumer reads
+// `channels_config.*`. The doctor would paste real Twilio creds and
+// page tokens that sat unused in the DB.
+//
+// We keep only the channels we actually deliver — WhatsApp (web app
+// scope). Instagram lives in the medconcierge UI, not here.
 const CHANNELS: ChannelDefinition[] = [
   {
     key: 'whatsapp',
@@ -65,71 +70,6 @@ const CHANNELS: ChannelDefinition[] = [
         readonly: true,
         defaultValue: '/api/webhooks/whatsapp',
       },
-    ],
-  },
-  {
-    key: 'telegram',
-    name: 'Telegram',
-    description: 'Bot de Telegram',
-    icon: Send,
-    fields: [
-      { key: 'bot_token', label: 'Bot Token', type: 'password', placeholder: 'Token de tu bot de BotFather' },
-    ],
-  },
-  {
-    key: 'messenger',
-    name: 'Facebook Messenger',
-    description: 'Mensajes de Facebook',
-    icon: MessageSquare,
-    fields: [
-      { key: 'page_access_token', label: 'Page Access Token', type: 'password', placeholder: 'Token de acceso de tu pagina de Facebook' },
-    ],
-  },
-  {
-    key: 'instagram',
-    name: 'Instagram',
-    description: 'DMs de Instagram',
-    icon: Camera,
-    fields: [
-      { key: 'access_token', label: 'Access Token', type: 'password', placeholder: 'Token de acceso de Instagram API' },
-    ],
-  },
-  {
-    key: 'webchat',
-    name: 'Chat Web',
-    description: 'Widget para tu pagina web',
-    icon: Globe,
-    fields: [
-      { key: 'color', label: 'Color del Widget', type: 'color', defaultValue: '#4f46e5' },
-      {
-        key: 'embed_code',
-        label: 'Codigo de Integracion',
-        type: 'textarea',
-        readonly: true,
-        defaultValue: '<script src="https://app.auctorum.ai/widget.js" data-tenant="TU_TENANT_ID"></script>',
-      },
-    ],
-  },
-  {
-    key: 'calls',
-    name: 'Llamadas',
-    description: 'IA por telefono via Twilio',
-    icon: Phone,
-    fields: [
-      { key: 'account_sid', label: 'Account SID', type: 'text', placeholder: 'Twilio Account SID' },
-      { key: 'auth_token', label: 'Auth Token', type: 'password', placeholder: 'Twilio Auth Token' },
-      { key: 'phone_number', label: 'Phone Number', type: 'text', placeholder: '+52...' },
-    ],
-  },
-  {
-    key: 'sms',
-    name: 'SMS',
-    description: 'Chatbot por SMS via Twilio',
-    icon: MessageSquare,
-    fields: [
-      { key: 'account_sid', label: 'Account SID', type: 'text', placeholder: 'Twilio Account SID' },
-      { key: 'auth_token', label: 'Auth Token', type: 'password', placeholder: 'Twilio Auth Token' },
-      { key: 'phone_number', label: 'Phone Number', type: 'text', placeholder: '+52...' },
     ],
   },
 ];

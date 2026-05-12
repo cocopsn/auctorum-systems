@@ -34,6 +34,41 @@ export async function createAppointment(
     throw new AppointmentError('Tenant not found or inactive', 404)
   }
 
+  // Pre-2026-05-11 the tenant's schedule_settings were write-only:
+  // every signup seeded `min_booking_hours_ahead`, `advance_booking_days`
+  // and `cancellation_hours` but no code path enforced them. A patient
+  // could book 30 seconds in the future from the public portal.
+  // Enforced here in the canonical insert path.
+  const cfgRaw = tenant.config as Record<string, unknown> | null
+  const sched = (cfgRaw?.schedule_settings ?? {}) as {
+    min_booking_hours_ahead?: number
+    advance_booking_days?: number
+  }
+  const slotStart = new Date(`${data.date}T${data.startTime}:00`)
+  if (Number.isFinite(slotStart.getTime())) {
+    const now = Date.now()
+    const minLeadHours = Number(sched.min_booking_hours_ahead ?? 0)
+    if (minLeadHours > 0) {
+      const leadMs = minLeadHours * 60 * 60 * 1000
+      if (slotStart.getTime() - now < leadMs) {
+        throw new AppointmentError(
+          `La cita debe agendarse con al menos ${minLeadHours} hora(s) de anticipación.`,
+          400,
+        )
+      }
+    }
+    const maxAdvanceDays = Number(sched.advance_booking_days ?? 0)
+    if (maxAdvanceDays > 0) {
+      const maxMs = maxAdvanceDays * 24 * 60 * 60 * 1000
+      if (slotStart.getTime() - now > maxMs) {
+        throw new AppointmentError(
+          `No se pueden agendar citas con más de ${maxAdvanceDays} días de anticipación.`,
+          400,
+        )
+      }
+    }
+  }
+
   // Check for double-booking using a transaction with row lock
   return await db.transaction(async (tx) => {
     // SELECT FOR UPDATE to lock the slot

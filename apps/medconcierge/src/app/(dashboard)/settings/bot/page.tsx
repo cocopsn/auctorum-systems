@@ -302,29 +302,35 @@ export default function BotConfigPage() {
           )}
         </div>
 
-        {/* Preview */}
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-            <MessageCircle className="h-4 w-4 text-indigo-600" />
-            Vista Previa
-          </h3>
-          <div className="bg-gray-50 rounded-xl p-4 max-w-sm">
-            <div className="flex justify-start mb-2">
-              <div className="bg-white border border-gray-200 rounded-2xl rounded-bl-sm px-4 py-2.5 max-w-[80%]">
-                <p className="text-sm text-gray-900">Hola, quiero información sobre sus servicios</p>
-                <p className="text-[10px] text-gray-400 mt-1">Cliente</p>
-              </div>
-            </div>
-            <div className="flex justify-end">
-              <div style={{ backgroundColor: config.brand_color }} className="rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[80%]">
-                <p className="text-sm text-white">
-                  Hola, soy {config.bot_name}. {config.bot_personality.split('.')[0]}.
-                </p>
-                <p className="text-[10px] text-white/60 mt-1 flex items-center gap-1">
-                  <Bot className="h-2.5 w-2.5" /> Bot · {config.tone}
-                </p>
-              </div>
-            </div>
+        {/* Preview — pre-2026-05-11 this section rendered a static mock
+            chat bubble that interpolated the doctor's `bot_name`,
+            `bot_personality`, `tone` and `brand_color`. Looked great,
+            taught the doctor nothing — the real worker
+            (`scripts/worker.ts`) builds its prompt from
+            `packages/ai/prompts.ts` which only reads `schedule` from
+            `bot_config`. The personality fields above are still
+            persisted (in case we light them up later as white-label
+            options), but they DO NOT change how the bot replies on
+            WhatsApp. The honest place to test the real reply is the
+            playground at /ai-settings (calls /api/dashboard/ai/test
+            with the same prompt the worker uses).  */}
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 flex gap-3">
+          <MessageCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-amber-900">
+              ¿Quieres probar al bot?
+            </p>
+            <p className="text-sm text-amber-800">
+              La identidad de arriba (nombre, personalidad, tono, color)
+              es para futuras integraciones white-label y NO cambia
+              cómo el bot responde por WhatsApp hoy. Lo que sí controla
+              al bot: el prompt del sistema en{' '}
+              <a href="/ai-settings" className="text-indigo-600 underline">
+                Configuración → IA
+              </a>{' '}
+              y las preguntas frecuentes que sincronizan al RAG. Ahí
+              también tienes el playground real para probar respuestas.
+            </p>
           </div>
         </div>
       </div>

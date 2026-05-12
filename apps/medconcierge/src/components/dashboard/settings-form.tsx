@@ -163,15 +163,23 @@ export function SettingsForm() {
           const n = config.notifications ?? {} as NonNullable<TenantConfig['notifications']>
           const setN = (patch: Partial<NonNullable<TenantConfig['notifications']>>) =>
             setConfig({ ...config, notifications: { ...n, ...patch } })
+          // Only the toggles below are actually consumed (verified via
+          // grep `config.notifications.*` across scripts/ + apps/):
+          //   - whatsapp_on_new_appointment → apps/.../lib/notifications.ts:36,49
+          //   - whatsapp_reminder_24h       → scripts/cron-appointment-reminders.ts:88
+          //   - whatsapp_reminder_2h        → scripts/cron-appointment-reminders.ts:171
+          //   - email_on_new_appointment    → apps/.../lib/notifications.ts:61
+          // The pre-2026-05-11 form also exposed `whatsapp_post_consultation`
+          // (no cron exists), `notify_on_cancellation` (cancellation route
+          // always sends), and `daily_agenda_email` (no daily agenda cron
+          // exists). Those three were UI placebos. Removed here so the
+          // doctor's choices actually matter.
           return (
             <div className="space-y-3">
               <Toggle label="WhatsApp al agendar" value={n.whatsapp_on_new_appointment ?? false} onChange={(v) => setN({ whatsapp_on_new_appointment: v })} />
               <Toggle label="Recordatorio 24h (WhatsApp)" value={n.whatsapp_reminder_24h ?? false} onChange={(v) => setN({ whatsapp_reminder_24h: v })} />
               <Toggle label="Recordatorio 2h (WhatsApp)" value={n.whatsapp_reminder_2h ?? false} onChange={(v) => setN({ whatsapp_reminder_2h: v })} />
-              <Toggle label="Post-consulta (WhatsApp)" value={n.whatsapp_post_consultation ?? false} onChange={(v) => setN({ whatsapp_post_consultation: v })} />
               <Toggle label="Email al agendar" value={n.email_on_new_appointment ?? false} onChange={(v) => setN({ email_on_new_appointment: v })} />
-              <Toggle label="Notificar cancelaciones" value={n.notify_on_cancellation ?? false} onChange={(v) => setN({ notify_on_cancellation: v })} />
-              <Toggle label="Agenda diaria (email 7am)" value={n.daily_agenda_email ?? false} onChange={(v) => setN({ daily_agenda_email: v })} />
             </div>
           )
         })()}

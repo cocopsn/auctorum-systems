@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { and, eq } from 'drizzle-orm'
 import { db, schedules, appointments } from '@quote-engine/db'
-import { authenticateApiKey, apiUnauthorized, apiForbidden, apiRateLimit } from '@/lib/api-auth'
+import { authenticateApiKey, apiUnauthorized, apiForbidden, apiRateLimit, apiRequirePlan } from '@/lib/api-auth'
 
 /**
  * GET /api/v1/availability?date=YYYY-MM-DD&doctor_id=<uuid>
@@ -15,6 +15,8 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await authenticateApiKey(req)
     if (!auth) return apiUnauthorized()
+    const planGate = apiRequirePlan(auth.tenant.plan, 'api_access')
+    if (planGate) return planGate
     if (!auth.permissions.includes('read')) return apiForbidden('read')
     const rl = await apiRateLimit(auth.tenant.id, auth.tenant.plan)
     if (rl) return rl

@@ -242,6 +242,9 @@ importers:
       '@quote-engine/pdf':
         specifier: workspace:*
         version: link:../../packages/pdf
+      '@quote-engine/queue':
+        specifier: workspace:*
+        version: link:../../packages/queue
       '@quote-engine/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -385,9 +388,15 @@ importers:
 
   packages/queue:
     dependencies:
+      '@quote-engine/db':
+        specifier: workspace:*
+        version: link:../db
       bullmq:
         specifier: ^5.0.0
         version: 5.74.1
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(postgres@3.4.8)
       ioredis:
         specifier: ^5.0.0
         version: 5.10.1

@@ -5,14 +5,49 @@ export const dynamic = 'force-dynamic'
 import { useState, useEffect } from 'react'
 import { Save, MessageSquare, Check } from 'lucide-react'
 
+// Only the message keys that are ACTUALLY read by a cron / route are
+// listed here. Pre-2026-05-11 this page exposed 7 templates including
+// `welcome`, `out_of_catalog`, `out_of_stock`, `order_confirmed`,
+// `appointment_confirmed` and a bare `appointment_reminder` — none of
+// which had a consumer in `scripts/` or `apps/medconcierge/src/lib/`.
+// Doctors were editing copy nobody would ever send. The five below are
+// each grepped to a real call site:
+//   - appointment_reminder_24h → scripts/cron-appointment-reminders.ts:103
+//   - appointment_reminder_1h  → scripts/cron-appointment-reminders.ts:179
+//   - appointment_cancelled    → apps/.../appointments/[id]/cancel/route.ts:65
+//   - appointment_rescheduled  → apps/.../appointments/[id]/route.ts:96
+//   - recall                   → scripts/cron-follow-ups.ts (recall key)
 const MESSAGE_DEFS = [
-  { key: 'welcome', label: 'Mensaje de bienvenida', description: 'Se envía cuando un cliente contacta por primera vez', variables: '{nombre}, {negocio}' },
-  { key: 'out_of_catalog', label: 'Fuera de catálogo', description: 'Cuando preguntan por algo que no manejas', variables: '{nombre}, {negocio}' },
-  { key: 'out_of_stock', label: 'Sin inventario', description: 'Producto temporalmente no disponible', variables: '{nombre}, {producto}' },
-  { key: 'order_confirmed', label: 'Pedido confirmado', description: 'Confirmación de pedido o cotización aceptada', variables: '{nombre}, {negocio}, {producto}' },
-  { key: 'appointment_confirmed', label: 'Cita confirmada', description: 'Confirmación de cita agendada', variables: '{nombre}, {fecha}, {hora}, {servicio}' },
-  { key: 'appointment_reminder', label: 'Recordatorio de cita', description: 'Se envía antes de la cita programada', variables: '{nombre}, {fecha}, {hora}' },
-  { key: 'recall', label: 'Recall / Seguimiento', description: 'Invitación para regresar después de un tiempo', variables: '{nombre}, {negocio}' },
+  {
+    key: 'appointment_reminder_24h',
+    label: 'Recordatorio 24h antes',
+    description: 'Se envía 24h antes de la cita.',
+    variables: '{nombre}, {fecha}, {hora}, {negocio}',
+  },
+  {
+    key: 'appointment_reminder_1h',
+    label: 'Recordatorio 1h antes',
+    description: 'Se envía 1h antes de la cita.',
+    variables: '{nombre}, {fecha}, {hora}, {negocio}',
+  },
+  {
+    key: 'appointment_cancelled',
+    label: 'Cita cancelada',
+    description: 'Se envía cuando se cancela una cita.',
+    variables: '{nombre}, {fecha}, {hora}, {negocio}',
+  },
+  {
+    key: 'appointment_rescheduled',
+    label: 'Cita reagendada',
+    description: 'Se envía cuando se reagenda una cita.',
+    variables: '{nombre}, {fecha_anterior}, {fecha}, {hora}, {negocio}',
+  },
+  {
+    key: 'recall',
+    label: 'Recall / Seguimiento',
+    description: 'Invitación para regresar tras un período sin contacto.',
+    variables: '{nombre}, {negocio}',
+  },
 ]
 
 export default function BotMessagesPage() {

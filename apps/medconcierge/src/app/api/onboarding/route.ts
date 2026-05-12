@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db, onboardingProgress } from '@quote-engine/db'
-import { eq } from 'drizzle-orm'
+import {
+  db,
+  onboardingProgress,
+  tenants,
+  schedules,
+  integrations,
+  portalPages,
+  appointments,
+} from '@quote-engine/db'
+import { and, eq, sql } from 'drizzle-orm'
 import { getAuthTenant } from '@/lib/auth'
 import { z } from 'zod'
 
@@ -74,6 +82,137 @@ export async function GET() {
   }
 }
 
+// Server-side validators per step. Pre-2026-05-11 the PATCH accepted
+// any `stepKey` with any `completed` value, so a tenant could mark the
+// entire wizard "done" without doing anything. Each validator must
+// return true for the corresponding step to be flipped to `true`. We
+// still allow explicit `completed: false` so the user can re-open a
+// step.
+const STEP_VALIDATORS: Record<string, (tenantId: string) => Promise<boolean>> = {
+  // plan_confirmed — true when the tenant is past the 'unverified' /
+  // 'draft' provisioning states. Either active or pending_plan counts.
+  plan_confirmed: async (tenantId) => {
+    const [t] = await db
+      .select({ status: tenants.provisioningStatus })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId))
+      .limit(1)
+    if (!t) return false
+    return t.status === 'active' || t.status === 'pending_plan'
+  },
+
+  // branding_configured — at least the homepage portal_pages row
+  // exists for this tenant. Signup creates one, so any tenant past
+  // signup passes; the step is mostly informational.
+  branding_configured: async (tenantId) => {
+    const [row] = await db
+      .select({ id: portalPages.id })
+      .from(portalPages)
+      .where(and(eq(portalPages.tenantId, tenantId), eq(portalPages.isHomepage, true)))
+      .limit(1)
+    return !!row
+  },
+
+  // schedule_configured — at least one schedules row exists. Signup
+  // seeds 5 weekday defaults, so passes immediately; only fails for
+  // tenants who explicitly cleared their schedule.
+  schedule_configured: async (tenantId) => {
+    const [{ count }] = (await db.execute(
+      sql`SELECT COUNT(*)::int AS count FROM schedules WHERE tenant_id = ${tenantId}::uuid`,
+    )) as unknown as Array<{ count: number }>
+    return count > 0
+  },
+
+  // whatsapp_mode_selected — there's a bot_instances row with a
+  // non-empty `config.mode`. Signup creates a 'draft' row with
+  // managed_shared_waba by default, so this passes after signup.
+  whatsapp_mode_selected: async (tenantId) => {
+    const [{ count }] = (await db.execute(
+      sql`SELECT COUNT(*)::int AS count FROM bot_instances WHERE tenant_id = ${tenantId}::uuid AND config ? 'mode'`,
+    )) as unknown as Array<{ count: number }>
+    return count > 0
+  },
+
+  // google_connected — integrations row with type='google_calendar'
+  // AND status='connected'. Signup creates a 'disconnected' stub.
+  google_connected: async (tenantId) => {
+    const [row] = await db
+      .select({ id: integrations.id })
+      .from(integrations)
+      .where(
+        and(
+          eq(integrations.tenantId, tenantId),
+          eq(integrations.type, 'google_calendar'),
+          eq(integrations.status, 'connected'),
+        ),
+      )
+      .limit(1)
+    return !!row
+  },
+
+  // test_quote_or_appointment — at least one appointment row exists
+  // for this tenant. Any source: portal, dashboard, bot.
+  test_quote_or_appointment: async (tenantId) => {
+    const [{ count }] = (await db.execute(
+      sql`SELECT COUNT(*)::int AS count FROM appointments WHERE tenant_id = ${tenantId}::uuid`,
+    )) as unknown as Array<{ count: number }>
+    return count > 0
+  },
+
+  // public_portal_published — the homepage portal_page has
+  // published=true. The doctor opts in via the portal editor.
+  public_portal_published: async (tenantId) => {
+    const [row] = await db
+      .select({ id: portalPages.id })
+      .from(portalPages)
+      .where(
+        and(
+          eq(portalPages.tenantId, tenantId),
+          eq(portalPages.isHomepage, true),
+          eq(portalPages.published, true),
+        ),
+      )
+      .limit(1)
+    return !!row
+  },
+
+  // Industrial / web tenants — light validation only.
+  business_configured: async (tenantId) => {
+    const [t] = await db
+      .select({ name: tenants.name, config: tenants.config })
+      .from(tenants)
+      .where(eq(tenants.id, tenantId))
+      .limit(1)
+    if (!t) return false
+    const cfg = (t.config as Record<string, unknown> | null) ?? {}
+    const business = cfg.business as Record<string, string> | undefined
+    return !!t.name && (!!business?.rfc || !!business?.razon_social)
+  },
+  whatsapp_connected: async (tenantId) => {
+    const [row] = await db
+      .select({ id: integrations.id })
+      .from(integrations)
+      .where(
+        and(
+          eq(integrations.tenantId, tenantId),
+          eq(integrations.type, 'meta_business'),
+          eq(integrations.status, 'connected'),
+        ),
+      )
+      .limit(1)
+    return !!row
+  },
+  first_product_or_service: async (tenantId) => {
+    // Catalog table is plural across tenant types — just check there's
+    // at least one product row for industrial tenants. Best-effort raw
+    // query so we don't have to import the products schema here.
+    const [{ count }] = (await db.execute(
+      sql`SELECT COUNT(*)::int AS count FROM products WHERE tenant_id = ${tenantId}::uuid`,
+    )) as unknown as Array<{ count: number }>
+    return count > 0
+  },
+}
+
 export async function PATCH(request: NextRequest) {
   try {
     const auth = await getAuthTenant()
@@ -130,7 +269,28 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (stepKey && validStepKeys.includes(stepKey)) {
-      const updatedSteps = { ...currentSteps, [stepKey]: completed !== false }
+      // Server-side validation — pre-2026-05-11 the client could mark
+      // any step done without doing the work. Now if `completed` is
+      // not explicitly false, we verify the underlying state.
+      let resolvedCompleted = completed !== false
+      if (resolvedCompleted) {
+        const validator = STEP_VALIDATORS[stepKey]
+        if (validator) {
+          const ok = await validator(auth.tenant.id).catch(() => false)
+          if (!ok) {
+            return NextResponse.json(
+              {
+                error:
+                  'Este paso aún no está realmente completo. Termina la configuración correspondiente antes de marcarlo.',
+                code: 'STEP_NOT_DONE',
+                stepKey,
+              },
+              { status: 400 },
+            )
+          }
+        }
+      }
+      const updatedSteps = { ...currentSteps, [stepKey]: resolvedCompleted }
       const allComplete = validStepKeys.every((key) => (updatedSteps as Record<string, boolean | undefined>)[key] === true)
 
       if (existing) {

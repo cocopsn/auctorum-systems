@@ -17,6 +17,7 @@ import { eq } from 'drizzle-orm'
 import { db, tenants } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
 import { validateOrigin } from '@/lib/csrf'
+import { hasFeature } from '@/lib/plan-gating'
 import {
   createConnectAccount,
   createConnectOnboardingLink,
@@ -32,6 +33,18 @@ export async function POST(request: NextRequest) {
   }
   const auth = await getAuthTenant()
   if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+
+  // Plan gate — Stripe Connect (patient → doctor payments) is Auctorum+.
+  if (!hasFeature(auth.tenant.plan, 'stripe_connect')) {
+    return NextResponse.json(
+      {
+        error: 'Stripe Connect requiere el Plan Auctorum.',
+        code: 'PLAN_LIMIT',
+        feature: 'stripe_connect',
+      },
+      { status: 402 },
+    )
+  }
 
   let accountId = auth.tenant.stripeConnectAccountId
 

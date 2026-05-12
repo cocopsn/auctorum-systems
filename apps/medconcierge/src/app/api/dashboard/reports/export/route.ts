@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { and, asc, between, desc, eq } from 'drizzle-orm'
 import { db, appointments, patients, patientPayments, auditLog } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
+import { hasFeature } from '@/lib/plan-gating'
 
 /**
  * GET /api/dashboard/reports/export?type=appointments|payments|patients&from=YYYY-MM-DD&to=YYYY-MM-DD
@@ -15,6 +16,19 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await getAuthTenant()
     if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    // Plan gate — CSV export is Auctorum+. Basico tenants can view
+    // reports on screen but cannot bulk-export to spreadsheet.
+    if (!hasFeature(auth.tenant.plan, 'reports_export')) {
+      return NextResponse.json(
+        {
+          error: 'La exportación de reportes requiere el Plan Auctorum.',
+          code: 'PLAN_LIMIT',
+          feature: 'reports_export',
+        },
+        { status: 402 },
+      )
+    }
 
     const sp = req.nextUrl.searchParams
     const today = new Date().toISOString().split('T')[0]

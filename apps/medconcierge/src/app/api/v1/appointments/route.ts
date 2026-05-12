@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm'
 import { db, appointments, patients } from '@quote-engine/db'
-import { authenticateApiKey, apiUnauthorized, apiForbidden, apiRateLimit } from '@/lib/api-auth'
+import { authenticateApiKey, apiUnauthorized, apiForbidden, apiRateLimit, apiRequirePlan } from '@/lib/api-auth'
 
 const STATUS_VALUES = ['scheduled', 'confirmed', 'completed', 'cancelled', 'no_show'] as const
 
@@ -16,6 +16,8 @@ export async function GET(req: NextRequest) {
   try {
     const auth = await authenticateApiKey(req)
     if (!auth) return apiUnauthorized()
+    const planGate = apiRequirePlan(auth.tenant.plan, 'api_access')
+    if (planGate) return planGate
     if (!auth.permissions.includes('read')) return apiForbidden('read')
     const rl = await apiRateLimit(auth.tenant.id, auth.tenant.plan)
     if (rl) return rl
@@ -99,6 +101,8 @@ export async function POST(req: NextRequest) {
   try {
     const auth = await authenticateApiKey(req)
     if (!auth) return apiUnauthorized()
+    const planGate = apiRequirePlan(auth.tenant.plan, 'api_access')
+    if (planGate) return planGate
     if (!auth.permissions.includes('write')) return apiForbidden('write')
     const rl = await apiRateLimit(auth.tenant.id, auth.tenant.plan)
     if (rl) return rl

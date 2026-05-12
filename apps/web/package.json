@@ -15,6 +15,7 @@
     "@quote-engine/notifications": "workspace:*",
     "@quote-engine/payments": "workspace:*",
     "@quote-engine/pdf": "workspace:*",
+    "@quote-engine/queue": "workspace:*",
     "@quote-engine/ui": "workspace:*",
     "@react-pdf/renderer": "^3.4.0",
     "@supabase/ssr": "^0.10.2",

@@ -16,6 +16,7 @@ import { z } from 'zod'
 import { db, integrations, type InstagramDmConfig } from '@quote-engine/db'
 import { getAuthTenant } from '@/lib/auth'
 import { validateOrigin } from '@/lib/csrf'
+import { hasFeature } from '@/lib/plan-gating'
 
 function maskToken(t: string | undefined | null): string | null {
   if (!t) return null
@@ -70,6 +71,18 @@ export async function PUT(req: NextRequest) {
   }
   const auth = await getAuthTenant()
   if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Plan gate — Instagram inbox is Auctorum+.
+  if (!hasFeature(auth.tenant.plan, 'instagram_dm')) {
+    return NextResponse.json(
+      {
+        error: 'Instagram Direct requiere el Plan Auctorum.',
+        code: 'PLAN_LIMIT',
+        feature: 'instagram_dm',
+      },
+      { status: 402 },
+    )
+  }
 
   let body: unknown
   try {

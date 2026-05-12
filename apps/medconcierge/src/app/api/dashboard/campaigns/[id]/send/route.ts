@@ -8,6 +8,7 @@ import { and, eq, isNotNull, gte, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { validateOrigin } from '@/lib/csrf'
 import { createQueue } from '@quote-engine/queue'
+import { hasFeature } from '@/lib/plan-gating'
 
 // POST /api/dashboard/campaigns/[id]/send
 // Resolves audience, materializes campaign_messages rows, marks the campaign
@@ -113,6 +114,19 @@ export async function POST(
     return NextResponse.json(
       { error: 'No tienes permiso para enviar campañas.' },
       { status: 403 },
+    )
+  }
+
+  // Plan gate. Pre-2026-05-11 a 'basico' tenant could blast their entire
+  // WhatsApp Business cap on campaigns. Now campaigns require Auctorum.
+  if (!hasFeature(auth.tenant.plan, 'campaigns')) {
+    return NextResponse.json(
+      {
+        error: 'Las campañas requieren el Plan Auctorum.',
+        code: 'PLAN_LIMIT',
+        feature: 'campaigns',
+      },
+      { status: 402 },
     )
   }
 

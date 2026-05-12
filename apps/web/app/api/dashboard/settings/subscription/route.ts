@@ -2,9 +2,8 @@ export const dynamic = 'force-dynamic';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthTenant } from '@/lib/auth';
-import { db, subscriptions, tenants } from '@quote-engine/db';
+import { db, subscriptions } from '@quote-engine/db';
 import { eq } from 'drizzle-orm';
-import { z } from 'zod';
 
 // GET /api/dashboard/settings/subscription
 // Returns the current subscription for the tenant
@@ -32,88 +31,36 @@ export async function GET() {
 }
 
 // PATCH /api/dashboard/settings/subscription
-// Update the plan
-const PLAN_AMOUNTS: Record<string, number> = {
-  basico: 1400,
-  auctorum: 1800,
-};
-
-const patchSchema = z.object({
-  plan: z.enum(['basico', 'auctorum']),
-});
-
-export async function PATCH(request: NextRequest) {
+//
+// Pre-2026-05-11 this endpoint flipped tenants.plan + subscriptions.plan to
+// any value the caller sent — no Stripe / MercadoPago charge required. Any
+// authenticated user could upgrade from basico to auctorum for free
+// (billing fraud, identical fix to the one already applied in medconcierge
+// — commit 2026-05-10).
+//
+// Plan changes now MUST go through the actual billing flow:
+//   - upgrade → POST /api/dashboard/billing/checkout (Stripe) or
+//     /api/dashboard/billing/checkout-mp (MercadoPago)
+//   - downgrade → /api/dashboard/billing/cancel (provider portal)
+//
+// The PATCH stays here so the dashboard UI gets a clear 403 + redirect
+// instead of mysteriously failing.
+export async function PATCH(_request: NextRequest) {
   try {
     const auth = await getAuthTenant();
     if (!auth) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const parsed = patchSchema.safeParse(body);
-
-    if (!parsed.success) {
-      return NextResponse.json(
-        { error: 'Plan invalido', details: parsed.error.flatten() },
-        { status: 400 }
-      );
-    }
-
-    const { plan } = parsed.data;
-    const amount = PLAN_AMOUNTS[plan];
-
-    // Check if subscription exists
-    const [existing] = await db
-      .select({ id: subscriptions.id })
-      .from(subscriptions)
-      .where(eq(subscriptions.tenantId, auth.tenant.id))
-      .limit(1);
-
-    if (existing) {
-      await db
-        .update(subscriptions)
-        .set({
-          plan,
-          amount: String(amount),
-          status: 'active',
-          currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          cancelledAt: null,
-          updatedAt: new Date(),
-        })
-        .where(eq(subscriptions.tenantId, auth.tenant.id));
-    } else {
-      await db.insert(subscriptions).values({
-        tenantId: auth.tenant.id,
-        plan,
-        status: 'active',
-        amount: String(amount),
-        currency: 'MXN',
-        billingCycle: 'monthly',
-        currentPeriodStart: new Date(),
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        gracePeriodDays: 3,
-      });
-    }
-
-    await db
-      .update(tenants)
-      .set({
-        plan,
-        provisioningStatus: 'active',
-        provisionedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(tenants.id, auth.tenant.id));
-
-    // Fetch updated subscription
-    const [updated] = await db
-      .select()
-      .from(subscriptions)
-      .where(eq(subscriptions.tenantId, auth.tenant.id))
-      .limit(1);
-
-    return NextResponse.json({ subscription: updated ?? null });
+    return NextResponse.json(
+      {
+        error: 'Plan changes must go through checkout',
+        message:
+          'Para cambiar de plan debes completar el pago. Inicia el flujo de checkout desde /dashboard/settings/subscription.',
+        code: 'CHECKOUT_REQUIRED',
+      },
+      { status: 403 },
+    );
   } catch (error) {
     console.error('Error updating subscription:', error);
     return NextResponse.json(

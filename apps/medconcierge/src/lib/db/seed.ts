@@ -53,19 +53,7 @@ async function seed() {
       whatsapp_on_new_appointment: true,
       whatsapp_reminder_24h: true,
       whatsapp_reminder_2h: true,
-      whatsapp_post_consultation: true,
       email_on_new_appointment: true,
-      notify_on_cancellation: true,
-      daily_agenda_email: true,
-    },
-    features: {
-      intake_forms: true,
-      clinical_records: true,
-      ai_scribe: false,
-      telehealth: false,
-      online_payment: false,
-      prescription_pdf: true,
-      receipt_pdf: true,
     },
   }
 

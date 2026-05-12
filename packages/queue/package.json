@@ -4,7 +4,9 @@
   "private": true,
   "main": "src/index.ts",
   "dependencies": {
+    "@quote-engine/db": "workspace:*",
     "bullmq": "^5.0.0",
+    "drizzle-orm": "^0.45.2",
     "ioredis": "^5.0.0"
   }
 }

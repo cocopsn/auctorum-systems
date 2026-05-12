@@ -160,19 +160,16 @@ function buildMedicalTenantConfig(opts: {
       allow_online_payment: false,
       show_fee_on_portal: false,
     },
+    // Only ship the toggles that have a real consumer. Pre-2026-05-11
+    // we seeded notify_on_cancellation, whatsapp_post_consultation and
+    // daily_agenda_email — none of which were read anywhere — plus a
+    // `features` map (intake_forms, ai_scribe, telehealth, …) that no
+    // route ever consulted. Removed.
     notifications: {
       whatsapp_on_new_appointment: true,
       whatsapp_reminder_24h: true,
       whatsapp_reminder_2h: true,
       email_on_new_appointment: true,
-      notify_on_cancellation: true,
-    },
-    features: {
-      intake_forms: false,
-      clinical_records: false,
-      ai_scribe: false,
-      telehealth: false,
-      online_payment: false,
     },
   }
 }

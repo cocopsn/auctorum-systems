@@ -45,19 +45,20 @@ interface IntegrationCardDef {
 // Card definitions
 // ---------------------------------------------------------------------------
 
+// Pre-2026-05-11 this list included an 'external_db' card with full
+// SQL Server / MySQL / PostgreSQL connection form and a "Probar conexión"
+// button. The test button was a 3-second setTimeout that flipped a
+// green-checkmark state — no actual connection attempt was made. The
+// "Conectar" button persisted an `integrations(type='external_db')` row
+// that no consumer ever read (grep `external_db` across apps/web/app/api
+// + packages returns 0 hits outside of the UI). Decoration with risk
+// (it asked for DB passwords that were stored unused). Removed.
 const INTEGRATION_CARDS: IntegrationCardDef[] = [
   {
     type: 'google_calendar',
     label: 'Google Calendar',
     description: 'Sincroniza citas con Google Calendar',
     icon: <Calendar className="h-6 w-6 text-indigo-600" />,
-  },
-  {
-    type: 'external_db',
-    label: 'Base de Datos Externa',
-    description: 'Conecta SQL Server, MySQL o PostgreSQL',
-    icon: <Database className="h-6 w-6 text-indigo-600" />,
-    hasConfig: true,
   },
   {
     type: 'mercadopago',

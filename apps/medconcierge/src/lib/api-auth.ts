@@ -97,6 +97,40 @@ export function apiForbidden(needed: ApiPermission) {
 }
 
 /**
+ * 402 helper — the API key is valid but the tenant's plan doesn't include
+ * API access. Pre-2026-05-11 the v1 endpoints had no plan gate, so a
+ * 'basico' tenant could mint an API key and use it freely. The public
+ * pricing page promises API access as an Auctorum-tier feature.
+ *
+ * Use at the top of every v1 route AFTER authenticateApiKey:
+ *
+ *   const gate = apiRequirePlan(auth.tenant.plan, 'api_access')
+ *   if (gate) return gate
+ */
+export function apiRequirePlan(
+  plan: string | null | undefined,
+  feature: 'api_access',
+) {
+  // Inline mirror of plan-gating.PLAN_FEATURES to avoid pulling the whole
+  // lib (which has React-dependent FEATURE_NAMES). Only `api_access` is
+  // gated at the v1 layer today.
+  const allow =
+    (plan ?? 'basico').toLowerCase() === 'auctorum' ||
+    (plan ?? 'basico').toLowerCase() === 'enterprise'
+  if (allow) return null
+  return NextResponse.json(
+    {
+      error:
+        'Acceso a la API requiere el Plan Auctorum o superior.',
+      code: 'PLAN_LIMIT',
+      feature,
+      upgrade_url: 'https://portal.auctorum.com.mx/settings/subscription',
+    },
+    { status: 402 },
+  )
+}
+
+/**
  * Per-tenant rate limit gate for the v1 API. Call this AFTER authenticateApiKey
  * succeeds and BEFORE doing the expensive work. Returns either a 429 response
  * (caller should `return` it directly) or null when the request is within budget.
