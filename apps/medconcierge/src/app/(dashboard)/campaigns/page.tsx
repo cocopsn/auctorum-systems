@@ -118,9 +118,17 @@ function KpiCard({
 function NewCampaignForm({
   onCreated,
   onCancel,
+  onPlanBlocked,
 }: {
   onCreated: () => void;
   onCancel: () => void;
+  /**
+   * Called with the gated feature key when the /send endpoint returns
+   * 402 + code='PLAN_LIMIT'. The parent page surfaces UpgradePrompt.
+   * The created campaign stays as a draft so the doctor can re-send
+   * after upgrading.
+   */
+  onPlanBlocked: (feature: string) => void;
 }) {
   const [name, setName] = useState('');
   const [messageBody, setMessageBody] = useState('');
@@ -171,10 +179,28 @@ function NewCampaignForm({
       const data = await res.json();
 
       if (andSend && data.campaign?.id) {
-        await fetch(`/api/dashboard/campaigns/${data.campaign.id}/send`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-        });
+        // Pre-2026-05-12 this fetch ignored 402 entirely — basico
+        // tenants could click "Enviar ahora" at creation time, the
+        // backend rejected with PLAN_LIMIT, and the UI silently
+        // returned to the campaign list as if it succeeded. Now we
+        // surface the gate and the campaign stays in 'draft' so it
+        // can be re-sent after upgrade.
+        const sendRes = await fetch(
+          `/api/dashboard/campaigns/${data.campaign.id}/send`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          },
+        );
+        if (sendRes.status === 402) {
+          const body = await sendRes.json().catch(() => ({}));
+          if (body?.code === 'PLAN_LIMIT') {
+            onPlanBlocked(body.feature ?? 'campaigns');
+            // Still refresh the list — the draft was created successfully.
+            onCreated();
+            return;
+          }
+        }
       }
 
       onCreated();
@@ -408,7 +434,10 @@ export default function CampaignsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   // Plan gate — campaigns/send returns 402 + code='PLAN_LIMIT' for
   // basico tenants. usePlanGate intercepts and surfaces UpgradePrompt.
-  const { blockedFeature, clearBlock, fetchWithPlanGate } = usePlanGate();
+  // setBlocked is exposed so the NewCampaignForm (which does its own
+  // create+send fetch) can push the gate into our shared modal state.
+  const { blockedFeature, clearBlock, setBlocked, fetchWithPlanGate } =
+    usePlanGate();
 
   const fetchCampaigns = useCallback(async () => {
     try {
@@ -540,6 +569,7 @@ export default function CampaignsPage() {
             fetchCampaigns();
           }}
           onCancel={() => setShowForm(false)}
+          onPlanBlocked={setBlocked}
         />
       )}
 

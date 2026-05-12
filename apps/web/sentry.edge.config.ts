@@ -1,6 +1,5 @@
 /**
- * Sentry init for the edge runtime (Next.js middleware) — medconcierge.
- * Twin of sentry.client.config.ts. Auto-disabled when DSN is unset.
+ * Sentry edge runtime config — web. Mirror of medconcierge counterpart.
  */
 import * as Sentry from '@sentry/nextjs'
 

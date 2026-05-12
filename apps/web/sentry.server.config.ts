@@ -1,10 +1,5 @@
 /**
- * Sentry server-side init (Node.js + Next.js routes) — medconcierge.
- * Twin of sentry.client.config.ts. Auto-disabled when DSN is unset.
- *
- * Captures unhandled exceptions in API routes, edge runtime crashes,
- * server-render errors. PII guard strips request body, cookies,
- * sensitive headers, and replaces the user object with just the id.
+ * Sentry server-side config — web. Mirror of medconcierge counterpart.
  */
 import * as Sentry from '@sentry/nextjs'
 

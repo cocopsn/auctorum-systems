@@ -33,4 +33,27 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+// Sentry wrapper — see apps/medconcierge/next.config.js for full
+// rationale. Sentry SDK auto-disables at runtime when DSN env vars
+// are absent, and the webpack plugin skips source-map upload when
+// SENTRY_AUTH_TOKEN is unset (CI builds, local dev).
+let withSentryConfig
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  withSentryConfig = require('@sentry/nextjs').withSentryConfig
+} catch {
+  withSentryConfig = null
+}
+
+module.exports = withSentryConfig
+  ? withSentryConfig(nextConfig, {
+      org: process.env.SENTRY_ORG ?? 'auctorum',
+      project: process.env.SENTRY_PROJECT ?? 'web',
+      silent: true,
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN },
+      hideSourceMaps: true,
+      disableLogger: true,
+      tunnelRoute: '/monitoring',
+    })
+  : nextConfig

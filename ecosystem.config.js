@@ -40,23 +40,29 @@ const cronEnv = {
 
 module.exports = {
   apps: [
+    // ─── web (Quote Engine B2B) ───────────────────────────────────
+    // Pre-2026-05-12 we ran `instances: 2, exec_mode: 'cluster'` so
+    // both Next workers shared port 3000 via Node's cluster.fork.
+    // That works for plain Node HTTP servers but Next.js's underlying
+    // server doesn't reuse the socket cleanly — one of the two cluster
+    // workers crashed with "Failed to start server" every 2-5 seconds
+    // in a tight restart loop, so we ran on ~50% of declared capacity.
+    //
+    // The fix is two separate fork-mode processes on different ports
+    // (3000 + 3010) with Nginx upstream round-robin in front. Each
+    // process binds its own port, no shared-socket dance, no crash
+    // loop. Capacity is now genuinely 2× and the failed-restart
+    // alerting on Sentry is no longer flooded by Next-cluster noise.
     {
-      // 2 instances in cluster mode = 2× capacity behind the same
-      // 127.0.0.1:3000 socket (PM2 uses Node cluster.fork so the OS
-      // round-robins). Sessions are stateless (Supabase Auth cookies)
-      // so no sticky routing required.
-      name: 'auctorum-quote-engine',
+      name: 'auctorum-web-1',
       cwd: '/opt/auctorum-systems/repo/apps/web',
       script: 'node_modules/next/dist/bin/next',
       args: 'start -H 127.0.0.1 -p 3000',
-      instances: 2,
-      exec_mode: 'cluster',
+      instances: 1,
+      exec_mode: 'fork',
       max_memory_restart: '512M',
       node_args: '--max-old-space-size=600',
-      env: {
-        NODE_ENV: 'production',
-        PORT: 3000
-      },
+      env: { NODE_ENV: 'production', PORT: 3000 },
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: '/var/log/auctorum/quote-engine-error.log',
       out_file: '/var/log/auctorum/quote-engine-out.log',
@@ -67,25 +73,42 @@ module.exports = {
       restart_delay: 5000,
       exp_backoff_restart_delay: 200,
       kill_timeout: 5000,
-      listen_timeout: 10000
+      listen_timeout: 10000,
     },
     {
-      // Same cluster setup as quote-engine — 2 instances behind a
-      // shared 127.0.0.1:3001 socket. Cookie-only auth means we don't
-      // need sticky sessions. Database pool is per-process (max=4), so
-      // total open sockets remain bounded.
-      name: 'auctorum-medconcierge',
+      name: 'auctorum-web-2',
+      cwd: '/opt/auctorum-systems/repo/apps/web',
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start -H 127.0.0.1 -p 3010',
+      instances: 1,
+      exec_mode: 'fork',
+      max_memory_restart: '512M',
+      node_args: '--max-old-space-size=600',
+      env: { NODE_ENV: 'production', PORT: 3010 },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/quote-engine-error.log',
+      out_file: '/var/log/auctorum/quote-engine-out.log',
+      merge_logs: true,
+      watch: false,
+      max_restarts: 10,
+      min_uptime: '10s',
+      restart_delay: 5000,
+      exp_backoff_restart_delay: 200,
+      kill_timeout: 5000,
+      listen_timeout: 10000,
+    },
+    // ─── medconcierge ────────────────────────────────────────────
+    // Same fork-mode split as web — 3001 + 3011, balanced by Nginx.
+    {
+      name: 'auctorum-med-1',
       cwd: '/opt/auctorum-systems/repo/apps/medconcierge',
       script: 'node_modules/next/dist/bin/next',
       args: 'start -H 127.0.0.1 -p 3001',
-      instances: 2,
-      exec_mode: 'cluster',
+      instances: 1,
+      exec_mode: 'fork',
       max_memory_restart: '512M',
       node_args: '--max-old-space-size=600',
-      env: {
-        NODE_ENV: 'production',
-        PORT: 3001
-      },
+      env: { NODE_ENV: 'production', PORT: 3001 },
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
       error_file: '/var/log/auctorum/medconcierge-error.log',
       out_file: '/var/log/auctorum/medconcierge-out.log',
@@ -96,7 +119,29 @@ module.exports = {
       restart_delay: 5000,
       exp_backoff_restart_delay: 200,
       kill_timeout: 5000,
-      listen_timeout: 10000
+      listen_timeout: 10000,
+    },
+    {
+      name: 'auctorum-med-2',
+      cwd: '/opt/auctorum-systems/repo/apps/medconcierge',
+      script: 'node_modules/next/dist/bin/next',
+      args: 'start -H 127.0.0.1 -p 3011',
+      instances: 1,
+      exec_mode: 'fork',
+      max_memory_restart: '512M',
+      node_args: '--max-old-space-size=600',
+      env: { NODE_ENV: 'production', PORT: 3011 },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/medconcierge-error.log',
+      out_file: '/var/log/auctorum/medconcierge-out.log',
+      merge_logs: true,
+      watch: false,
+      max_restarts: 10,
+      min_uptime: '10s',
+      restart_delay: 5000,
+      exp_backoff_restart_delay: 200,
+      kill_timeout: 5000,
+      listen_timeout: 10000,
     },
     {
       name: 'cron-reminders',

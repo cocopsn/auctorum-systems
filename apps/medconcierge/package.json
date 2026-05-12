@@ -17,6 +17,7 @@
     "@quote-engine/payments": "workspace:*",
     "@quote-engine/queue": "workspace:*",
     "@quote-engine/ui": "workspace:*",
+    "@sentry/nextjs": "^10.52.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
     "@tiptap/extension-highlight": "^3.22.4",

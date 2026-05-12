@@ -49,18 +49,55 @@ const nextConfig = {
 //
 // P2-5 of the 2026-05-12 audit. Run periodically to catch heavy
 // regressions (moment, lodash-full, etc.) before they ship.
+// Pre-Sentry-wiring resolve: pick the configured base (with or without
+// bundle analyzer) so we can pipe it through withSentryConfig at the
+// end without duplicating the analyzer branch.
+let configToExport = nextConfig;
 if (process.env.ANALYZE === 'true') {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const withBundleAnalyzer = require('@next/bundle-analyzer')({ enabled: true });
-    module.exports = withBundleAnalyzer(nextConfig);
+    configToExport = withBundleAnalyzer(nextConfig);
   } catch {
     console.warn(
       "[next.config] ANALYZE=true but @next/bundle-analyzer isn't installed. Skipping. Run:\n" +
         '  corepack pnpm add -D @next/bundle-analyzer --filter medconcierge'
     );
-    module.exports = nextConfig;
   }
-} else {
-  module.exports = nextConfig;
 }
+
+// Sentry — wraps the config to inject the SDK's webpack plugin (source
+// map upload, tunnel route, instrumentation). When SENTRY_DSN env vars
+// are absent (CI, local dev), the SDK runtime tree-shakes out and the
+// upload step is skipped via the env-gated options below.
+//
+// `silent` keeps the build log clean — Sentry's plugin is chatty by
+// default about source map upload status.
+let withSentryConfig;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  withSentryConfig = require('@sentry/nextjs').withSentryConfig;
+} catch {
+  withSentryConfig = null;
+}
+
+module.exports = withSentryConfig
+  ? withSentryConfig(configToExport, {
+      org: process.env.SENTRY_ORG ?? 'auctorum',
+      project: process.env.SENTRY_PROJECT ?? 'medconcierge',
+      silent: true,
+      // Only attempt source-map upload when the build env has the
+      // auth token; otherwise the plugin is a no-op and CI builds
+      // succeed without Sentry credentials.
+      authToken: process.env.SENTRY_AUTH_TOKEN,
+      sourcemaps: {
+        disable: !process.env.SENTRY_AUTH_TOKEN,
+      },
+      // Hide source maps from the public dir after upload to Sentry.
+      hideSourceMaps: true,
+      disableLogger: true,
+      // Route Sentry's auto-instrumentation through this internal
+      // path so ad-blockers don't drop browser errors.
+      tunnelRoute: '/monitoring',
+    })
+  : configToExport;

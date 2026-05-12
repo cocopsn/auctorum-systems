@@ -39,5 +39,10 @@
   "devDependencies": {
     "@vitest/coverage-v8": "^1.6.1",
     "vitest": "^1.6.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "drizzle-orm": "0.45.2"
+    }
   }
 }

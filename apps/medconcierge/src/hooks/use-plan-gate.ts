@@ -64,5 +64,16 @@ export function usePlanGate() {
 
   const clearBlock = useCallback(() => setBlockedFeature(null), [])
 
-  return { blockedFeature, clearBlock, fetchWithPlanGate }
+  /**
+   * Imperative trigger for callers that can't (or shouldn't) route
+   * through `fetchWithPlanGate` — e.g. a wizard that calls two
+   * endpoints back-to-back and wants to handle the 402 from the
+   * second one manually. The campaign "create + send" form uses this
+   * for the inner send fetch.
+   */
+  const setBlocked = useCallback((feature: string) => {
+    setBlockedFeature(feature)
+  }, [])
+
+  return { blockedFeature, clearBlock, setBlocked, fetchWithPlanGate }
 }

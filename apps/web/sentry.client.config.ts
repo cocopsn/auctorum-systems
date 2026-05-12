@@ -1,15 +1,11 @@
 /**
- * Sentry browser-side config — medconcierge.
+ * Sentry browser-side config — web (B2B Quote Engine).
  *
- * Auto-disabled when NEXT_PUBLIC_SENTRY_DSN is unset (CI builds, local
- * dev without secrets, the VPS before we wire the DSN). The `enabled`
- * flag is the kill-switch — if false, the Sentry SDK tree-shakes
- * itself into a no-op so the bundle cost is near-zero.
- *
- * PII redaction: medconcierge is a medical SaaS — patient names,
- * phones, addresses and clinical notes ride in request bodies and
- * cookies. We strip them in `beforeSend` so we never ship PHI to
- * Sentry's servers (LFPDPPP + NOM-004-SSA3-2012 compliance).
+ * Auto-disabled when NEXT_PUBLIC_SENTRY_DSN is unset. Mirrors
+ * apps/medconcierge/sentry.client.config.ts — see there for full
+ * rationale. PII redaction is less strict here than medconcierge
+ * (no PHI on the B2B side) but quote bodies + customer addresses
+ * are still stripped.
  */
 import * as Sentry from '@sentry/nextjs'
 
@@ -18,17 +14,9 @@ Sentry.init({
   enabled: !!process.env.NEXT_PUBLIC_SENTRY_DSN,
   environment:
     process.env.NEXT_PUBLIC_SENTRY_ENV ?? process.env.NODE_ENV ?? 'production',
-
-  // 10% of transactions go to Sentry. Bump to 0.3 once we're under
-  // the 5K free-tier event cap with margin to spare.
   tracesSampleRate: 0.1,
-
-  // Session replay only on error so we get the last 60s of user
-  // interaction when something blows up. 100% on error is fine for
-  // our scale.
   replaysSessionSampleRate: 0,
   replaysOnErrorSampleRate: 1.0,
-
   beforeSend(event) {
     if (event.request) {
       if (event.request.data) event.request.data = '[REDACTED]'
