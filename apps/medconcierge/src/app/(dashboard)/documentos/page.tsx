@@ -19,6 +19,8 @@ import {
   RefreshCcw,
   X,
 } from 'lucide-react'
+import { UpgradePrompt } from '@/components/upgrade-prompt'
+import { usePlanGate } from '@/hooks/use-plan-gate'
 
 type DocStatus = 'pending_assignment' | 'assigned' | 'archived'
 type DocType =
@@ -88,6 +90,8 @@ export default function DocumentsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('')
   const [search, setSearch] = useState<string>('')
   const [busyId, setBusyId] = useState<string | null>(null)
+  // Plan gate — documents POST returns 402 for basico (smart_documents).
+  const { blockedFeature, clearBlock, fetchWithPlanGate } = usePlanGate()
   const [uploadResults, setUploadResults] = useState<
     Array<{
       docId: string
@@ -137,11 +141,15 @@ export default function DocumentsPage() {
       const fd = new FormData()
       fd.append('file', file)
       try {
-        const res = await fetch('/api/dashboard/documents', {
+        const res = await fetchWithPlanGate('/api/dashboard/documents', {
           method: 'POST',
           credentials: 'include',
           body: fd,
         })
+        if (!res) {
+          // 402 — UpgradePrompt is now showing; abort the rest of the batch.
+          break
+        }
         const data = await res.json().catch(() => ({}))
         if (!res.ok) {
           results.push({
@@ -247,6 +255,9 @@ export default function DocumentsPage() {
 
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
+      {blockedFeature && (
+        <UpgradePrompt feature={blockedFeature} onClose={clearBlock} />
+      )}
       <header className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-900">Documentos</h1>
         <p className="text-sm text-slate-500">

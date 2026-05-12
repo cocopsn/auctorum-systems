@@ -41,6 +41,7 @@ function buildNavItems(enabledIds: string[]): DashboardNavItem[] {
     href: item.href,
     label: item.label,
     icon: item.icon,
+    requiredPlan: item.requiredPlan,
   }))
 }
 
@@ -50,6 +51,7 @@ export function DashboardShell({
   tenantId,
   themeKey,
   sidebarItemIds,
+  currentPlan,
   children,
 }: {
   brand: string
@@ -57,6 +59,8 @@ export function DashboardShell({
   tenantId: string
   themeKey?: string
   sidebarItemIds?: string[]
+  /** Tenant plan code — drives PRO badge rendering in the sidebar. */
+  currentPlan?: string | null
   children: React.ReactNode
 }) {
   const theme = DASHBOARD_THEMES[(themeKey as ThemeKey) || DEFAULT_THEME] || DASHBOARD_THEMES[DEFAULT_THEME]
@@ -87,6 +91,7 @@ export function DashboardShell({
         logoUrl="/logo-transparent.png"
         appName="MedConcierge"
         userName={userName}
+        currentPlan={currentPlan}
         greeting={`Bienvenido, ${userName}`}
         subtitle="Agenda, pacientes y concierge médico en un solo panel."
         ctaHref="/ai-settings"

@@ -27,6 +27,12 @@ export type SidebarItemDef = {
   icon: ComponentType<{ className?: string }>
   required: boolean
   group: string
+  /**
+   * Plan tier required to unlock this item. Mirror of the server-side
+   * gates in apps/medconcierge/src/lib/plan-gating.ts. If set, AppShell
+   * renders a "PRO" badge (gradient if locked, subtle if unlocked).
+   */
+  requiredPlan?: 'auctorum' | 'enterprise'
 }
 
 export const ALL_SIDEBAR_ITEMS: SidebarItemDef[] = [
@@ -36,23 +42,22 @@ export const ALL_SIDEBAR_ITEMS: SidebarItemDef[] = [
   { id: 'citas', label: 'Citas', href: '/citas', icon: CalendarCheck, required: false, group: 'PRINCIPAL' },
   { id: 'conversaciones', label: 'Conversaciones', href: '/conversaciones', icon: MessageSquare, required: false, group: 'PRINCIPAL' },
   { id: 'pacientes', label: 'Pacientes', href: '/pacientes', icon: Users, required: false, group: 'PRINCIPAL' },
-  { id: 'documentos', label: 'Documentos', href: '/documentos', icon: FolderOpen, required: false, group: 'PRINCIPAL' },
+  // Smart Documents (AI classifier + storage) is gated server-side via
+  // `requireFeature(plan, 'smart_documents')` in /api/dashboard/documents.
+  // Match it in the sidebar so basico tenants see the PRO badge.
+  { id: 'documentos', label: 'Documentos', href: '/documentos', icon: FolderOpen, required: false, group: 'PRINCIPAL', requiredPlan: 'auctorum' },
   // GESTIÓN
   { id: 'agenda', label: 'Agenda', href: '/agenda', icon: CalendarDays, required: true, group: 'GESTIÓN' },
-  // /reports was the legacy B2B clone that returned undefined / $NaN. The
-  // canonical page is /reportes (medical KPIs + revenue chart + status
-  // bars + weekday heatmap + CSV/PDF exports). Sidebar now points there.
   { id: 'reportes', label: 'Reportes', href: '/reportes', icon: BarChart3, required: false, group: 'GESTIÓN' },
   { id: 'budgets', label: 'Presupuestos', href: '/budgets', icon: Receipt, required: false, group: 'GESTIÓN' },
-  // Two payments pages used to coexist: /payments (legacy with broken
-  // refund button + Stripe-secret form) and /pagos (Stripe Connect). We
-  // keep the canonical /pagos in the sidebar; /payments still resolves
-  // for users with bookmarks but its sidebar entry is gone.
-  { id: 'pagos', label: 'Pagos', href: '/pagos', icon: CreditCard, required: false, group: 'GESTIÓN' },
-  { id: 'invoices', label: 'Facturas', href: '/invoices', icon: FileText, required: false, group: 'GESTIÓN' },
+  // Stripe Connect is Auctorum+ (server-gated via hasFeature stripe_connect).
+  { id: 'pagos', label: 'Pagos', href: '/pagos', icon: CreditCard, required: false, group: 'GESTIÓN', requiredPlan: 'auctorum' },
+  // CFDI invoicing is Auctorum+ (server-gated via hasFeature cfdi_invoicing).
+  { id: 'invoices', label: 'Facturas', href: '/invoices', icon: FileText, required: false, group: 'GESTIÓN', requiredPlan: 'auctorum' },
   // MARKETING
   { id: 'leads', label: 'Leads', href: '/leads', icon: Sparkles, required: false, group: 'MARKETING' },
-  { id: 'campaigns', label: 'Campañas', href: '/campaigns', icon: Megaphone, required: false, group: 'MARKETING' },
+  // Campaign send is server-gated via hasFeature campaigns.
+  { id: 'campaigns', label: 'Campañas', href: '/campaigns', icon: Megaphone, required: false, group: 'MARKETING', requiredPlan: 'auctorum' },
   { id: 'integrations', label: 'Integraciones', href: '/integrations', icon: Plug, required: false, group: 'MARKETING' },
   // MÉDICO
   { id: 'ai-settings', label: 'AI Concierge', href: '/ai-settings', icon: Bot, required: false, group: 'MÉDICO' },

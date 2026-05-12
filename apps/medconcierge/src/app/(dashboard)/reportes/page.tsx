@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Calendar, CheckCircle2, Download, FileText, Loader2, TrendingUp, UserPlus, XCircle } from 'lucide-react'
+import { UpgradePrompt } from '@/components/upgrade-prompt'
+import { usePlanGate } from '@/hooks/use-plan-gate'
 
 type Summary = {
   period: { from: string; to: string; days: number }
@@ -79,6 +81,41 @@ export default function ReportesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [exportOpen, setExportOpen] = useState(false)
+  // Plan gate — reports/export returns 402 for basico (reports_export).
+  // The original UI used <a href> for direct downloads which bypassed
+  // 402 handling. We now intercept via fetchWithPlanGate and trigger
+  // the download via a blob URL once the response is OK.
+  const { blockedFeature, clearBlock, fetchWithPlanGate } = usePlanGate()
+  const [exportingType, setExportingType] = useState<string | null>(null)
+
+  async function downloadExport(type: 'appointments' | 'payments' | 'patients') {
+    setExportingType(type)
+    setExportOpen(false)
+    try {
+      const res = await fetchWithPlanGate(
+        `/api/dashboard/reports/export?type=${type}&from=${from}&to=${to}`,
+      )
+      if (!res) return // 402 → UpgradePrompt shown
+      if (!res.ok) {
+        setError('No se pudo generar el reporte.')
+        return
+      }
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${type}-${from}-${to}.csv`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      console.error('export error:', err)
+      setError('No se pudo generar el reporte.')
+    } finally {
+      setExportingType(null)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -123,6 +160,9 @@ export default function ReportesPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {blockedFeature && (
+        <UpgradePrompt feature={blockedFeature} onClose={clearBlock} />
+      )}
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Reportes</h1>
@@ -189,15 +229,20 @@ export default function ReportesPage() {
             {exportOpen && (
               <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-30 overflow-hidden">
                 {(['appointments', 'payments', 'patients'] as const).map((t) => (
-                  <a
+                  <button
                     key={t}
-                    href={`/api/dashboard/reports/export?type=${t}&from=${from}&to=${to}`}
-                    onClick={() => setExportOpen(false)}
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b last:border-0 flex items-center gap-2"
+                    type="button"
+                    onClick={() => downloadExport(t)}
+                    disabled={exportingType !== null}
+                    className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b last:border-0 flex items-center gap-2 disabled:opacity-50"
                   >
-                    <FileText className="w-3.5 h-3.5 text-gray-400" />
+                    {exportingType === t ? (
+                      <Loader2 className="w-3.5 h-3.5 text-gray-400 animate-spin" />
+                    ) : (
+                      <FileText className="w-3.5 h-3.5 text-gray-400" />
+                    )}
                     {t === 'appointments' ? 'Citas' : t === 'payments' ? 'Pagos' : 'Pacientes'}
-                  </a>
+                  </button>
                 ))}
               </div>
             )}

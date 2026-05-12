@@ -5,7 +5,6 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Plug,
   Calendar,
-  Database,
   CreditCard,
   MessageCircle,
   FileText,
@@ -13,8 +12,6 @@ import {
   CheckCircle2,
   XCircle,
   Loader2,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -82,167 +79,15 @@ const INTEGRATION_CARDS: IntegrationCardDef[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// DB Config form (for external_db card)
-// ---------------------------------------------------------------------------
-
-interface DbConfig {
-  dbType: string;
-  host: string;
-  port: string;
-  database: string;
-  user: string;
-  password: string;
-}
-
-const DEFAULT_DB_CONFIG: DbConfig = {
-  dbType: 'postgresql',
-  host: '',
-  port: '5432',
-  database: '',
-  user: '',
-  password: '',
-};
-
-function DbConfigForm({
-  onConnect,
-  loading,
-}: {
-  onConnect: (config: DbConfig) => void;
-  loading: boolean;
-}) {
-  const [config, setConfig] = useState<DbConfig>(DEFAULT_DB_CONFIG);
-  const [testSuccess, setTestSuccess] = useState(false);
-
-  const handleTest = () => {
-    // MVP: just show a success toast
-    setTestSuccess(true);
-    setTimeout(() => setTestSuccess(false), 3000);
-  };
-
-  const portDefaults: Record<string, string> = {
-    sqlserver: '1433',
-    mysql: '3306',
-    postgresql: '5432',
-  };
-
-  return (
-    <div className="mt-4 space-y-3">
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Tipo de base de datos
-        </label>
-        <select
-          value={config.dbType}
-          onChange={(e) =>
-            setConfig({
-              ...config,
-              dbType: e.target.value,
-              port: portDefaults[e.target.value] ?? '5432',
-            })
-          }
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-        >
-          <option value="postgresql">PostgreSQL</option>
-          <option value="mysql">MySQL</option>
-          <option value="sqlserver">SQL Server</option>
-        </select>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Host
-          </label>
-          <input
-            type="text"
-            value={config.host}
-            onChange={(e) => setConfig({ ...config, host: e.target.value })}
-            placeholder="localhost"
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Puerto
-          </label>
-          <input
-            type="text"
-            value={config.port}
-            onChange={(e) => setConfig({ ...config, port: e.target.value })}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Base de datos
-        </label>
-        <input
-          type="text"
-          value={config.database}
-          onChange={(e) => setConfig({ ...config, database: e.target.value })}
-          placeholder="mi_base_de_datos"
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Usuario
-          </label>
-          <input
-            type="text"
-            value={config.user}
-            onChange={(e) => setConfig({ ...config, user: e.target.value })}
-            placeholder="admin"
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Contrasena
-          </label>
-          <input
-            type="password"
-            value={config.password}
-            onChange={(e) => setConfig({ ...config, password: e.target.value })}
-            className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3 pt-2">
-        <button
-          onClick={handleTest}
-          disabled={loading}
-          className="px-4 py-2 text-sm font-medium rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          Probar conexion
-        </button>
-        <button
-          onClick={() => onConnect(config)}
-          disabled={loading}
-          className="px-4 py-2 text-sm font-medium rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors disabled:opacity-50"
-        >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            'Conectar'
-          )}
-        </button>
-
-        {testSuccess && (
-          <span className="flex items-center gap-1 text-sm text-green-600">
-            <CheckCircle2 className="h-4 w-4" />
-            Conexion exitosa
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
+// Pre-2026-05-12 this file shipped a DbConfigForm + DEFAULT_DB_CONFIG
+// + DbConfig interface (~150 LOC) plus a handleDbConnect helper and
+// an expandable "Configurar conexión" section, used by an external_db
+// integration card. The card had a fake "Probar conexión" button
+// (3-second setTimeout — never actually attempted a connection) and
+// persisted DB credentials no consumer ever read. The card was
+// removed in commit a10ffa7; this commit removes the rest of the
+// dead form, the handler, the "Configurar conexión" expandable, and
+// the now-orphan icon imports below to stop shipping ~200 LOC.
 
 // ---------------------------------------------------------------------------
 // Status badge
@@ -284,10 +129,6 @@ function IntegrationCard({
   const [expanded, setExpanded] = useState(false);
   const connected =
     def.alwaysConnected || integration?.status === 'connected';
-
-  const handleDbConnect = (dbConfig: DbConfig) => {
-    onConnect(def.type, dbConfig as unknown as Record<string, unknown>);
-  };
 
   return (
     <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
@@ -349,7 +190,9 @@ function IntegrationCard({
         </div>
       )}
 
-      {/* Disconnected state — simple cards */}
+      {/* Disconnected state — simple cards. `hasConfig` used to gate
+          the external_db expandable form — removed but flag kept on
+          the def type so future cards can opt into custom UI. */}
       {!connected && !def.hasConfig && (
         <div className="mt-4">
           {def.type === 'google_calendar' ? (
@@ -387,25 +230,6 @@ function IntegrationCard({
         </div>
       )}
 
-      {/* Disconnected state — external DB with expandable config */}
-      {!connected && def.hasConfig && (
-        <div className="mt-4">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-600 hover:text-indigo-700"
-          >
-            Configurar conexion
-            {expanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </button>
-          {expanded && (
-            <DbConfigForm onConnect={handleDbConnect} loading={loading} />
-          )}
-        </div>
-      )}
     </div>
   );
 }

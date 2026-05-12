@@ -60,6 +60,7 @@ export default async function DashboardLayout({
       tenantId={tenant.id}
       themeKey={(config.dashboardTheme as string) || 'teal-default'}
       sidebarItemIds={config.sidebarItems as string[] | undefined}
+      currentPlan={tenant.plan}
     >
       {children}
     </DashboardShell>

@@ -237,6 +237,57 @@ export type BuildSystemPromptParams = {
   customInstructions?: string;
 };
 
+/**
+ * Pull bot personality bits from `tenant.bot_config` and turn them into
+ * a small prelude that the worker can prepend to its system prompt.
+ *
+ * Pre-2026-05-12 the dashboard exposed `bot_name`, `tone`,
+ * `bot_personality` and `out_of_hours_message` for editing, but the
+ * worker never read them — every tenant got the same default template.
+ * Now we honor them so the doctor's customization actually changes the
+ * bot's voice. Defensive against missing/empty fields: if nothing is
+ * set, returns '' and the prompt is identical to the pre-fix output.
+ */
+function formatBotIdentity(tenant: Tenant): string {
+  const cfg = (tenant.config ?? {}) as Record<string, any>;
+  const bot = (cfg.bot_config ?? (tenant as any).bot_config ?? {}) as Record<string, unknown>;
+  const name = typeof bot.bot_name === 'string' ? bot.bot_name.trim() : '';
+  const tone = typeof bot.tone === 'string' ? bot.tone.trim() : '';
+  const personality =
+    typeof bot.bot_personality === 'string' ? bot.bot_personality.trim() : '';
+
+  const lines: string[] = [];
+  if (name) lines.push(`Te presentas como "${name}".`);
+  if (tone) {
+    // Tone is a code from the bot settings page (amigable, profesional,
+    // formal, cercano). Map a couple of the common ones to a sentence.
+    const toneMap: Record<string, string> = {
+      amigable: 'Tu tono es amigable y cercano.',
+      profesional: 'Tu tono es profesional y directo.',
+      formal: 'Tu tono es formal y respetuoso.',
+      cercano: 'Tu tono es cercano y cálido.',
+    };
+    lines.push(toneMap[tone.toLowerCase()] ?? `Tu tono de comunicación es "${tone}".`);
+  }
+  if (personality) lines.push(personality);
+  return lines.join(' ');
+}
+
+/**
+ * Returns the doctor's customized out-of-hours auto-reply if set, or
+ * null. The worker should consult this BEFORE calling the LLM when the
+ * incoming message arrives outside `bot_config.schedule`.
+ */
+export function getOutOfHoursMessage(tenant: Tenant): string | null {
+  const cfg = (tenant.config ?? {}) as Record<string, any>;
+  const bot = (cfg.bot_config ?? (tenant as any).bot_config ?? {}) as Record<string, unknown>;
+  const msg =
+    typeof bot.out_of_hours_message === 'string'
+      ? bot.out_of_hours_message.trim()
+      : '';
+  return msg || null;
+}
+
 export function buildTenantSystemPrompt(params: BuildSystemPromptParams): string {
   const { tenant, ragChunks = [], customInstructions = '' } = params;
   const template = isMedicalTenant(tenant) ? MEDICAL_TEMPLATE : INDUSTRIAL_TEMPLATE;
@@ -249,11 +300,19 @@ Esta información es oficial y verificada. Úsala para responder preguntas sobre
 ${ragChunks.map((c, i) => `[${i + 1}] ${c}`).join('\n\n')}`
       : '';
 
+  // Compose identity prelude + doctor's custom instructions. The
+  // identity comes first because it shapes the voice; customInstructions
+  // is the doctor's free-form override (e.g. specialty-specific rules).
+  const identity = formatBotIdentity(tenant);
+  const composedCustom = [identity, customInstructions]
+    .filter((s) => s && s.trim() !== '')
+    .join('\n\n');
+
   return template
     .replaceAll('{{businessName}}', tenant.name)
     .replaceAll('{{businessInfo}}', formatBusinessInfo(tenant))
     .replaceAll('{{ragContext}}', ragContext)
-    .replaceAll('{{customInstructions}}', customInstructions);
+    .replaceAll('{{customInstructions}}', composedCustom);
 }
 
 export function getTenantVertical(tenant: Tenant): 'medical' | 'industrial' {

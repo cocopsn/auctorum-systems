@@ -400,7 +400,7 @@ export async function runWhatsAppReply({
 // RAG, per-tenant prompts, and budget control (added 2026-04-16)
 // --------------------------------------------------------------------------
 export { searchKnowledgeBase, type KnowledgeChunk as RAGChunk } from './rag';
-export { buildTenantSystemPrompt, getTenantVertical } from './prompts';
+export { buildTenantSystemPrompt, getTenantVertical, getOutOfHoursMessage } from './prompts';
 export { checkTenantBudget, getTenantUsage, type BudgetCheckResult } from './budget';
 export {
   SPECIALTY_TEMPLATES,

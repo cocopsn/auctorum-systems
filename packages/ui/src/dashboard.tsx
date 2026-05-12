@@ -28,7 +28,33 @@ export type DashboardNavItem = {
   // to force `as any` at every callsite.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   icon: any;
+  /**
+   * Plan tier required to access this item. If set and the current
+   * tenant's plan is below this tier, the sidebar renders a "PRO" badge.
+   *   - 'auctorum' → unlocked at Plan Auctorum or Enterprise
+   *   - 'enterprise' → unlocked at Plan Enterprise only
+   * Undefined = available to every plan.
+   */
+  requiredPlan?: 'auctorum' | 'enterprise';
 };
+
+// Tier hierarchy used by the sidebar to decide "locked" vs "unlocked"
+// badge styling. Mirrors apps/{web,medconcierge}/lib/plan-gating.PLAN_TIER_ORDER
+// so the UI doesn't drift from server-side gating. If a new plan is
+// introduced upstream, add it here too.
+const PLAN_TIER_ORDER: ReadonlyArray<'basico' | 'auctorum' | 'enterprise'> = [
+  'basico',
+  'auctorum',
+  'enterprise',
+];
+
+function planMeetsRequirement(
+  current: string | null | undefined,
+  required: 'auctorum' | 'enterprise',
+): boolean {
+  const code = (current ?? 'basico').toLowerCase() as 'basico' | 'auctorum' | 'enterprise';
+  return PLAN_TIER_ORDER.indexOf(code) >= PLAN_TIER_ORDER.indexOf(required);
+}
 
 const NAV_GROUP_LABELS: Record<number, string> = {
   0: 'PRINCIPAL',
@@ -206,6 +232,7 @@ export function AppShell({
   appName,
   userName,
   planLabel = 'Plan Pro',
+  currentPlan,
   greeting = 'Welcome back',
   subtitle = "Here's what's happening today.",
   ctaHref = '/dashboard/ai-settings',
@@ -221,6 +248,13 @@ export function AppShell({
   appName: string;
   userName: string;
   planLabel?: string;
+  /**
+   * Current tenant plan code ('basico' | 'auctorum' | 'enterprise'). Used
+   * to render the "PRO" badge on sidebar items with a `requiredPlan` higher
+   * than the tenant's current tier. If omitted, every gated item is shown
+   * as locked (defaults to basico).
+   */
+  currentPlan?: string | null;
   greeting?: string;
   subtitle?: string;
   ctaHref?: string;
@@ -282,6 +316,14 @@ export function AppShell({
             const Icon = item.icon;
             const active = pathname === item.href || (item.href !== '/' && pathname.startsWith(`${item.href}/`));
             const groupLabel = NAV_GROUP_LABELS[index];
+            // PRO badge — rendered for items with a requiredPlan above the
+            // tenant's tier. Two styles:
+            //   - locked (basico tenant looking at an auctorum item) →
+            //     gradient pill that invites upgrade
+            //   - unlocked (auctorum tenant looking at an auctorum item) →
+            //     subtle teal confirmation pill
+            const requiredPlan = item.requiredPlan;
+            const isLocked = !!requiredPlan && !planMeetsRequirement(currentPlan, requiredPlan);
             return (
               <div key={item.key ?? item.href}>
                 {groupLabel && (
@@ -296,11 +338,22 @@ export function AppShell({
                     active
                       ? 'border-l-2 border-[var(--theme-sidebar-active,#60a5fa)] bg-[var(--theme-sidebar-active-bg,rgba(30,64,175,0.5))] font-medium text-[var(--theme-sidebar-active-fg,#ffffff)]'
                       : 'border-l-2 border-transparent text-[var(--theme-sidebar-text,#cbd5e1)] hover:bg-[var(--theme-sidebar-hover,#1e293b)]'
-                  }`}
+                  } ${isLocked ? 'opacity-75' : ''}`}
                   aria-current={active ? 'page' : undefined}
                 >
                   <Icon className={`h-4 w-4 ${active ? 'text-[var(--theme-sidebar-active-fg,#ffffff)]' : 'text-[var(--theme-sidebar-text,#94a3b8)]'}`} />
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {requiredPlan && (
+                    <span
+                      className={
+                        isLocked
+                          ? 'text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-gradient-to-r from-teal-400 to-blue-500 text-white shadow-sm'
+                          : 'text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-teal-500/15 text-teal-200'
+                      }
+                    >
+                      PRO
+                    </span>
+                  )}
                 </Link>
               </div>
             );

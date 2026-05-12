@@ -14,6 +14,8 @@ import {
   MessageSquare,
   X,
 } from 'lucide-react';
+import { UpgradePrompt } from '@/components/upgrade-prompt';
+import { usePlanGate } from '@/hooks/use-plan-gate';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -404,6 +406,9 @@ export default function CampaignsPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('all');
   const [showForm, setShowForm] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // Plan gate — campaigns/send returns 402 + code='PLAN_LIMIT' for
+  // basico tenants. usePlanGate intercepts and surfaces UpgradePrompt.
+  const { blockedFeature, clearBlock, fetchWithPlanGate } = usePlanGate();
 
   const fetchCampaigns = useCallback(async () => {
     try {
@@ -447,10 +452,11 @@ export default function CampaignsPage() {
   const handleSend = async (id: string) => {
     setActionLoading(id);
     try {
-      await fetch(`/api/dashboard/campaigns/${id}/send`, {
+      const res = await fetchWithPlanGate(`/api/dashboard/campaigns/${id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
+      if (!res) return; // 402 intercepted → UpgradePrompt shown
       await fetchCampaigns();
     } catch (err) {
       console.error('Error sending campaign:', err);
@@ -475,6 +481,9 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
+      {blockedFeature && (
+        <UpgradePrompt feature={blockedFeature} onClose={clearBlock} />
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
