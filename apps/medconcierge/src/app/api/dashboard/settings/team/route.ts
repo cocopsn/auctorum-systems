@@ -31,9 +31,18 @@ export async function GET() {
   }
 }
 
+// Tenant roles (post-2026-05-12 — added 'secretaria').
+// - admin     → full access incl. billing, team, role changes, refunds, deletes
+// - secretaria→ patient management, appointments, conversations, documents,
+//               reports view. NO billing, team mgmt, refunds, role changes,
+//               clinical record edits (only view).
+// - operator  → legacy role; effectively same as secretaria for medconcierge
+// - viewer    → read-only across the dashboard
+export const TENANT_ROLES = ['admin', 'secretaria', 'operator', 'viewer'] as const
+
 const inviteSchema = z.object({
   email: z.string().email().max(255),
-  role: z.enum(['admin', 'operator', 'viewer']),
+  role: z.enum(TENANT_ROLES),
 })
 
 export async function POST(request: NextRequest) {
@@ -75,27 +84,72 @@ export async function POST(request: NextRequest) {
 
     const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://auctorum.com.mx'}/api/auth/callback`
 
+    // Use the admin API to create the Supabase auth user upfront so we
+    // know their real auth.uid before inserting our `users` row. Pre-
+    // 2026-05-12 we generated a `tempId` here and hoped the auth
+    // callback would reconcile it later — that reconciliation never
+    // existed, so invited members were orphaned forever (login looped).
+    //
+    // If the auth user already exists (the invitee was already a
+    // Supabase user from some other tenant), we look up their uid and
+    // attach a NEW users row for this tenant — Supabase auth users are
+    // global but our `users` table is per-tenant.
+    const supabaseAdmin = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { autoRefreshToken: false, persistSession: false } },
+    )
+
+    let authUserId: string | null = null
+    const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: { invited_by_tenant: auth.tenant.id, invited_role: role },
+    })
+    if (createErr) {
+      // Most common error: "User already registered" — look them up.
+      const { data: list } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 100 })
+      const match = list?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase())
+      if (match) authUserId = match.id
+    } else {
+      authUserId = created.user?.id ?? null
+    }
+    if (!authUserId) {
+      return NextResponse.json(
+        { error: 'No se pudo crear el usuario en Supabase Auth.' },
+        { status: 500 },
+      )
+    }
+
+    // Insert (or upsert) the per-tenant users row keyed by the REAL
+    // auth.uid. ON CONFLICT (id) DO UPDATE handles the rare case where
+    // the same auth user gets re-invited (e.g. admin removed them then
+    // re-invited).
+    await db
+      .insert(users)
+      .values({
+        id: authUserId,
+        tenantId: auth.tenant.id,
+        email,
+        name: email.split('@')[0],
+        role,
+      })
+      .onConflictDoUpdate({
+        target: users.id,
+        set: { tenantId: auth.tenant.id, role, isActive: true },
+      })
+
+    // Send the magic link AFTER persisting so when the invitee clicks
+    // it, the users row already exists and getAuthTenant() resolves.
     const { error: otpError } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: redirectTo },
     })
-
     if (otpError) {
       console.error('Invite OTP error:', otpError.message)
     }
 
-    // We create a placeholder user record - the actual Supabase user ID will be linked on first login
-    // For now, generate a temporary UUID
-    const tempId = crypto.randomUUID()
-    await db.insert(users).values({
-      id: tempId,
-      tenantId: auth.tenant.id,
-      email,
-      name: email.split('@')[0],
-      role,
-    })
-
-    return NextResponse.json({ success: true, message: 'Invitacion enviada' })
+    return NextResponse.json({ success: true, message: 'Invitación enviada' })
   } catch (err: any) {
     console.error('Team POST error:', err)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

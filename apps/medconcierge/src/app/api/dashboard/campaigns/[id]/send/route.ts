@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthTenant, requireRole } from '@/lib/auth'
+import { can } from '@/lib/permissions'
 import { db, campaigns, campaignMessages, clients } from '@quote-engine/db'
 import { and, eq, isNotNull, gte, sql } from 'drizzle-orm'
 import { z } from 'zod'
@@ -106,13 +107,11 @@ export async function POST(
   const auth = await getAuthTenant()
   if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  // Role gate: mass WhatsApp dispatch can cost real money (Meta marketing
-  // conversation pricing) and is the highest-impact policy violation
-  // vector if used carelessly. Restrict to admin.
-  const adminAuth = await requireRole(['admin'])
-  if (!adminAuth) {
+  // Capability gate. `campaigns.send` is admin+operator (legacy).
+  // Secretaria CANNOT send marketing — that's a business decision.
+  if (!can(auth.user.role, 'campaigns.send')) {
     return NextResponse.json(
-      { error: 'Solo administradores pueden enviar campañas' },
+      { error: 'No tienes permiso para enviar campañas.' },
       { status: 403 },
     )
   }

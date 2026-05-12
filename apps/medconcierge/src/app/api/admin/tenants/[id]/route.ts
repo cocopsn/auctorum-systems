@@ -71,9 +71,14 @@ export async function GET(_req: NextRequest, { params }: RouteCtx) {
 }
 
 // ---- Zod schema for PATCH validation ----
+// `profesional` + `premium` are legacy values; canonical is basico /
+// auctorum / enterprise (see packages/ai/plan-limits.ts). We accept the
+// legacy values for backward-compat so admins can re-classify old rows.
 const patchTenantSchema = z.object({
-  plan: z.enum(["basico", "profesional", "premium", "enterprise"]).optional(),
-  provisioningStatus: z.enum(["draft", "pending_plan", "active", "suspended"]).optional(),
+  plan: z.enum(["basico", "profesional", "premium", "auctorum", "enterprise"]).optional(),
+  provisioningStatus: z
+    .enum(["draft", "unverified", "pending_plan", "active", "suspended", "cancelled"])
+    .optional(),
   isActive: z.boolean().optional(),
   name: z.string().min(1).max(255).optional(),
   config: z.object({

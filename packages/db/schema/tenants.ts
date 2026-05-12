@@ -2,7 +2,18 @@ import { pgTable, uuid, varchar, text, boolean, jsonb, timestamp, integer } from
 
 export const TENANT_TYPES = ['medical', 'industrial'] as const;
 export const PUBLIC_SUBDOMAIN_PREFIXES = ['dr', 'dra', 'doc'] as const;
-export const TENANT_PROVISIONING_STATUSES = ['draft', 'pending_plan', 'active', 'suspended'] as const;
+// 'unverified' (post-2026-05-11) = signup happened, email confirmation
+// pending. Auth callback promotes to 'pending_plan' on first verified
+// login. Stripe / MercadoPago webhook promotes to 'active' on
+// successful payment. 'suspended' = past_due > N attempts.
+export const TENANT_PROVISIONING_STATUSES = [
+  'draft',
+  'unverified',
+  'pending_plan',
+  'active',
+  'suspended',
+  'cancelled',
+] as const;
 
 export type TenantType = (typeof TENANT_TYPES)[number];
 export type PublicSubdomainPrefix = (typeof PUBLIC_SUBDOMAIN_PREFIXES)[number];

@@ -380,7 +380,12 @@ export async function POST(request: NextRequest) {
             title: data.businessName,
             isHomepage: true,
             sections: buildDefaultPortalSections(),
-            published: false,
+            // Published by default — tenants in 'unverified' / 'pending_plan'
+            // still get their public landing visible immediately so they can
+            // share the URL with the doctor for review BEFORE paying. The
+            // dashboard provisioning gate (apps/medconcierge/src/app/(dashboard)/layout.tsx)
+            // bounces non-paying tenants out of authenticated surfaces.
+            published: true,
             sortOrder: 0,
           })
 
@@ -436,6 +441,20 @@ export async function POST(request: NextRequest) {
     }
 
     // ---- Paid plans: route to MercadoPago (primary) or Stripe ------------
+    //
+    // Success/failure URLs target the user's actual tenant subdomain.
+    // For medical tenants that's `<slug>.auctorum.com.mx` (so the
+    // doctor lands inside their own PWA, not portal.* which is the
+    // B2B app). For B2B/industrial tenants we keep portal.*.
+    // Webhook URL targets med.auctorum.com.mx — the medconcierge
+    // process is the one with the patient/clinical handlers wired up.
+    const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'auctorum.com.mx'
+    const tenantHost =
+      data.tenantType === 'medical'
+        ? `${tenantSlug}.${appDomain}`
+        : `portal.${appDomain}`
+    const webhookHost = `med.${appDomain}`
+
     const planKey = data.plan as 'basico' | 'auctorum'
     const planMeta = PLAN_AMOUNTS_MXN[planKey]
     if (data.processor === 'mercadopago') {
@@ -446,10 +465,10 @@ export async function POST(request: NextRequest) {
           planName: planMeta.name,
           amount: planMeta.amount,
           payerEmail: data.email,
-          successUrl: `https://portal.auctorum.com.mx/login?signup=success&payment=mercadopago&tenant=${tenantId}`,
-          failureUrl: 'https://portal.auctorum.com.mx/signup?payment=failed',
-          pendingUrl: 'https://portal.auctorum.com.mx/signup?payment=pending',
-          webhookUrl: 'https://portal.auctorum.com.mx/api/webhooks/mercadopago',
+          successUrl: `https://${tenantHost}/login?signup=success&payment=mercadopago&tenant=${tenantId}`,
+          failureUrl: `https://${tenantHost}/signup?payment=failed`,
+          pendingUrl: `https://${tenantHost}/signup?payment=pending`,
+          webhookUrl: `https://${webhookHost}/api/webhooks/mercadopago`,
         })
 
         // init_point is the hosted checkout URL; sandbox_init_point exists for test
@@ -481,8 +500,8 @@ export async function POST(request: NextRequest) {
         tenantId,
         planId: data.plan as PlanId,
         customerEmail: data.email,
-        successUrl: 'https://portal.auctorum.com.mx/login?signup=success',
-        cancelUrl: 'https://portal.auctorum.com.mx/signup?cancelled=true',
+        successUrl: `https://${tenantHost}/login?signup=success`,
+        cancelUrl: `https://${tenantHost}/signup?cancelled=true`,
       })
 
       return NextResponse.json({

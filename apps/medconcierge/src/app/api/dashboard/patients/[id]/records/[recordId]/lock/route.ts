@@ -24,6 +24,7 @@ import {
   generateClinicalSignatureHash,
 } from '@quote-engine/db'
 import { withAuthAndTenant, UnauthorizedError } from '@/lib/auth'
+import { can } from '@/lib/permissions'
 import { validateOrigin } from '@/lib/csrf'
 
 type RouteCtx = { params: { id: string; recordId: string } }
@@ -53,6 +54,15 @@ export async function POST(request: NextRequest, { params }: RouteCtx) {
 
   try {
     return await withAuthAndTenant(async ({ tx, tenantId, user }) => {
+      // Capability gate — only the signing doctor (admin) locks records.
+      // Secretaria can prepare drafts but cannot sign. NOM-004 §4.4.
+      if (!can(user.role, 'clinical_records.lock')) {
+        return NextResponse.json(
+          { error: 'Solo el médico tratante puede firmar notas clínicas.', code: 'INSUFFICIENT_ROLE' },
+          { status: 403 },
+        )
+      }
+
       // Verify patient belongs to tenant
       const [patient] = await tx
         .select({ id: patients.id })

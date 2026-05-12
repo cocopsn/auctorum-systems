@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { Loader2, Plus, Eye, EyeOff, Trash2, GripVertical, Save, Globe, Palette, Upload, Image as ImageIcon, X } from "lucide-react"
+import { Loader2, Plus, Eye, EyeOff, Trash2, GripVertical, Save, Globe, Palette, Upload, Image as ImageIcon, X, ExternalLink } from "lucide-react"
 
 type Section = {
   id: string
@@ -27,6 +27,7 @@ export default function PortalEditorPage() {
   const [portal, setPortal] = useState<any>(null)
   const [sections, setSections] = useState<Section[]>([])
   const [config, setConfig] = useState<any>({})
+  const [publicUrl, setPublicUrl] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [activeTab, setActiveTab] = useState<"sections" | "config">("sections")
@@ -44,6 +45,7 @@ export default function PortalEditorPage() {
         setPortal(json.portal)
         setSections((json.portal?.sections as Section[]) || [])
         setConfig(json.config || {})
+        setPublicUrl(json.tenant?.publicUrl ?? null)
       }
     } catch (e) { console.error(e) }
     setLoading(false)
@@ -156,6 +158,16 @@ export default function PortalEditorPage() {
           <p className="mt-1 text-sm text-gray-500">Personaliza tu pagina web publica. Arrastra para reordenar secciones.</p>
         </div>
         <div className="flex items-center gap-2">
+          {publicUrl && (
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
+            >
+              <ExternalLink className="w-4 h-4" /> Ver mi sitio
+            </a>
+          )}
           <button onClick={saveConfig} disabled={saving}
             className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
             <Save className="w-4 h-4" /> {saving ? "Guardando..." : "Guardar"}
@@ -350,7 +362,12 @@ function SectionEditor({ section, onSave }: { section: Section; onSave: (data: a
         <>
           <Field label="Titulo" value={data.title || ""} onChange={v => update("title", v)} />
           <Field label="Subtitulo" value={data.subtitle || ""} onChange={v => update("subtitle", v)} />
-          <p className="text-xs text-gray-500">Servicios: {(data.items || []).length} configurados</p>
+          <ItemListEditor
+            items={data.items || []}
+            onChange={(items: any) => update("items", items)}
+            shape="service"
+            addLabel="+ Agregar servicio"
+          />
         </>
       )}
       {section.type === "gallery" && (
@@ -379,19 +396,34 @@ function SectionEditor({ section, onSave }: { section: Section; onSave: (data: a
       {section.type === "faq" && (
         <>
           <Field label="Titulo" value={data.title || ""} onChange={v => update("title", v)} />
-          <p className="text-xs text-gray-500">Preguntas: {(data.items || []).length} configuradas</p>
+          <ItemListEditor
+            items={data.items || []}
+            onChange={(items: any) => update("items", items)}
+            shape="faq"
+            addLabel="+ Agregar pregunta"
+          />
         </>
       )}
       {section.type === "testimonials" && (
         <>
           <Field label="Titulo" value={data.title || ""} onChange={v => update("title", v)} />
-          <p className="text-xs text-gray-500">Testimonios: {(data.items || []).length}</p>
+          <ItemListEditor
+            items={data.items || []}
+            onChange={(items: any) => update("items", items)}
+            shape="testimonial"
+            addLabel="+ Agregar testimonio"
+          />
         </>
       )}
       {section.type === "team" && (
         <>
           <Field label="Titulo" value={data.title || ""} onChange={v => update("title", v)} />
-          <p className="text-xs text-gray-500">Miembros: {(data.members || []).length}</p>
+          <ItemListEditor
+            items={data.members || []}
+            onChange={(items: any) => update("members", items)}
+            shape="team_member"
+            addLabel="+ Agregar miembro"
+          />
         </>
       )}
 
@@ -477,6 +509,122 @@ function TextArea({ label, value, onChange }: { label: string; value: string; on
       <textarea value={value} onChange={e => onChange(e.target.value)} rows={4}
         className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm resize-y focus:ring-2 focus:ring-blue-200 focus:border-blue-400 transition" />
     </label>
+  )
+}
+
+// --------------- Item list editor (services / FAQ / testimonials / team) ---
+//
+// Pre-2026-05-12 these section types only showed "N items configured"
+// with no UI to edit. Added inline editor that handles 4 shapes:
+//   - service:     { name, description, price, icon? }
+//   - faq:         { question, answer }
+//   - testimonial: { name, text, rating }
+//   - team_member: { name, role, photo, bio }
+
+type ItemShape = "service" | "faq" | "testimonial" | "team_member"
+
+function ItemListEditor({
+  items,
+  onChange,
+  shape,
+  addLabel,
+}: {
+  items: any[]
+  onChange: (items: any[]) => void
+  shape: ItemShape
+  addLabel: string
+}) {
+  function update(idx: number, patch: Record<string, any>) {
+    const next = items.map((it, i) => (i === idx ? { ...it, ...patch } : it))
+    onChange(next)
+  }
+  function remove(idx: number) {
+    onChange(items.filter((_, i) => i !== idx))
+  }
+  function add() {
+    const defaults: Record<ItemShape, any> = {
+      service: { name: "", description: "", price: 0 },
+      faq: { question: "", answer: "" },
+      testimonial: { name: "", text: "", rating: 5 },
+      team_member: { name: "", role: "", photo: "", bio: "" },
+    }
+    onChange([...items, defaults[shape]])
+  }
+
+  return (
+    <div className="space-y-3 border-t border-gray-100 pt-3 mt-3">
+      {items.map((it, idx) => (
+        <div key={idx} className="rounded-lg border border-gray-200 p-3 space-y-2 bg-gray-50">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-gray-600">#{idx + 1}</span>
+            <button
+              type="button"
+              onClick={() => remove(idx)}
+              className="text-xs text-red-600 hover:text-red-700"
+            >
+              Eliminar
+            </button>
+          </div>
+
+          {shape === "service" && (
+            <>
+              <Field label="Nombre del servicio" value={it.name || ""} onChange={v => update(idx, { name: v })} />
+              <TextArea label="Descripción" value={it.description || ""} onChange={v => update(idx, { description: v })} />
+              <label className="block">
+                <span className="text-sm text-gray-600">Precio (MXN)</span>
+                <input
+                  type="number"
+                  value={it.price ?? 0}
+                  onChange={e => update(idx, { price: Number(e.target.value) })}
+                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                />
+              </label>
+            </>
+          )}
+
+          {shape === "faq" && (
+            <>
+              <Field label="Pregunta" value={it.question || ""} onChange={v => update(idx, { question: v })} />
+              <TextArea label="Respuesta" value={it.answer || ""} onChange={v => update(idx, { answer: v })} />
+            </>
+          )}
+
+          {shape === "testimonial" && (
+            <>
+              <Field label="Nombre del paciente" value={it.name || ""} onChange={v => update(idx, { name: v })} />
+              <TextArea label="Testimonio" value={it.text || ""} onChange={v => update(idx, { text: v })} />
+              <label className="block">
+                <span className="text-sm text-gray-600">Estrellas (1-5)</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={5}
+                  value={it.rating ?? 5}
+                  onChange={e => update(idx, { rating: Math.max(1, Math.min(5, Number(e.target.value))) })}
+                  className="mt-1 w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
+                />
+              </label>
+            </>
+          )}
+
+          {shape === "team_member" && (
+            <>
+              <Field label="Nombre" value={it.name || ""} onChange={v => update(idx, { name: v })} />
+              <Field label="Rol / título" value={it.role || ""} onChange={v => update(idx, { role: v })} />
+              <ImageUpload label="Foto" value={it.photo || ""} onChange={v => update(idx, { photo: v })} />
+              <TextArea label="Bio breve" value={it.bio || ""} onChange={v => update(idx, { bio: v })} />
+            </>
+          )}
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={add}
+        className="w-full py-2 text-sm font-medium text-blue-600 border border-dashed border-blue-300 rounded-lg hover:bg-blue-50 transition"
+      >
+        {addLabel}
+      </button>
+    </div>
   )
 }
 

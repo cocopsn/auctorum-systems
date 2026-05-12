@@ -21,10 +21,20 @@ export async function GET() {
     // Return first page (homepage) or null
     const homepage = pages.find(p => p.isHomepage) || pages[0] || null
 
+    // Expose `slug` + `publicHost` so the dashboard "Ver mi sitio"
+    // button can link straight to <slug>.auctorum.com.mx without
+    // having to make another auth round-trip.
+    const appDomain = process.env.NEXT_PUBLIC_APP_DOMAIN ?? 'auctorum.com.mx'
     return NextResponse.json({
       portal: homepage,
       pages,
       config: homepage?.portalConfig || {},
+      tenant: {
+        slug: auth.tenant.slug,
+        name: auth.tenant.name,
+        publicHost: `${auth.tenant.slug}.${appDomain}`,
+        publicUrl: `https://${auth.tenant.slug}.${appDomain}/`,
+      },
     })
   } catch (error) {
     console.error("Portal GET error:", error)

@@ -335,6 +335,27 @@ module.exports = {
       error_file: '/var/log/auctorum/cron-follow-ups-error.log',
       out_file: '/var/log/auctorum/cron-follow-ups-out.log',
       merge_logs: true
+    },
+    {
+      // Sweeps tenants stuck in 'unverified' or 'pending_plan' for >14
+      // days (configurable via TENANT_STALE_DAYS env var). Soft-deletes
+      // the workspace, frees the slug by suffixing it, and hard-deletes
+      // the orphan Supabase auth.users identity. Pre-2026-05-11 the web
+      // signup route bypassed payment entirely — that ditch is now
+      // closed, but tenants who never finish Stripe Checkout still
+      // squat slugs forever without this. Runs daily at 5am.
+      name: 'cron-tenant-cleanup',
+      cwd: '/opt/auctorum-systems/repo',
+      script: 'npx',
+      args: 'tsx scripts/cron-tenant-cleanup.ts',
+      cron_restart: '0 5 * * *',
+      autorestart: false,
+      watch: false,
+      env: { ...cronEnv, TZ: 'America/Monterrey' },
+      log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
+      error_file: '/var/log/auctorum/cron-tenant-cleanup-error.log',
+      out_file: '/var/log/auctorum/cron-tenant-cleanup-out.log',
+      merge_logs: true
     }
   ]
 };

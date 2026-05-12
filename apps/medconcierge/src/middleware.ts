@@ -131,14 +131,29 @@ async function handleRequest(request: NextRequest) {
   if (LEGAL_ROUTES.includes(pathname)) return NextResponse.next()
   if (PUBLIC_FLAT_ROUTES.includes(pathname)) return NextResponse.next()
 
-  // 5. Landing page: root path on subdomain shows the public landing
+  // 5. Subdomain root → rewrite to the (portal)/[slug] tree so the
+  // Portal Builder content actually renders.
+  //
+  // Pre-2026-05-12 this was a plain NextResponse.next() that hit
+  // apps/medconcierge/src/app/page.tsx — a 'use client' splash that
+  // SSR-rendered "Auctorum Systems" because window.location is
+  // undefined on the server. Result: every tenant's subdomain root
+  // showed our marketing splash instead of their portal. Rewriting to
+  // /[slug] makes the server component at (portal)/[slug]/page.tsx
+  // load the published portal_pages + tenant.config and render the
+  // PortalRenderer with the doctor's actual sections.
   if (slug && pathname === '/') {
-    const response = NextResponse.next()
+    const portalPath = `/${slug}`
+    const rewriteUrl = request.nextUrl.clone()
+    rewriteUrl.protocol = 'http:'
+    rewriteUrl.pathname = portalPath
+    rewriteUrl.searchParams.set('_portal', '1')
+    const response = NextResponse.rewrite(rewriteUrl)
     response.headers.set('x-tenant-slug', slug)
     return response
   }
 
-  // 5b. Portal routes: subdomain + non-dashboard path -> rewrite with marker
+  // 5b. Portal sub-paths (/agendar, /servicios, etc.) → same shape.
   if (slug && !isDashboardRoute(pathname)) {
     const portalPath = `/${slug}${pathname}`
     const rewriteUrl = request.nextUrl.clone()
@@ -221,7 +236,13 @@ async function handleRequest(request: NextRequest) {
     return clearRedirect
   }
   if (slug) response.headers.set('x-tenant-slug', slug)
-  return response
+  // Surface the pathname so server components can check it (e.g. the
+  // dashboard layout's provisioning gate needs to know whether the
+  // request is for /settings/subscription before redirecting).
+  response.headers.set('x-pathname', pathname)
+  // Propagate on the request side too so headers() inside RSC sees it.
+  request.headers.set('x-pathname', pathname)
+  return NextResponse.next({ request: { headers: request.headers } })
 }
 
 export const config = {

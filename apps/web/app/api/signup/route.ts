@@ -117,9 +117,13 @@ export async function POST(req: NextRequest) {
   }
 
   const admin = createServerClient()
+  // email_confirm: true (post-2026-05-12). Pre-fix this was `false` so
+  // anyone could squat someone else's email at signup, and the row
+  // landed `active` without confirming ownership. See also the medconcierge
+  // signup route — same fix applied there in commit cf5d3f3.
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: normalizedEmail,
-    email_confirm: false,
+    email_confirm: true,
     user_metadata: {
       full_name: fullName,
       doctor_name: doctorName || fullName,
@@ -147,8 +151,12 @@ export async function POST(req: NextRequest) {
           tenantType,
           publicSubdomain,
           publicSubdomainPrefix: tenantType === 'medical' ? publicPrefix : null,
-          provisioningStatus: 'active',
-          provisionedAt: new Date(),
+          // Pre-2026-05-12 this was 'active' + auto-marked the
+          // subscription paid for $0 — every web signup got a free
+          // Auctorum plan. We now require Stripe Checkout via
+          // /api/billing/checkout (called from the post-signup
+          // success page) and stay in 'unverified' until then.
+          provisioningStatus: 'unverified',
           config: buildTenantConfig({
             tenantType: tenantType as TenantType,
             plan,
@@ -169,10 +177,14 @@ export async function POST(req: NextRequest) {
         role: 'admin',
       })
 
+      // Pre-2026-05-12 we marked the subscription `active` right here
+      // — free SaaS for everyone who clicked signup. Now we create the
+      // row in 'pending' so the Stripe webhook can flip it to 'active'
+      // when the user actually pays.
       await tx.insert(subscriptions).values({
         tenantId: tenant.id,
         plan,
-        status: 'active',
+        status: 'pending',
         amount: plan === 'auctorum' ? '1800' : '1400',
         currency: 'MXN',
         billingCycle: 'monthly',

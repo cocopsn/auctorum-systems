@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { eq, and } from 'drizzle-orm'
 import { db, patientPayments, auditLog } from '@quote-engine/db'
 import { getAuthTenant, requireRole } from '@/lib/auth'
+import { can } from '@/lib/permissions'
 import { validateOrigin } from '@/lib/csrf'
 import { stripe } from '@quote-engine/payments'
 
@@ -26,13 +27,13 @@ export async function POST(request: NextRequest, { params }: RouteCtx) {
   const auth = await getAuthTenant()
   if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  // Role gate: refunds move real money (Stripe Connect reverse_transfer +
-  // refund_application_fee). Pre-2026-05-11 any authed user including
-  // viewer could call this — fraud-internal vector. Restrict to admin.
-  const adminAuth = await requireRole(['admin'])
-  if (!adminAuth) {
+  // Capability gate. `payments.refund` is admin-only by default — a
+  // secretaria can record cash payments but reversing money via Stripe
+  // Connect needs the responsible party. See lib/permissions.ts for
+  // the full matrix.
+  if (!can(auth.user.role, 'payments.refund')) {
     return NextResponse.json(
-      { error: 'Solo administradores pueden procesar reembolsos' },
+      { error: 'No tienes permiso para procesar reembolsos. Pide al administrador del consultorio.' },
       { status: 403 },
     )
   }

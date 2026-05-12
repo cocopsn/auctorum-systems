@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect, useCallback } from 'react'
-import { Users, Plus, X, Shield, Eye, Wrench, Trash2 } from 'lucide-react'
+import { Users, Plus, X, Shield, Eye, Wrench, Trash2, ClipboardList } from 'lucide-react'
 
 type Member = {
   id: string
@@ -15,6 +15,7 @@ type Member = {
 
 const ROLE_LABELS: Record<string, { label: string; color: string; icon: any }> = {
   admin: { label: 'Admin', color: 'bg-indigo-50 text-indigo-700', icon: Shield },
+  secretaria: { label: 'Secretaria', color: 'bg-pink-50 text-pink-700', icon: ClipboardList },
   operator: { label: 'Operador', color: 'bg-amber-50 text-amber-700', icon: Wrench },
   viewer: { label: 'Solo lectura', color: 'bg-gray-50 text-gray-700', icon: Eye },
 }
@@ -124,6 +125,7 @@ export default function TeamPage() {
               className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
             >
               <option value="admin">Admin</option>
+              <option value="secretaria">Secretaria</option>
               <option value="operator">Operador</option>
               <option value="viewer">Solo lectura</option>
             </select>
@@ -163,6 +165,7 @@ export default function TeamPage() {
                       className={`text-xs font-medium px-2 py-1 rounded-lg border-0 ${roleInfo.color}`}
                     >
                       <option value="admin">Admin</option>
+                      <option value="secretaria">Secretaria</option>
                       <option value="operator">Operador</option>
                       <option value="viewer">Solo lectura</option>
                     </select>

@@ -8,7 +8,8 @@ import { validateOrigin } from '@/lib/csrf'
 export const dynamic = 'force-dynamic'
 
 const updateSchema = z.object({
-  role: z.enum(['admin', 'operator', 'viewer']).optional(),
+  // Keep in sync with TENANT_ROLES in `../route.ts`.
+  role: z.enum(['admin', 'secretaria', 'operator', 'viewer']).optional(),
 }).strict()
 
 export async function PATCH(

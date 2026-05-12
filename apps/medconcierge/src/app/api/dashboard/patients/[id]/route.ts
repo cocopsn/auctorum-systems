@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { db, patients, patientFiles, appointments, clinicalRecords, auditLog } from '@quote-engine/db';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { getAuthTenant, requireRole } from '@/lib/auth';
+import { can } from '@/lib/permissions';
 import { validateOrigin } from '@/lib/csrf';
 
 // ============================================================
@@ -154,12 +155,11 @@ export async function DELETE(request: NextRequest, { params }: RouteCtx) {
     const auth = await getAuthTenant();
     if (!auth) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-    // Role gate: deleting a patient = soft-delete that hides clinical
-    // history. Admin-only — viewer/operator must request via admin.
-    const adminAuth = await requireRole(['admin']);
-    if (!adminAuth) {
+    // Capability gate — `patients.delete` is admin-only. Secretaria can
+    // edit/schedule patients but not soft-delete them (NOM-004 retention).
+    if (!can(auth.user.role, 'patients.delete')) {
       return NextResponse.json(
-        { error: 'Solo administradores pueden eliminar pacientes' },
+        { error: 'No tienes permiso para eliminar pacientes.' },
         { status: 403 },
       );
     }
