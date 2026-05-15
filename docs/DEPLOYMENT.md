@@ -24,32 +24,38 @@ desde cero, ver la sección **Provisioning** al final.
 
 ## Flujo de deploy estándar
 
-Después de probar localmente con `pnpm build`:
+Después de probar localmente con `pnpm build` (CI también lo valida en
+GitHub Actions):
 
 ```bash
 # 1. En tu máquina local — push a main
 git add -A
 git commit -m "feat: ..."
 git push origin main
+# CI corre tests + build en GitHub Actions. Si falla, no se hace deploy.
 
 # 2. En el VPS — pull + rebuild + restart
-ssh -p 2222 auctorum@<vps-ip>
+ssh -p 2222 root@<vps-ip>
 cd /opt/auctorum-systems/repo
-git fetch origin && git reset --hard origin/main
+sudo -u auctorum git pull origin main
+sudo -u auctorum HOME=/home/auctorum corepack pnpm install --frozen-lockfile
+sudo -u auctorum HOME=/home/auctorum NODE_OPTIONS='--max-old-space-size=3072' \
+  corepack pnpm build
 
-# Build solo lo que cambió
-NODE_OPTIONS='--max-old-space-size=4096' corepack pnpm --filter web build
-NODE_OPTIONS='--max-old-space-size=4096' corepack pnpm --filter medconcierge build
-
-# Restart sin downtime
-pm2 restart auctorum-quote-engine auctorum-medconcierge --update-env
+# Restart sin downtime — los 4 procesos Next.js
+pm2 reload ecosystem.config.js --update-env
 pm2 save
 
 # 3. Verificar
-pm2 list
+pm2 list | grep -E "web-1|web-2|med-1|med-2"
 curl -sI -H 'Host: auctorum.com.mx' http://127.0.0.1:3000/ | head -3
 curl -sI -H 'Host: med.auctorum.com.mx' http://127.0.0.1:3001/login | head -3
-pm2 logs auctorum-medconcierge --lines 20 --nostream | grep -iE 'error|warn' | head -5
+# Probar el otro puerto del upstream también:
+curl -sI -H 'Host: med.auctorum.com.mx' http://127.0.0.1:3011/login | head -3
+
+# Confirmar 0 EADDRINUSE / "Failed to start server" en logs
+tail -n 20 /var/log/auctorum/medconcierge-error.log
+tail -n 20 /var/log/auctorum/quote-engine-error.log
 ```
 
 Si hubo cambios en workers/crons:
@@ -81,20 +87,32 @@ pm2 save
 
 `pm2 reload` rota workers manteniendo uptime sin tirar tráfico.
 
-## ecosystem.config.js (10 procesos)
+## ecosystem.config.js (procesos)
 
-| id | nombre                         | script                              | tipo         |
-|----|--------------------------------|-------------------------------------|--------------|
-| 0  | `auctorum-quote-engine`        | `node_modules/next/dist/bin/next`   | long-running |
-| 1  | `auctorum-medconcierge`        | `node_modules/next/dist/bin/next`   | long-running |
-| 2  | `cron-reminders`               | `scripts/cron-reminders.ts`         | cron 4h      |
-| 3  | `cron-appointment-reminders`   | `scripts/cron-appointment-reminders.ts` | cron 15m |
-| 4  | `cron-calendar-sync`           | `scripts/cron-calendar-sync.ts`     | cron 5m      |
-| 5  | `auctorum-worker`              | `scripts/worker.ts`                 | long-running |
-| 6  | `auctorum-campaign-worker`     | `scripts/campaign-worker.ts`        | long-running |
-| 7  | `cron-campaigns`               | `scripts/cron-campaigns.ts`         | cron 10m     |
-| 9  | `cron-webhook-retries`         | `scripts/cron-webhook-retries.ts`   | cron 5m      |
-| 10 | `cron-calendar-pending`        | `scripts/cron-calendar-pending.ts`  | cron 5m      |
+Apps Next.js en **fork mode** — dos procesos por app en puertos distintos
+detrás de un upstream pool de Nginx con round-robin. NO usar cluster mode
+para Next (ver `docs/ARCHITECTURE.md` sección "Por qué fork mode").
+
+| nombre                         | script                                  | puerto / cadencia |
+|--------------------------------|-----------------------------------------|-------------------|
+| `auctorum-web-1`               | `node_modules/next/dist/bin/next start` | :3000             |
+| `auctorum-web-2`               | `node_modules/next/dist/bin/next start` | :3010             |
+| `auctorum-med-1`               | `node_modules/next/dist/bin/next start` | :3001             |
+| `auctorum-med-2`               | `node_modules/next/dist/bin/next start` | :3011             |
+| `auctorum-worker` x2           | `scripts/worker.ts`                     | BullMQ WA queue   |
+| `auctorum-campaign-worker`     | `scripts/campaign-worker.ts`            | BullMQ campaigns  |
+| `cron-reminders`               | `scripts/cron-reminders.ts`             | cada 4h           |
+| `cron-appointment-reminders`   | `scripts/cron-appointment-reminders.ts` | cada 15m          |
+| `cron-calendar-sync`           | `scripts/cron-calendar-sync.ts`         | cada 5m           |
+| `cron-calendar-pending`        | `scripts/cron-calendar-pending.ts`      | cada 5m           |
+| `cron-campaigns`               | `scripts/cron-campaigns.ts`             | cada 10m          |
+| `cron-webhook-retries`         | `scripts/cron-webhook-retries.ts`       | cada 5m           |
+| `cron-weekly-report`           | `scripts/cron-weekly-report.ts`         | lun 8:00 am       |
+| `cron-data-integrity`          | `scripts/check-data-integrity.ts`       | diario 6:00 am    |
+| `cron-dlq-monitor`             | `scripts/cron-dlq-monitor.ts`           | cada 15m          |
+| `cron-data-deletion`           | `scripts/cron-data-deletion.ts`         | diario 4:00 am    |
+| `cron-follow-ups`              | `scripts/cron-follow-ups.ts`            | cada 15m          |
+| `cron-tenant-cleanup`          | `scripts/cron-tenant-cleanup.ts`        | diario 5:00 am    |
 
 `ecosystem.config.js` lee `.env.local` de cada app dinámicamente al arrancar
 mediante `loadEnvFile(...)`. Para añadir/cambiar env vars, edita
@@ -110,25 +128,46 @@ sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u auctorum --hp /home/auctorum
 
 ## Nginx — vhost layout
 
-`/etc/nginx/sites-enabled/auctorum` define cuatro `server` blocks:
+`/etc/nginx/sites-enabled/auctorum` empieza con dos `upstream` pools y
+luego define `server` blocks que los referencian:
+
+```nginx
+upstream auctorum_web_backend {
+    server 127.0.0.1:3000;
+    server 127.0.0.1:3010;
+    keepalive 8;
+}
+upstream auctorum_med_backend {
+    server 127.0.0.1:3001;
+    server 127.0.0.1:3011;
+    keepalive 8;
+}
+```
+
+Los `server` blocks:
 
 1. **HTTP → HTTPS redirect** para `auctorum.com.mx`, `www.*`,
    `portal.*`, `*.auctorum.com.mx`. Permite `/.well-known/acme-challenge/`
    en HTTP para renovación de certificados.
 
-2. **`auctorum.com.mx` + `www.*` → web :3000**
+2. **`auctorum.com.mx` + `www.*` → `auctorum_web_backend`**
    - Cache-Control immutable para `/_next/static/`
    - Rate limit `api:30r/m` y `quotes:10r/m`
    - HSTS preload, CSP, X-Frame-Options DENY
 
-3. **`portal.* + *.auctorum.com.mx` → medconcierge :3001 si subdomain
-   matches `dr-|dra-|doc-` prefix; resto cae a web :3000.**
+3. **`portal.* + *.auctorum.com.mx` → `auctorum_med_backend` si subdomain
+   matches `dr-|dra-|doc-` prefix; resto cae a `auctorum_web_backend`.**
 
-4. **`med.auctorum.com.mx` → medconcierge :3001** con headers PWA-friendly:
+4. **`med.auctorum.com.mx` → `auctorum_med_backend`** con headers PWA-friendly:
    `Service-Worker-Allowed: /` y `Cache-Control: no-cache` para
    `/manifest.json` y `/sw.js`.
 
+Para aplicar / re-aplicar las upstream pools en una VPS limpia o nueva:
+
 ```bash
+sudo bash /opt/auctorum-systems/repo/scripts/nginx-upstream-patch.sh
+# Idempotente — corre dos veces sin efecto. Crea backup antes de mutar.
+
 sudo nginx -t                       # valida la config
 sudo systemctl reload nginx          # aplica sin downtime
 ```
@@ -246,6 +285,19 @@ META_APP_SECRET="..."                  # comparte con WhatsApp si misma Meta App
 META_LEADS_VERIFY_TOKEN="..."          # token elegido en Meta App webhook setup
 
 # Google Calendar (per-tenant — guardado en DB, no aquí)
+
+# Sentry (opcional — auto-disabled si no está)
+NEXT_PUBLIC_SENTRY_DSN="https://<key>@<org>.ingest.sentry.io/<project>"
+SENTRY_ORG="auctorum"
+SENTRY_PROJECT="medconcierge"          # o "web" según el .env.local
+SENTRY_AUTH_TOKEN="..."                # SOLO en CI / VPS — subir source maps
+SENTRY_ENV="production"                # opcional, default=NODE_ENV
+
+# Encryption (medconcierge — OAuth tokens encriptados en integrations.config)
+ENCRYPTION_KEY="<32 bytes hex — openssl rand -hex 32>"
+
+# Tenant cleanup (opcional)
+TENANT_STALE_DAYS="14"                 # default si no se setea
 ```
 
 `NUNCA` commitear `.env.local`. El `.gitignore` ya los excluye.
@@ -296,20 +348,51 @@ done
 Esperado: todos `200` excepto algunos `307` (redirects intencionales) y
 `401` en endpoints auth-protected si se golpean sin sesión.
 
+## CI / GitHub Actions
+
+`.github/workflows/ci.yml` corre en cada PR y push a `main`:
+
+1. `corepack pnpm install --frozen-lockfile`
+2. `pnpm test:run` (215 tests unit + integration + AI guard)
+3. `pnpm build:med` y `pnpm build:web` con env vars stub
+4. Secret-leak scan inline (`sk_live_`, service_role keys, `.env.local`
+   tracked)
+
+Concurrency: corre solo el último commit de cada branch — pushes
+encadenados cancelan el anterior. Tiempo total: ~6-10 min, cubierto
+sobradamente por el free tier (2,000 min/mes).
+
+Si CI falla, NO se hace deploy. Aún se requiere `pm2 reload` manual en
+la VPS — no hay deploy automático desde CI por ahora.
+
 ## Rollback
 
 ```bash
-ssh -p 2222 auctorum@<vps-ip>
+ssh -p 2222 root@<vps-ip>
 cd /opt/auctorum-systems/repo
-git log --oneline -10
-git reset --hard <sha-bueno>
-NODE_OPTIONS='--max-old-space-size=4096' corepack pnpm build
-pm2 reload all --update-env
+
+# Opción A (preferida) — revert commit, push, redeploy
+sudo -u auctorum git log --oneline -10
+sudo -u auctorum git revert HEAD --no-edit
+sudo -u auctorum git push origin main
+sudo -u auctorum HOME=/home/auctorum NODE_OPTIONS='--max-old-space-size=3072' \
+  corepack pnpm build
+pm2 reload ecosystem.config.js --update-env
+
+# Opción B (destructivo, sólo si nadie pulló) — hard reset
+sudo -u auctorum git reset --hard <sha-bueno>
+sudo -u auctorum git push -f origin main
+sudo -u auctorum HOME=/home/auctorum NODE_OPTIONS='--max-old-space-size=3072' \
+  corepack pnpm build
+pm2 reload ecosystem.config.js --update-env
 ```
 
 Para una migración de DB, escribir y aplicar una migración inversa (drop
 de columnas/tablas con `IF EXISTS`). Nunca editar la migración original
 después de mergear.
+
+Ver `docs/DISASTER-RECOVERY.md` para escenarios más graves (VPS muerta,
+DB corrupta, secrets comprometidos).
 
 ## Provisioning (bootstrap desde cero)
 

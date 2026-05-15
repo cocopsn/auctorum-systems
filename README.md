@@ -21,13 +21,15 @@ detrás de Nginx + Cloudflare.
                 └───────┬────────┘
                         │
                 ┌───────▼────────┐
-                │   Nginx :443   │  TLS, rate limiting, vhost routing
+                │   Nginx :443   │  TLS, rate limit, vhost routing,
+                │                │  upstream round-robin (keepalive)
                 └───┬─────────┬──┘
                     │         │
-        ┌───────────┴──┐   ┌──┴────────────┐
-        │ web :3000    │   │ medconcierge  │
-        │ (Next.js)    │   │ :3001         │
-        └──────┬───────┘   └──────┬────────┘
+        ┌───────────┴──┐   ┌──┴────────────────────┐
+        │ web upstream │   │ med upstream          │
+        │ (3000+3010)  │   │ (3001+3011)           │
+        │ Next.js x2   │   │ Next.js x2 — PWA      │
+        └──────┬───────┘   └──────┬────────────────┘
                │                  │
                └────────┬─────────┘
                         │
@@ -39,15 +41,22 @@ detrás de Nginx + Cloudflare.
             │  Resend (email)         │
             │  Stripe + MercadoPago   │
             │  Google Calendar API    │
+            │  Sentry (errors + APM)  │
             └─────────────────────────┘
 ```
 
+Cada app Next se ejecuta en **dos procesos PM2 en `fork` mode** (no cluster —
+Next.js no comparte el socket limpiamente). Nginx hace round-robin entre los
+dos puertos por upstream pool con `keepalive=8`.
+
 Workers y crons corren con PM2 en el mismo VPS:
-- `auctorum-worker` — consume la queue de WhatsApp, llama a OpenAI con tools,
+- `auctorum-worker` x2 — consume la queue de WhatsApp, llama a OpenAI con tools,
   envía push notifications al doctor
 - `auctorum-campaign-worker` — envío masivo de WhatsApp con rate-limit
-- 5 crons (recordatorios, sincronización con Google Calendar, retry de webhooks,
-  drenaje de operaciones pendientes de calendario, disparador de campañas)
+- 11 crons (recordatorios, sincronización con Google Calendar, retry de webhooks,
+  drenaje de pending_calendar_ops, disparador de campañas, reporte semanal,
+  integridad de datos, DLQ monitor, data deletion ARCO/LFPDPPP, follow-ups,
+  cleanup de tenants stale)
 
 ## Stack técnico
 
@@ -67,7 +76,15 @@ Workers y crons corren con PM2 en el mismo VPS:
 - **PWA** — Service Worker con cache network-first, Web Push (VAPID),
   install prompt iOS+Android, deep-linking via `notificationclick`
 - **Observabilidad** — PM2 con logrotate (30 días), heartbeats cada 5min en
-  workers, telemetría JSON estructurada en stdout
+  workers, telemetría JSON estructurada en stdout, Sentry (auto-disabled si
+  no hay DSN), GitHub Actions CI sobre cada PR + push a main
+- **Compliance** — LFPDPPP Art. 32 vía `cron-data-deletion`, NOM-004-SSA3-2012
+  vía firma criptográfica + retención 5 años en `clinical_records`, cookie
+  consent + cédula snapshot al firmar
+- **Plan gating** — server-side en 8 endpoints (campañas, smart documents,
+  v1 API, Stripe Connect, Instagram, reports export). 402 + `code:'PLAN_LIMIT'`
+  + `UpgradePrompt` modal en el front. Sidebar muestra "PRO" badge en items
+  bloqueados
 
 ## Quickstart (desarrollo local)
 
@@ -127,6 +144,7 @@ auctorum-systems/
 | `CLAUDE.md`                            | Reglas operativas para agentes AI              |
 | `docs/ARCHITECTURE.md`                 | Diagrama detallado del sistema y data flow     |
 | `docs/DEPLOYMENT.md`                   | VPS, Nginx, PM2, SSL, DNS, deploy step-by-step |
+| `docs/DISASTER-RECOVERY.md`            | Runbook 3am — VPS muerta, DB corrupta, secrets |
 | `docs/PWA.md`                          | Service worker, Web Push, íconos, VAPID        |
 | `docs/ADS-LEADS.md`                    | Lead Ads CRM (Meta + Google + auto-contacto)   |
 | `docs/MED-CRM-FEATURES.md`             | Help bot, weekly report, IG inbox, docs, comms |
@@ -141,54 +159,37 @@ auctorum-systems/
 ## Estado actual (mayo 2026)
 
 - 4 apps en producción, 8 packages compartidos
-- 10 procesos PM2 + logrotate, todos `online` con cero errores
-- 54 migraciones aplicadas (la última es `0054_patient_communications`)
+- **14+ procesos PM2** + logrotate. Apps Next.js en fork mode x2 cada una
+  (web-1/web-2/med-1/med-2). Cero "Failed to start server" desde el cutover
+  a fork mode + Nginx upstream.
+- **61 migraciones aplicadas** (última: `0061_secretaria_role.sql`)
 - Cero `TODO/FIXME/XXX/HACK` markers en código fuente
 - PWA instalable en iOS 16.4+, Android, Desktop con Web Push activo
 - Lead Ads CRM activo (captura Meta + Google → WhatsApp en menos de 60s)
-- Help bot, weekly KPI report, Instagram unified inbox, smart document
-  classification, patient comms timeline
-- 188 vitest assertions (unit + integration + AI guard) running in ~2 s,
-  plus an e2e suite against the deployed VPS and a daily SQL integrity
-  audit (`pnpm test:integrity`)
-- Mayo 7 audit pass (6 reports en `docs/archive/*-2026-05-07.md`):
-  - Login bug arreglado (cookies API → `getAll/setAll` para chunked
-    sessions de `@supabase/ssr@0.10`)
-  - `/leads` + `/documentos` "Application error" arreglado (StatusBadge
-    con fallback + dashboard `error.tsx` boundary + DASHBOARD_ROUTES)
-  - 4 fixes críticos de seguridad: `/api/admin/queue` gated,
-    `/superadmin` gated, MercadoPago webhook timestamp freshness,
-    web auth `getUser()` en lugar de cookie-trusted `getSession()`
-  - ~1,544 LOC de código muerto eliminado (`packages/ai/src/` abandonado,
-    `ai-with-functions.ts`, `whatsapp-functions.ts`, `safe-cookie-get.ts`,
-    `apps/web/lib/{tenant-cache,image-validation,pdf-signature,cn}.ts`)
-  - Bot messages + FAQs cableados end-to-end al cron de recordatorios y al
-    RAG `knowledge_base`
-- Mayo 8 fix pass (4 commits encadenados):
-  - `/api/dashboard/stats` queryeaba columnas inexistentes en `bot_instances`
-    (`last_seen_at`, `verify_token`) — el dashboard tronaba en cada carga.
-    `bot_instances` solo tiene `id, tenant_id, channel, provider,
-    external_*_id, status, config, created_at, updated_at`. Verify token
-    vive en `config` JSONB.
-  - Bot pill mostraba siempre `offline`: el código comparaba `status='live'`
-    pero los workers escriben `'active'`. Heartbeat ahora es real
-    (`MAX(messages.created_at)` con `sender_type='bot'`).
-  - WhatsApp dejó de responder por 403 invalid HMAC: la migración
-    `0040_ai_routing_seed.sql` deja `channel_mode='shared'` y delega los
-    secretos a env, pero el resolver del webhook sólo leía
-    `bot_instances.config.app_secret`. Fix: fallback a
-    `process.env.WHATSAPP_APP_SECRET` (mismo patrón para verify_token).
-  - Notificaciones: el bell renderizaba `n.body` pero la columna real es
-    `notifications.message`. Cuerpos de notificación ahora visibles.
-  - Conversaciones nameless: las 30 del seed no tenían `client_id`. Ahora
-    cada paciente del seed se espeja en `clients` y la conversación se
-    enlaza. 43/46 con nombre real (las 3 restantes son tests reales).
-  - Reportes: `/api/dashboard/reports/{revenue,appointments}` faltaba
-    `::uuid`/`::date` en los params raw — mismo bug class que stats.
-  - Seed completo de un mes para `dra-martinez`: 30 patients + 85
-    appointments + 51 payments + 30 conversations + 25 ad_leads + 18
-    documents + 105 patient_communications, idempotente vía marcadores
-    (`scripts/seed-dra-martinez-month.ts`).
+- 5 features médico-CRM: help bot, weekly KPI report, Instagram unified
+  inbox, smart document classification (gated Auctorum+), patient comms
+  timeline
+- **215 vitest tests** pasando (unit + integration + AI guard) en ~2s, más
+  e2e suite contra la VPS desplegada y auditoría SQL diaria
+  (`pnpm test:integrity`)
+- **Plan tier gating real** vía `apps/{medconcierge,web}/lib/plan-gating.ts`.
+  402 + `code:'PLAN_LIMIT'` en 8 endpoints, `UpgradePrompt` modal en el
+  front, sidebar "PRO" badge en items bloqueados/desbloqueados.
+- **Rol secretaria** (admin/secretaria/operator/viewer/super_admin) con
+  capability matrix en `apps/medconcierge/src/lib/permissions.ts`.
+  Secretaria: lectura general + escritura limitada (pacientes, citas,
+  conversaciones). Excluida de refunds, team invite, campañas, firma
+  clínica, borrado de pacientes.
+- **Portal builder** para landings públicas — drag-and-drop de 9 tipos de
+  sección (hero, about, services, gallery, testimonials, team, faq, contact,
+  cta). Subdominio del tenant renderea la página pública con
+  `force-dynamic` para que los cambios del dashboard se vean inmediatamente.
+- **Subscription bypass cerrado** en ambas apps — cualquier cambio de plan
+  requiere Stripe Checkout. Pre-fix anyone autenticado podía auto-upgradearse
+  gratis con un PATCH a `/api/dashboard/settings/subscription`.
+- **CI/CD**: `.github/workflows/ci.yml` corre tests + build en cada PR y
+  push a main. Sentry wired en ambas apps (auto-disabled si no hay DSN).
+  Disaster recovery runbook documentado en `docs/DISASTER-RECOVERY.md`.
 
 ## Licencia y autoría
 

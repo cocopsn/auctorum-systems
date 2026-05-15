@@ -7,10 +7,16 @@ doctor felt while running the clinic on Auctorum.
 ```
 1. Help bot          — in-product assistant, lives bottom-right of the dashboard
 2. Weekly report     — Monday 8am WhatsApp KPI digest per tenant
-3. Instagram inbox   — DMs from IG land in the same Conversaciones inbox as WA
-4. Smart documents   — drag-drop PDF/image uploads, AI extracts type + patient
+3. Instagram inbox   — DMs from IG land in the same Conversaciones inbox as WA  [Auctorum+]
+4. Smart documents   — drag-drop PDF/image uploads, AI extracts type + patient  [Auctorum+]
 5. Comms timeline    — every email/WA/call/note per patient on a single feed
 ```
+
+Features marcadas `[Auctorum+]` están gated server-side por plan tier — los
+tenants en plan `basico` reciben 402 + `code:'PLAN_LIMIT'` cuando intentan
+usarlas y el frontend dispara `<UpgradePrompt>` con copy en español. Ver
+`apps/medconcierge/src/lib/plan-gating.ts` para la matriz completa y
+`docs/ARCHITECTURE.md` sección "Plan gating y roles" para el contrato.
 
 ---
 

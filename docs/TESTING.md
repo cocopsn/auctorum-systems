@@ -15,7 +15,9 @@ tests/
 ├── setup.ts                            # global vitest setup (env stubs, log filtering)
 ├── unit/                               # pure functions, no I/O    — pnpm test:unit
 │   ├── appointment-validator.test.ts
-│   ├── plan-limits.test.ts
+│   ├── plan-limits.test.ts             # usage caps from @quote-engine/ai
+│   ├── plan-gating.test.ts             # tier matrix from lib/plan-gating
+│   ├── bot-identity-prompt.test.ts     # bot_name/tone/personality → worker
 │   ├── specialty-templates.test.ts
 │   ├── icd10.test.ts
 │   ├── circuit-breaker.test.ts
@@ -49,12 +51,14 @@ pnpm test:ci            # verbose reporter for CI logs
 
 ## What's actually covered
 
-### Unit (188 assertions, ~2 s)
+### Unit (215 assertions, ~2 s)
 
 | Suite | Targets |
 |-------|---------|
 | `appointment-validator` | `createAppointmentSchema` + `bookingFormSchema` — date/time regex, phone format, email, length caps |
-| `plan-limits` | `PLAN_LIMITS`, `ADDON_PACKAGES`, `getPlanLimits`, `getAddonPackage`, `currentPeriod` |
+| `plan-limits` | `PLAN_LIMITS`, `ADDON_PACKAGES`, `getPlanLimits`, `getAddonPackage`, `currentPeriod` (usage caps de `@quote-engine/ai`) |
+| `plan-gating` | Plan tier feature matrix de `apps/medconcierge/src/lib/plan-gating.ts` — `hasFeature`, `requireFeature`, `PlanLimitError` shape, monotonicidad de tiers (basico ≤ auctorum ≤ enterprise), case-insensitive plan codes |
+| `bot-identity-prompt` | `formatBotIdentity` + `getOutOfHoursMessage` de `packages/ai/prompts.ts` — pre-fix bot_name/tone/bot_personality eran write-only; ahora prepend al prompt del worker. Tests pinnean el shape: empty cuando no hay fields, mapeo de tones conocidos, passthrough de tones desconocidos, trimming, out-of-hours fallback |
 | `specialty-templates` | All 7 templates: shape, welcome `{nombre}` placeholder, schedule HH:MM, `NUNCA` guard |
 | `icd10` | `ICD10_COMMON` — WHO ICD-10 regex, no duplicates, includes E11.9/I10/K02.9 |
 | `circuit-breaker` | Real `recordSuccess/recordFailure/isCircuitOpen` from `@quote-engine/ai` — opens at threshold, closes on success, half-open after reset window (uses `vi.useFakeTimers`) |
@@ -120,20 +124,33 @@ ingestion.
    the suite into `tests/e2e-vps/`.
 6. Run `pnpm test:run` before committing.
 
-## CI hookup (recommended, not yet wired)
+## CI / GitHub Actions
 
-Add a GitHub Actions step:
+Wired. `.github/workflows/ci.yml` corre en cada PR y push a `main`:
 
 ```yaml
-- run: corepack pnpm install --frozen-lockfile
-- run: corepack pnpm test:ci   # full unit + integration + ai
+- corepack enable && corepack prepare pnpm@10.33.2 --activate
+- pnpm install --frozen-lockfile
+- pnpm test:run                 # 215 tests, ~2s
+- pnpm --filter medconcierge build
+- pnpm --filter web build
+- Inline secret-leak scan       # falla si .env.local trackeado o sk_live_ commiteado
 ```
 
-Optional nightly job:
+Cache de pnpm store entre runs. Concurrency cancela in-flight runs en
+nuevos pushes a la misma branch. Tiempo total: 6-10 min. Free tier de
+GitHub Actions cubre fácilmente (2,000 min/mes).
+
+Si CI falla, el PR queda bloqueado para merge. Aún se requiere
+`pm2 reload` manual en la VPS para deploy — no hay deploy automático
+desde CI por ahora.
+
+Opcional para añadir cuando se necesite:
 
 ```yaml
-- run: corepack pnpm test:e2e         # 30s, hits prod
-- run: corepack pnpm test:integrity   # 1s, hits Supabase Postgres
+# Nightly e2e + integrity (no implementado aún)
+- pnpm test:e2e         # 30s, hits prod
+- pnpm test:integrity   # 1s, hits Supabase Postgres
 ```
 
 ## Coverage target

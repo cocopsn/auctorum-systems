@@ -22,26 +22,35 @@ y por dónde fluyen los datos en los flujos críticos.
         │   │ - rate limit /api → 30 req/min           │    │
         │   │ - rate limit /quotes → 10 req/min        │    │
         │   │ - HSTS, CSP, X-Frame-Options, etc.       │    │
+        │   │ - upstream pools (keepalive=8)           │    │
         │   └──────┬───────────────────┬───────────────┘    │
         │          │                   │                    │
-        │   ┌──────▼──────┐     ┌──────▼──────────┐         │
-        │   │ web :3000   │     │ medconcierge    │         │
-        │   │ Next.js 14  │     │ :3001 Next.js   │         │
-        │   └─────────────┘     └─────────────────┘         │
+        │   ┌──────▼──────────┐ ┌──────▼──────────────┐     │
+        │   │ web upstream    │ │ med upstream        │     │
+        │   │ ─ web-1 :3000   │ │ ─ med-1 :3001       │     │
+        │   │ ─ web-2 :3010   │ │ ─ med-2 :3011       │     │
+        │   │  (Next.js fork) │ │  (Next.js fork)     │     │
+        │   └─────────────────┘ └─────────────────────┘     │
         │          │                   │                    │
         │          └───────┬───────────┘                    │
         │                  │                                │
-        │   ┌──────────────┼─────────────────────┐          │
-        │   │ PM2 process tree                   │          │
-        │   │ - auctorum-worker (BullMQ)         │          │
-        │   │ - auctorum-campaign-worker         │          │
-        │   │ - cron-reminders (4h)              │          │
-        │   │ - cron-appointment-reminders (15m) │          │
-        │   │ - cron-calendar-sync (5m)          │          │
-        │   │ - cron-calendar-pending (5m)       │          │
-        │   │ - cron-campaigns (10m)             │          │
-        │   │ - cron-webhook-retries (5m)        │          │
-        │   └────────────────────────────────────┘          │
+        │   ┌──────────────┼──────────────────────────┐     │
+        │   │ PM2 process tree (14+ procs)            │     │
+        │   │ - auctorum-worker x2 (BullMQ WA)        │     │
+        │   │ - auctorum-campaign-worker (BullMQ MK)  │     │
+        │   │ - cron-reminders (4h)                   │     │
+        │   │ - cron-appointment-reminders (15m)      │     │
+        │   │ - cron-calendar-sync (5m)               │     │
+        │   │ - cron-calendar-pending (5m)            │     │
+        │   │ - cron-campaigns (10m)                  │     │
+        │   │ - cron-webhook-retries (5m)             │     │
+        │   │ - cron-weekly-report (lun 8am)          │     │
+        │   │ - cron-data-integrity (06:00 daily)     │     │
+        │   │ - cron-dlq-monitor (15m)                │     │
+        │   │ - cron-data-deletion (04:00 daily)      │     │
+        │   │ - cron-follow-ups (15m)                 │     │
+        │   │ - cron-tenant-cleanup (05:00 daily)     │     │
+        │   └─────────────────────────────────────────┘     │
         │                                                    │
         │   Redis (BullMQ queue + circuit breaker state)    │
         └──────────────┬─────────────────────────────────────┘
@@ -57,8 +66,28 @@ y por dónde fluyen los datos en los flujos críticos.
 └────────────────┘                        │ - Stripe + MP     │
                                           │ - Google Calendar │
                                           │ - Expo Push       │
+                                          │ - Sentry (errors) │
                                           └──────────────────┘
 ```
+
+## Por qué fork mode (y NO cluster)
+
+Antes del 2026-05-12 los procesos Next.js corrían en `cluster` mode con
+`instances: 2`. PM2 forkea N workers que comparten el mismo socket (`SO_REUSEPORT`
+o `cluster.fork()`). El problema: Next.js inicializa estado al `start` y no
+maneja el socket compartido limpiamente — uno de los dos workers crashea con
+`Failed to start server` (EADDRINUSE) cada 2-5 segundos en loop infinito. El
+log de errores se inundaba y la capacidad real era ~50% de la declarada.
+
+Solución: `exec_mode: 'fork'` con DOS procesos PM2 distintos, cada uno en su
+propio puerto (web-1=3000, web-2=3010; med-1=3001, med-2=3011). Nginx hace
+round-robin entre los dos con un `upstream` pool y `keepalive=8` (reuse TCP).
+
+Trade-offs:
+- ✅ Sin EADDRINUSE loop, log limpio, capacidad real 2×
+- ✅ Sin sticky sessions (cookies stateless de Supabase)
+- ⚠️ Cada worker tiene su propio caché de Next (build cache) — duplicación
+  RAM ~20%. Aceptable a la escala actual (8 GiB total).
 
 ## Routing por host
 
@@ -66,16 +95,19 @@ Nginx mapea cada vhost a su upstream. La parte fina (extracción de tenant
 slug, rewrite a `/[tenant]/...`, gating de auth en `/dashboard`) se hace en
 los `middleware.ts` de cada app.
 
-| Host                                    | Upstream             | Rol                                      |
-|-----------------------------------------|----------------------|------------------------------------------|
-| `auctorum.com.mx`                       | web :3000            | Landing corporativa + B2B                |
-| `www.auctorum.com.mx`                   | web :3000            | Redirect canonical a apex                |
-| `portal.auctorum.com.mx`                | web :3000            | Dashboard B2B (/ → /dashboard)           |
-| `med.auctorum.com.mx`                   | medconcierge :3001   | Landing + dashboard medconcierge + PWA   |
-| `dr-*.auctorum.com.mx`                  | medconcierge :3001   | Landing pública del consultorio          |
-| `dra-*.auctorum.com.mx`                 | medconcierge :3001   | (igual)                                  |
-| `doc-*.auctorum.com.mx`                 | medconcierge :3001   | (igual)                                  |
-| `<otro-slug>.auctorum.com.mx`           | web :3000            | Tenant B2B → rewrite a `/[tenant]`       |
+| Host                                    | Upstream pool          | Rol                                      |
+|-----------------------------------------|------------------------|------------------------------------------|
+| `auctorum.com.mx`                       | auctorum_web_backend   | Landing corporativa + B2B                |
+| `www.auctorum.com.mx`                   | auctorum_web_backend   | Redirect canonical a apex                |
+| `portal.auctorum.com.mx`                | auctorum_web_backend   | Dashboard B2B (/ → /dashboard)           |
+| `med.auctorum.com.mx`                   | auctorum_med_backend   | Landing + dashboard medconcierge + PWA   |
+| `dr-*.auctorum.com.mx`                  | auctorum_med_backend   | Landing pública del consultorio          |
+| `dra-*.auctorum.com.mx`                 | auctorum_med_backend   | (igual)                                  |
+| `doc-*.auctorum.com.mx`                 | auctorum_med_backend   | (igual)                                  |
+| `<otro-slug>.auctorum.com.mx`           | auctorum_web_backend   | Tenant B2B → rewrite a `/[tenant]`       |
+
+`auctorum_web_backend` = `127.0.0.1:3000` + `127.0.0.1:3010` (round-robin).
+`auctorum_med_backend` = `127.0.0.1:3001` + `127.0.0.1:3011` (round-robin).
 
 ## Capa de datos
 
@@ -120,8 +152,8 @@ Grupos:
 
 ### Migraciones
 
-50 archivos SQL en `packages/db/migrations/`. La última es
-`0050_web_push_subscriptions.sql`. Política: cada migración es idempotente
+61 archivos SQL en `packages/db/migrations/`. La última es
+`0061_secretaria_role.sql`. Política: cada migración es idempotente
 (`IF NOT EXISTS`, `ON CONFLICT`, `DROP POLICY IF EXISTS`).
 
 ## Capa de aplicación
@@ -181,11 +213,78 @@ WhatsApp 80msg/seg.
 | Cron                           | Frecuencia | Qué hace                                  |
 |--------------------------------|------------|-------------------------------------------|
 | `cron-reminders`               | cada 4h    | Recordatorios genéricos por tenant        |
-| `cron-appointment-reminders`   | cada 15min | Recordatorio 24h y 2h antes               |
+| `cron-appointment-reminders`   | cada 15min | Recordatorio 24h y 1h antes               |
 | `cron-calendar-sync`           | cada 5min  | Push de cambios locales hacia Google Cal  |
 | `cron-calendar-pending`        | cada 5min  | Drena `pending_calendar_ops`              |
 | `cron-campaigns`               | cada 10min | Dispara campañas con `scheduledAt` vencido|
 | `cron-webhook-retries`         | cada 5min  | Reprocesa `webhook_failures` con backoff  |
+| `cron-weekly-report`           | lun 8am    | Reporte WhatsApp semanal de KPIs          |
+| `cron-data-integrity`          | diario 6am | 16 SQL invariants, alerta si count > 0    |
+| `cron-dlq-monitor`             | cada 15min | Surfaceea dead-letters (webhook + BullMQ) |
+| `cron-data-deletion`           | diario 4am | Drena `data_deletion_requests` (LFPDPPP)  |
+| `cron-follow-ups`              | cada 15min | Envía `follow_ups` cuyos `scheduled_at` vencieron |
+| `cron-tenant-cleanup`          | diario 5am | Soft-delete tenants stale `unverified`/`pending_plan` >14d |
+
+## Plan gating y roles (RBAC)
+
+### Plan gating
+
+Tres tiers — `basico`, `auctorum`, `enterprise`. La policy table es
+`apps/medconcierge/src/lib/plan-gating.ts` (`PLAN_FEATURES` map) y un mirror
+en `apps/web/lib/plan-gating.ts` para los endpoints B2B.
+
+Funciones públicas:
+- `hasFeature(plan, feature)` — boolean check
+- `requireFeature(plan, feature)` — throws `PlanLimitError` si no
+- `planFeatures(plan)` — devuelve todo el objeto (para `max_users`, etc.)
+
+Endpoints actualmente gated en medconcierge:
+- `/api/dashboard/campaigns/[id]/send` — `campaigns`
+- `/api/dashboard/documents` POST — `smart_documents`
+- `/api/v1/appointments|availability|doctors|patients` — `api_access`
+- `/api/dashboard/billing/connect/start` — `stripe_connect`
+- `/api/dashboard/settings/instagram` PUT — `instagram_dm`
+- `/api/dashboard/reports/export` — `reports_export`
+
+Contrato del 402:
+```json
+{
+  "error": "Las campañas requieren el Plan Auctorum.",
+  "code": "PLAN_LIMIT",
+  "feature": "campaigns"
+}
+```
+
+El front usa `hooks/use-plan-gate.ts` (`fetchWithPlanGate`) para envolver
+el fetch — si el body trae `code:'PLAN_LIMIT'`, dispara `<UpgradePrompt>`
+con copy en español. El sidebar muestra un badge "PRO" (gradient teal→azul
+si el tenant está locked, teal sutil si ya tiene el plan).
+
+### Roles (RBAC)
+
+Cuatro roles por tenant + `super_admin` global. Matriz en
+`apps/medconcierge/src/lib/permissions.ts`:
+
+| Role         | Resumen |
+|--------------|---------|
+| `admin`      | Todo dentro del tenant: billing, team, role changes, refunds, firma clínica, borrado |
+| `secretaria` | Lectura general + escritura en pacientes, citas, conversaciones, documentos, leads. NO refunds, NO team invite, NO firma/borrado clínico, NO campañas |
+| `operator`   | Legado — equivalente a secretaria con permisos de campaña |
+| `viewer`     | Solo lectura |
+| `super_admin`| Acceso a `/api/admin/*` (cross-tenant). Vive en `users` con marca especial |
+
+Constraint en DB: `chk_users_role` (migración 0061) restringe `users.role`
+a uno de los 5 valores.
+
+Patrón de uso en API routes:
+```typescript
+if (!can(auth.user.role, 'patients.delete')) {
+  return NextResponse.json({ error: '...' }, { status: 403 })
+}
+```
+
+NUNCA `if (role === 'admin')` directo — usar `can(role, capability)`
+para que la matriz sea la única fuente de verdad.
 
 ## Flujos críticos
 

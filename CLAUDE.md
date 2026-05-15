@@ -27,9 +27,16 @@ packages/
 scripts/
   worker.ts             → Worker WhatsApp principal (consume queue, llama IA)
   campaign-worker.ts    → Worker de campañas masivas
-  cron-*.ts             → 5 crons (reminders, calendar-sync, calendar-pending,
-                          campaigns, webhook-retries)
+  cron-*.ts             → 11 crons:
+                          - reminders (4h), appointment-reminders (15min),
+                            calendar-sync (5min), calendar-pending (5min)
+                          - campaigns (10min), webhook-retries (5min)
+                          - weekly-report (lun 8am), data-integrity (diario 6am)
+                          - dlq-monitor (15min), data-deletion (4am LFPDPPP)
+                          - follow-ups (15min), tenant-cleanup (5am unverified)
   generate-pwa-icons.mjs → Genera íconos PWA con sharp
+  nginx-upstream-patch.sh → Idempotente: añade upstream pools al nginx site
+  find-dead-components.mjs → Best-effort detector de componentes huérfanos
   seed-kb-dra-martinez.ts        → Embeddings KB para el bot RAG
   seed-dra-martinez-month.ts     → Mes de actividad realista (idempotente)
 ```
@@ -44,7 +51,13 @@ pnpm dev:web               # Dev :3000
 pnpm dev:med               # Dev :3001
 pnpm db:generate           # Generar migración Drizzle desde schema
 pnpm db:migrate            # Aplicar migraciones (usa DATABASE_URL)
+pnpm test:run              # 215 tests (unit + integration + AI), ~2s
+pnpm test:integrity        # SQL invariants contra Postgres real
 ```
+
+CI corre `pnpm install --frozen-lockfile && pnpm test:run && pnpm build` en
+cada PR y push a main (`.github/workflows/ci.yml`). Si CI falla, no se hace
+deploy.
 
 Ver `apps/mobile/README.md` para el flujo de Expo / EAS.
 
@@ -134,27 +147,57 @@ Rutas estáticas que el middleware DEBE excluir del rewrite:
   `root`. La app vive en `/opt/auctorum-systems/repo` (no `/var/www`). PM2
   corre como usuario `auctorum` (`HOME=/home/auctorum`), no root.
 - PM2 script path: `node_modules/next/dist/bin/next` (NO `.bin/next`).
+- PM2 cluster mode está PROHIBIDO para los procesos Next.js — Next no
+  comparte el socket limpiamente y cada cluster worker secundario crashea
+  con `Failed to start server` en loop. Usar `exec_mode: 'fork'` con dos
+  procesos en puertos distintos (web 3000+3010, med 3001+3011) y
+  round-robin en Nginx vía upstream pool. Ver `ecosystem.config.js` y
+  `scripts/nginx-upstream-patch.sh`.
 - CERO `TODO/FIXME/XXX/HACK` markers en `apps/`, `packages/`, `scripts/`. Si
   algo no se puede completar, se elimina; no se deja como TODO.
+- CERO placebos. Si un toggle / botón / endpoint no funciona end-to-end,
+  se quita del UI antes de mergear. La regla es: lo que el usuario ve
+  funciona o no existe. Cada vez que añadas un endpoint gated por plan,
+  verifica que el `lib/plan-gating.ts` y la UI tienen el badge "PRO" + el
+  modal `UpgradePrompt` correctos.
+- Plan gating server-side OBLIGATORIO en cada endpoint pagado. Usar
+  `hasFeature(plan, '<feature>')` desde `@/lib/plan-gating` y devolver
+  402 + `code:'PLAN_LIMIT'` + `feature:'<key>'`. El front intercepta vía
+  `usePlanGate` hook y dispara `<UpgradePrompt>`.
+- Roles tenant: `admin | secretaria | operator | viewer`. La matriz de
+  capabilities vive en `apps/medconcierge/src/lib/permissions.ts`. NUNCA
+  hardcodear `if (role === 'admin')` — usar `can(role, capability)`.
 
-## Procesos en producción (PM2, 10 + logrotate)
+## Procesos en producción (PM2)
 
-| id | Proceso | Función | Frecuencia |
-|----|---------|---------|------------|
-| 0  | auctorum-quote-engine    | web :3000                | long-running |
-| 1  | auctorum-medconcierge    | medconcierge :3001       | long-running |
-| 2  | cron-reminders           | Recordatorios genéricos  | cada 4h |
-| 3  | cron-appointment-reminders | Recordatorios de citas | cada 15min |
-| 4  | cron-calendar-sync       | Sync hacia Google Cal    | cada 5min |
-| 5  | auctorum-worker          | WhatsApp queue consumer  | long-running |
-| 6  | auctorum-campaign-worker | Envío masivo de campañas | long-running |
-| 7  | cron-campaigns           | Disparador de campañas   | cada 10min |
-| 9  | cron-webhook-retries     | Reintenta webhooks 5xx   | cada 5min |
-| 10 | cron-calendar-pending    | Drena pending_calendar_ops | cada 5min |
-| 11 | cron-weekly-report       | Reporte semanal WhatsApp | lunes 8am |
-| 8  | pm2-logrotate            | Module                   | — |
+Apps Next.js en **fork mode** (no cluster — ver "Reglas Absolutas").
+
+| Proceso | Puerto | Tipo / Frecuencia |
+|---------|--------|-------------------|
+| auctorum-web-1                | :3000 | fork, long-running |
+| auctorum-web-2                | :3010 | fork, long-running |
+| auctorum-med-1                | :3001 | fork, long-running |
+| auctorum-med-2                | :3011 | fork, long-running |
+| auctorum-worker x2            | —     | BullMQ WhatsApp queue |
+| auctorum-campaign-worker      | —     | BullMQ campaigns queue |
+| cron-reminders                | —     | cada 4h |
+| cron-appointment-reminders    | —     | cada 15min |
+| cron-calendar-sync            | —     | cada 5min |
+| cron-calendar-pending         | —     | cada 5min |
+| cron-campaigns                | —     | cada 10min |
+| cron-webhook-retries          | —     | cada 5min |
+| cron-weekly-report            | —     | lunes 8am |
+| cron-data-integrity           | —     | diario 6am |
+| cron-dlq-monitor              | —     | cada 15min |
+| cron-data-deletion            | —     | diario 4am (LFPDPPP) |
+| cron-follow-ups               | —     | cada 15min |
+| cron-tenant-cleanup           | —     | diario 5am (stale unverified) |
+| pm2-logrotate                 | —     | module |
 
 `ecosystem.config.js` carga `.env.local` de cada app dinámicamente al arrancar.
+
+Nginx hace round-robin entre web-1/web-2 y med-1/med-2 con `upstream` pools
++ `keepalive=8`. Ver `scripts/nginx-upstream-patch.sh` (idempotente).
 
 ## Med CRM features (mayo 2026)
 
@@ -215,6 +258,15 @@ Ver `docs/ADS-LEADS.md` para setup completo en Meta App + Google Ads.
   y `cron-webhook-retries` re-procesa cada 5min con backoff.
 - **Push notifications** — best-effort en ambos transports (Expo + Web Push).
   Endpoints muertos (404/410) se podan automáticamente en el helper.
+- **Tenant cleanup** — `cron-tenant-cleanup` (diario 5am) sweep tenants stuck
+  en `unverified`/`pending_plan` > 14 días: soft-delete, libera slug con
+  sufijo, borra orphan Supabase auth identity.
+- **Sentry** — `@sentry/nextjs` cableado en ambas apps con PII strip en
+  `beforeSend` (medical SaaS → LFPDPPP). Auto-disabled si
+  `NEXT_PUBLIC_SENTRY_DSN` no está seteado (CI builds, dev local).
+- **Disaster recovery** — `docs/DISASTER-RECOVERY.md` con 4 escenarios
+  (VPS muerta, DB corrupta, secrets comprometidos, deploy malo) + drill de
+  backup restore con Docker Postgres throwaway.
 
 ## Referencias (lee ANTES de tocar un dominio)
 
@@ -231,6 +283,7 @@ Ver `docs/ADS-LEADS.md` para setup completo en Meta App + Google Ads.
 - `docs/SUPABASE-AUTH-TEMPLATES.md` — plantillas de magic link
 - `docs/ONBOARDING.md` — paso a paso para provisionar un cliente nuevo
   (ruta corta vía script + ruta larga manual + variantes + troubleshooting)
+- `docs/DISASTER-RECOVERY.md` — runbook 3am (4 escenarios, comandos shell)
 - `brand-identity.md` — identidad, paleta, tipografía, copy
 - `apps/mobile/README.md` — Expo + EAS para la app nativa
 - `docs/archive/` — auditorías y QA reports históricos (NO son fuente de verdad)
